@@ -1,20 +1,23 @@
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3YmEyZTc0NC1kNTljLTQxMDUtOTkwZi01YTBmYTAwOWUxYjUiLCJpZCI6MzY1MjY5LCJpYXQiOjE3Njg0ODMxMjV9.TQ5y4FVMCAnPegH1jZwlEsdmcZATDVAyHlmzlWUrkKU"
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3YmEyZTc0NC1kNTljLTQxMDUtOTkwZi01YTBmYTAwOWUxYjUiLCJpZCI6MzY1MjY5LCJpYXQiOjE3Njg0ODMxMjV9.TQ5y4FVMCAnPegH1jZwlEsdmcZATDVAyHlmzlWUrkKU";
 
 let viewer;
-let client;
 
+// Drawing state
+let drawMode = 'base'; // 'base' or 'roof'
 let drawing = false;
 let positions = [];
 let polylineEntity = null;
 
+// Boundaries storage
 let boundaries = [];
 let polygonEntities = [];
 
-const STATE_KEY = "cesium_state";
+// History for undo/redo
+let history = [];
+let historyIndex = -1;
 
-// History stacks for undo/redo (store serialized boundaries)
-let historyStack = [];
-let redoStack = [];
+const STATE_KEY = "cesium_state";
+const API_BASE = "http://localhost:8000";
 
 // =============================
 // Overlay
@@ -27,7 +30,88 @@ function hideOverlay() {
 }
 
 // =============================
-// State
+// Mode Management
+// =============================
+window.setMode = (mode) => {
+  drawMode = mode;
+  document.getElementById('btnBase').classList.toggle('active', mode === 'base');
+  document.getElementById('btnRoof').classList.toggle('active', mode === 'roof');
+  document.getElementById('status').textContent = mode === 'base' ? 'Base Mode' : 'Roof Mode';
+};
+
+// =============================
+// History Management
+// =============================
+function updateHistoryButtons() {
+  document.getElementById('btnUndo').disabled = (historyIndex < 0);
+  document.getElementById('btnRedo').disabled = (historyIndex >= history.length - 1);
+}
+
+function saveToHistory() {
+  history = history.slice(0, historyIndex + 1);
+  
+  history.push({
+    boundaries: boundaries.map(b => ({
+      positions: b.positions.map(p => ({x: p.x, y: p.y, z: p.z})),
+      mode: b.mode
+    }))
+  });
+  
+  historyIndex++;
+  updateHistoryButtons();
+  console.log(`Saved to history (${historyIndex + 1}/${history.length})`);
+}
+
+function restoreFromHistory(state) {
+  polygonEntities.forEach(e => viewer.entities.remove(e));
+  polygonEntities = [];
+  boundaries = [];
+  
+  state.boundaries.forEach(b => {
+    const pos = b.positions.map(p => new Cesium.Cartesian3(p.x, p.y, p.z));
+    const color = b.mode === 'base' ? Cesium.Color.ORANGE : Cesium.Color.CYAN;
+    const poly = viewer.entities.add({
+      polygon: {
+        hierarchy: pos,
+        material: color.withAlpha(0.4),
+        outline: true,
+        outlineColor: color,
+        outlineWidth: 2
+      }
+    });
+    boundaries.push({ positions: pos, mode: b.mode });
+    polygonEntities.push(poly);
+  });
+}
+
+window.undo = () => {
+  if (historyIndex < 0) return;
+  
+  historyIndex--;
+  
+  if (historyIndex < 0) {
+    polygonEntities.forEach(e => viewer.entities.remove(e));
+    polygonEntities = [];
+    boundaries = [];
+  } else {
+    restoreFromHistory(history[historyIndex]);
+  }
+  
+  updateHistoryButtons();
+  console.log(`Undo (${historyIndex + 1}/${history.length})`);
+};
+
+window.redo = () => {
+  if (historyIndex >= history.length - 1) return;
+  
+  historyIndex++;
+  restoreFromHistory(history[historyIndex]);
+  updateHistoryButtons();
+  console.log(`Redo (${historyIndex + 1}/${history.length})`);
+};
+
+// =============================
+// State Management
 // =============================
 function saveState() {
   const cam = viewer.camera;
@@ -37,7 +121,12 @@ function saveState() {
       direction: cam.directionWC,
       up: cam.upWC
     },
-    boundaries: boundaries.map(b => b.map(p => ({ x:p.x, y:p.y, z:p.z })))
+    boundaries: boundaries.map(b => ({
+      positions: b.positions.map(p => ({ x:p.x, y:p.y, z:p.z })),
+      mode: b.mode
+    })),
+    history: history,
+    historyIndex: historyIndex
   };
   sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
 }
@@ -55,84 +144,46 @@ function restoreState() {
     }
   });
 
-  // clear existing
-  boundaries = [];
-  polygonEntities.forEach(e=>viewer.entities.remove(e));
-  polygonEntities = [];
+  if (state.history) {
+    history = state.history;
+    historyIndex = state.historyIndex || -1;
+  }
 
   state.boundaries.forEach(b => {
-    const pos = b.map(p => new Cesium.Cartesian3(p.x,p.y,p.z));
+    const pos = b.positions.map(p => new Cesium.Cartesian3(p.x, p.y, p.z));
+    const color = b.mode === 'base' ? Cesium.Color.ORANGE : Cesium.Color.CYAN;
     const poly = viewer.entities.add({
-      polygon:{
+      polygon: {
         hierarchy: pos,
-        material: Cesium.Color.CYAN.withAlpha(0.4),
-        outline:true
+        material: color.withAlpha(0.4),
+        outline: true,
+        outlineColor: color
       }
     });
-    boundaries.push(pos);
+    boundaries.push({ positions: pos, mode: b.mode });
     polygonEntities.push(poly);
   });
-
-  // reset history to this restored state
-  pushHistory();
+  
+  updateHistoryButtons();
 }
-
-
-
 
 // =============================
-// History (undo/redo)
+// Ground Height Helper
 // =============================
-function serializeBoundaries(bnds) {
-  return bnds.map(b => b.map(p => ({x:p.x,y:p.y,z:p.z})));
+function getGroundHeight(cartesian) {
+  const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+  const height = viewer.scene.globe.getHeight(cartographic);
+  return height || 0;
 }
 
-function applySerializedBoundaries(serialized) {
-  // remove current entities
-  polygonEntities.forEach(e=>viewer.entities.remove(e));
-  polygonEntities = [];
-  boundaries = [];
-
-  serialized.forEach(b => {
-    const pos = b.map(p => new Cesium.Cartesian3(p.x,p.y,p.z));
-    const poly = viewer.entities.add({
-      polygon:{
-        hierarchy: pos,
-        material: Cesium.Color.CYAN.withAlpha(0.4),
-        outline:true
-      }
-    });
-    boundaries.push(pos);
-    polygonEntities.push(poly);
-  });
-}
-
-function pushHistory() {
-  // push current snapshot to history and clear redo
-  const snap = serializeBoundaries(boundaries);
-  historyStack.push(JSON.stringify(snap));
-  // limit history size to avoid memory bloat
-  if (historyStack.length > 50) historyStack.shift();
-  redoStack = [];
-}
-
-function undo() {
-  if (historyStack.length <= 1) {
-    // nothing to undo (history[0] is initial state)
-    return;
-  }
-  // move current to redo
-  const current = historyStack.pop();
-  redoStack.push(current);
-  const prev = historyStack[historyStack.length - 1];
-  applySerializedBoundaries(JSON.parse(prev));
-}
-
-function redo() {
-  if (redoStack.length === 0) return;
-  const next = redoStack.pop();
-  historyStack.push(next);
-  applySerializedBoundaries(JSON.parse(next));
+function projectToGround(cartesian) {
+  const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+  const groundHeight = getGroundHeight(cartesian);
+  return Cesium.Cartesian3.fromRadians(
+    cartographic.longitude,
+    cartographic.latitude,
+    groundHeight
+  );
 }
 
 // =============================
@@ -140,103 +191,214 @@ function redo() {
 // =============================
 window.addEventListener("DOMContentLoaded", async () => {
   viewer = new Cesium.Viewer("cesiumContainer", {
-    animation:false,
-    timeline:false,
-    baseLayerPicker:false
+    animation: false,
+    timeline: false,
+    baseLayerPicker: false
   });
 
   try {
     const tiles = await Cesium.createGooglePhotorealistic3DTileset();
     viewer.scene.primitives.add(tiles);
-  } catch {}
+  } catch(e) {
+    console.error("Failed to load 3D tiles:", e);
+  }
 
   if (new URLSearchParams(location.search).get("return") === "true") {
     setTimeout(restoreState, 500);
-  } else {
-    // initial empty snapshot
-    pushHistory();
   }
 
-  const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-  handler.setInputAction((e)=>{
-    if (!drawing) return;
-    const p = viewer.scene.pickPosition(e.position);
-    if (!p) return;
-
-    if (positions.length>=3 &&
-        Cesium.Cartesian3.distance(p,positions[0])<1.5){
-      finishBoundary();
-      return;
-    }
-    positions.push(p);
-  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-  client = new Paho.Client("localhost",9001,"web_"+Math.random());
-  client.onMessageArrived = (msg)=>{
-    const data = JSON.parse(msg.payloadString);
-    if (msg.destinationName==="solar/response/analyze"){
-      hideOverlay();
-      saveState();
-      location.href=`/display.html?file=${data.file}&t=${Date.now()}`;
-    }
-  };
-  client.connect({
-    onSuccess(){
-      client.subscribe("solar/response/analyze");
-    }
-  });
+  setupEventHandlers();
+  checkAPIHealth();
 });
 
 // =============================
-// Draw
+// API Health Check
 // =============================
-window.startDrawBoundary = ()=>{
-  drawing=true;
-  positions=[];
-  polylineEntity = viewer.entities.add({
-    polyline:{
-      positions:new Cesium.CallbackProperty(()=>positions,false),
-      width:3,
-      material:Cesium.Color.YELLOW
-    }
-  });
-};
-
-function finishBoundary(){
-  drawing=false;
-  const poly = viewer.entities.add({
-    polygon:{
-      hierarchy:positions.slice(),
-      material:Cesium.Color.CYAN.withAlpha(0.4),
-      outline:true
-    }
-  });
-  boundaries.push(positions.slice());
-  polygonEntities.push(poly);
-  viewer.entities.remove(polylineEntity);
-  polylineEntity=null;
-  positions=[];
-  // push to history after a new region is finalized
-  pushHistory();
+async function checkAPIHealth() {
+  try {
+    const response = await fetch(`${API_BASE}/health`);
+    const data = await response.json();
+    console.log("✅ Backend API connected:", data);
+  } catch(err) {
+    console.error("❌ Backend API not reachable:", err);
+  }
 }
 
-window.analyzeBoundary = ()=>{
-  if (!boundaries.length) return alert("draw first");
+// =============================
+// Event Handlers
+// =============================
+function setupEventHandlers() {
+  const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+  // Left click for polygon drawing
+  handler.setInputAction((e) => {
+    if (!drawing) return;
+    
+    let p = viewer.scene.pickPosition(e.position);
+    if (!p) return;
+
+    // Base mode: project to ground
+    if (drawMode === 'base') {
+      p = projectToGround(p);
+    }
+
+    // Check if closing polygon (click near start)
+    if (positions.length >= 3 &&
+        Cesium.Cartesian3.distance(p, positions[0]) < 1.5) {
+      finishBoundary();
+      return;
+    }
+    
+    positions.push(p);
+    
+    // Add visual point marker
+    const color = drawMode === 'base' ? Cesium.Color.ORANGE : Cesium.Color.YELLOW;
+    const pointMarker = viewer.entities.add({
+      position: p,
+      point: {
+        pixelSize: 15,
+        color: color,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3
+      }
+    });
+    drawingPoints.push(pointMarker);
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
+
+// =============================
+// Draw Functions
+// =============================
+let drawingPoints = []; // Visual point markers
+
+window.startDrawBoundary = () => {
+  // Reset any previous drawing
+  cancelDrawing();
+  
+  drawing = true;
+  positions = [];
+  drawingPoints = [];
+  
+  const color = drawMode === 'base' ? Cesium.Color.ORANGE : Cesium.Color.YELLOW;
+  
+  polylineEntity = viewer.entities.add({
+    polyline: {
+      positions: new Cesium.CallbackProperty(() => positions, false),
+      width: 3,
+      material: color
+    }
+  });
+  
+  console.log("Started polygon drawing in", drawMode, "mode");
+};
+
+function cancelDrawing() {
+  drawing = false;
+  
+  if (polylineEntity) {
+    viewer.entities.remove(polylineEntity);
+    polylineEntity = null;
+  }
+  
+  // Remove drawing point markers
+  drawingPoints.forEach(p => viewer.entities.remove(p));
+  drawingPoints = [];
+  
+  positions = [];
+}
+
+function finishBoundary() {
+  drawing = false;
+  
+  const color = drawMode === 'base' ? Cesium.Color.ORANGE : Cesium.Color.CYAN;
+  
+  const poly = viewer.entities.add({
+    polygon: {
+      hierarchy: positions.slice(),
+      material: color.withAlpha(0.4),
+      outline: true,
+      outlineColor: color,
+      outlineWidth: 2
+    }
+  });
+  
+  boundaries.push({ positions: positions.slice(), mode: drawMode });
+  polygonEntities.push(poly);
+  
+  if (polylineEntity) {
+    viewer.entities.remove(polylineEntity);
+    polylineEntity = null;
+  }
+  
+  // Remove drawing point markers
+  drawingPoints.forEach(p => viewer.entities.remove(p));
+  drawingPoints = [];
+  
+  positions = [];
+  saveToHistory();
+  
+  console.log("Finished boundary in", drawMode, "mode. Total boundaries:", boundaries.length);
+}
+
+// =============================
+// Analyze - HTTP POST
+// =============================
+window.analyzeBoundary = async () => {
+  if (!boundaries.length) {
+    alert("Draw at least one boundary first");
+    return;
+  }
+  
   showOverlay();
   saveState();
-  const sets = boundaries.map(b=>b.map(p=>[p.x,p.y,p.z]));
-  const msg = new Paho.Message(JSON.stringify({sets}));
-  msg.destinationName="solar/request/analyze";
-  client.send(msg);
+  
+  const sets = boundaries.map(b => ({
+    positions: b.positions.map(p => [p.x, p.y, p.z]),
+    mode: b.mode
+  }));
+  
+  console.log("Sending", sets.length, "boundaries to backend");
+  
+  try {
+    const response = await fetch(`${API_BASE}/api/analyze`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sets })
+    });
+    
+    const data = await response.json();
+    
+    hideOverlay();
+    
+    if (!response.ok) {
+      alert("Error: " + (data.error || "Unknown error"));
+      return;
+    }
+    
+    console.log("✅ Model generated:", data);
+    location.href = `/display.html?file=${data.file}&t=${Date.now()}`;
+    
+  } catch(err) {
+    hideOverlay();
+    console.error("❌ API Error:", err);
+    alert("Failed to connect to backend server.\nMake sure Python server is running on port 8000.");
+  }
 };
 
-window.resetBoundaries = ()=>{
-  boundaries=[];
-  positions=[];
-  polygonEntities.forEach(e=>viewer.entities.remove(e));
-  polygonEntities=[];
+window.resetBoundaries = () => {
+  cancelDrawing();
+  
+  boundaries = [];
+  polygonEntities.forEach(e => viewer.entities.remove(e));
+  polygonEntities = [];
+  
+  history = [];
+  historyIndex = -1;
+  updateHistoryButtons();
+  
   sessionStorage.removeItem(STATE_KEY);
-  // push empty state to history
-  pushHistory();
+  
+  console.log("Reset all boundaries and history");
 };
-

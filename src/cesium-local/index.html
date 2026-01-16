@@ -10,6 +10,7 @@
     #toolbar {
       position:absolute; top:10px; left:10px; z-index:100;
       background:rgba(0,0,0,0.7); padding:10px; border-radius:4px;
+      min-width: 150px;
     }
     button {
       display:block;
@@ -17,6 +18,26 @@
       padding:6px 12px;
       font-size:13px;
       cursor:pointer;
+      width: 100%;
+    }
+    button.active {
+      background: #4CAF50;
+      color: white;
+      font-weight: bold;
+    }
+    .section {
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #444;
+    }
+    .section:last-child {
+      border-bottom: none;
+    }
+    .mode-label {
+      font-size: 11px;
+      color: #999;
+      margin-bottom: 4px;
+      text-transform: uppercase;
     }
     #cesiumContainer { width:100vw; height:100vh; }
     #overlay {
@@ -29,22 +50,48 @@
       font-size:24px;
       z-index:200;
     }
+    #status {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #0f0;
+    }
   </style>
 </head>
 <body>
   <div id="toolbar">
-    <button onclick="startDrawBoundary()">✏️ Draw</button>
-    <button onclick="analyzeBoundary()">🔍 Analyze</button>
-    <button onclick="resetBoundaries()">♻️ Reset</button>
-    <button onclick="undo()">↶ Undo</button>
-    <button onclick="redo()">↷ Redo</button>
+    <div class="section">
+      <div class="mode-label">Mode</div>
+      <button id="btnBase" onclick="setMode('base')" class="active">🏠 Base Mode</button>
+      <button id="btnRoof" onclick="setMode('roof')">🏔️ Roof Mode</button>
+    </div>
     
+    <div class="section">
+      <div class="mode-label">Draw</div>
+      <button onclick="startDrawBoundary()">✏️ Draw Polygon</button>
+    </div>
+    
+    <div class="section">
+      <div class="mode-label">History</div>
+      <button id="btnUndo" onclick="undo()" disabled>↶ Undo</button>
+      <button id="btnRedo" onclick="redo()" disabled>↷ Redo</button>
+    </div>
+    
+    <div class="section">
+      <button onclick="analyzeBoundary()">🔍 Analyze</button>
+      <button onclick="resetBoundaries()">♻️ Reset</button>
+    </div>
   </div>
+  
+  <div id="status">Base Mode</div>
   <div id="cesiumContainer"></div>
   <div id="overlay">generating .......</div>
+  
   <script src="/Build/Cesium/Cesium.js"></script>
-  <script src="/js/lib/paho-mqtt-min.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
-
