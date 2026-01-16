@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Analyze Faces</title>
+<script>window.CESIUM_BASE_URL="/Build/Cesium/";</script>
+<link rel="stylesheet" href="/Build/Cesium/Widgets/widgets.css" />
+<style>
+  body {margin:0; background:#111; overflow:hidden;}
+  #cesiumContainer {width:100vw; height:100vh;}
+</style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+<script src="/Build/Cesium/Cesium.js"></script>
+<script>
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjMTIwYTFjMi03YjA3LTRkYWYtOWU2My03ZjNjMDRhOWFjMWQiLCJpZCI6MzY1MjY5LCJpYXQiOjE3NjgwNDAxMTd9.JQ_05wMgR58uU_3ozSsGcEGTePGRy8XexDw9NfcM6vU";
+
+const viewer = new Cesium.Viewer("cesiumContainer", {
+  animation:false,
+  timeline:false,
+  baseLayerPicker:false
+});
+
+// load faces
+const boundaryData = JSON.parse(localStorage.getItem("boundaryData") || "[]");
+
+// each polygon = a face of house
+boundaryData.forEach((positions) => {
+  viewer.entities.add({
+    polygon: {
+      hierarchy: positions.map(p => new Cesium.Cartesian3(p.x,p.y,p.z)),
+      material: Cesium.Color.CYAN.withAlpha(0.4),
+      outline:true,
+      outlineColor:Cesium.Color.BLUE
+    }
+  });
+});
+
+viewer.zoomTo(viewer.entities);
+</script>
+</body>
+</html>
+

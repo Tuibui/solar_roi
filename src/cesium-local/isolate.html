@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Isolated House 3D Tiles</title>
+<script>window.CESIUM_BASE_URL="/Build/Cesium/";</script>
+<link rel="stylesheet" href="/Build/Cesium/Widgets/widgets.css" />
+<style>body{margin:0;background:#111;overflow:hidden;}#cesiumContainer{width:100vw;height:100vh;}</style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+<script src="/Build/Cesium/Cesium.js"></script>
+<script>
+Cesium.Ion.defaultAccessToken = "YOUR_CESIUM_ION_TOKEN";
+
+const viewer = new Cesium.Viewer("cesiumContainer", {
+  animation:false, timeline:false, baseLayerPicker:false
+});
+
+Cesium.createGooglePhotorealistic3DTileset().then((tileset) => {
+  viewer.scene.primitives.add(tileset);
+
+  const positions = JSON.parse(localStorage.getItem("isolatedHouse") || "[]");
+  if (positions.length === 0) return;
+
+  const cartographics = positions.map(p => Cesium.Cartographic.fromCartesian(new Cesium.Cartesian3(p.x,p.y,p.z)));
+  let lonMin=Infinity, lonMax=-Infinity, latMin=Infinity, latMax=-Infinity;
+
+  cartographics.forEach(c => {
+    lonMin=Math.min(lonMin, Cesium.Math.toDegrees(c.longitude));
+    lonMax=Math.max(lonMax, Cesium.Math.toDegrees(c.longitude));
+    latMin=Math.min(latMin, Cesium.Math.toDegrees(c.latitude));
+    latMax=Math.max(latMax, Cesium.Math.toDegrees(c.latitude));
+  });
+
+  const west = Cesium.Cartesian3.fromDegrees(lonMin, latMin);
+  const east = Cesium.Cartesian3.fromDegrees(lonMax, latMax);
+
+  tileset.clippingPlanes = new Cesium.ClippingPlaneCollection({
+    planes: [
+      new Cesium.ClippingPlane(Cesium.Cartesian3.UNIT_X, -west.x),
+      new Cesium.ClippingPlane(Cesium.Cartesian3.UNIT_X, east.x),
+      new Cesium.ClippingPlane(Cesium.Cartesian3.UNIT_Y, -west.y),
+      new Cesium.ClippingPlane(Cesium.Cartesian3.UNIT_Y, east.y)
+    ],
+    edgeColor: Cesium.Color.RED,
+    edgeWidth: 1.0
+  });
+
+  viewer.zoomTo(tileset);
+});
+</script>
+</body>
+</html>
+
