@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Solar ROI Calculator</title>
+  <script>window.CESIUM_BASE_URL = "/Build/Cesium/";</script>
+  <link rel="stylesheet" href="/Build/Cesium/Widgets/widgets.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      color: #333;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1e5799 0%, #2989d8 50%, #207cca 100%);
+      padding: 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 10px 20px;
+    }
+
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: #fff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .logo-text h1 {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .logo-text p {
+      color: rgba(255,255,255,0.8);
+      font-size: 10px;
+    }
+
+    .header-links {
+      display: flex;
+      gap: 15px;
+    }
+
+    .header-links a {
+      color: rgba(255,255,255,0.9);
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .header-links a:hover {
+      color: #fff;
+    }
+
+    /* Main Layout - Two columns */
+    .main-container {
+      display: flex;
+      flex-direction: row;
+      height: calc(100vh - 56px);
+      padding: 15px;
+      gap: 15px;
+      overflow: hidden;
+    }
+
+    /* Left side - Map and Input stacked */
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      height: 100%;
+    }
+
+    /* Right side - Display box + Data panel */
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      gap: 15px;
+    }
+
+    /* Top Panel - 3D Map - FIXED SIZE to prevent resize */
+    .map-panel {
+      width: 450px;
+      min-width: 450px;
+      max-width: 450px;
+      height: 55%;
+      min-height: 55%;
+      max-height: 55%;
+      display: flex;
+      flex-direction: column;
+      background: #111;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+
+    .map-header {
+      background: rgba(0,0,0,0.8);
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #333;
+    }
+
+    .map-title {
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    #status {
+      font-size: 10px;
+      color: #0f0;
+      font-family: monospace;
+    }
+
+    #cesiumContainer {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Prevent Cesium canvas from causing layout issues */
+    #cesiumContainer canvas {
+      display: block;
+    }
+
+    /* Map Toolbar - horizontal at top */
+    #toolbar {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 100;
+      background: rgba(0,0,0,0.8);
+      padding: 6px;
+      border-radius: 6px;
+      display: flex;
+      gap: 4px;
+    }
+
+    #toolbar button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      font-size: 16px;
+      cursor: pointer;
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 4px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #toolbar button:hover {
+      background: #444;
+      border-color: #666;
+    }
+
+    #toolbar button.active {
+      background: #4CAF50;
+      border-color: #4CAF50;
+    }
+
+    #toolbar button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      color: white;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      z-index: 200;
+    }
+
+    /* Bottom Panel - Input Form - FIXED SIZE */
+    .input-panel {
+      width: 450px;
+      min-width: 450px;
+      max-width: 450px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      overflow: hidden;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #1e5799 0%, #2989d8 100%);
+      padding: 12px 16px;
+      color: #fff;
+    }
+
+    .card-header h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .card-header p {
+      font-size: 11px;
+      opacity: 0.9;
+    }
+
+    .card-body {
+      padding: 16px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #e0e0e0;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      color: #1e5799;
+    }
+
+    .tab.active {
+      color: #1e5799;
+      border-bottom-color: #1e5799;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .form-group .hint {
+      font-size: 10px;
+      color: #888;
+      font-weight: normal;
+    }
+
+    /* Custom search input */
+    .search-input-wrapper {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 40px 10px 12px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      color: #333;
+    }
+
+    .search-input:focus {
+      border-color: #1e5799;
+      box-shadow: 0 0 0 3px rgba(30,87,153,0.1);
+      outline: none;
+    }
+
+    .search-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #1e5799;
+      border: none;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .search-btn:hover {
+      background: #164277;
+    }
+
+    .search-btn:disabled {
+      background: #999;
+      cursor: not-allowed;
+    }
+
+    /* Suggestions dropdown */
+    .suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-top: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 100;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .suggestions.show {
+      display: block;
+    }
+
+    .suggestion-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    .suggestion-item:last-child {
+      border-bottom: none;
+    }
+
+    .suggestion-item:hover {
+      background: #1e5799;
+      color: #fff;
+    }
+
+    /* Detect Location Box */
+    .detect-box {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .detect-box p {
+      color: #666;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+
+    .detect-btn {
+      padding: 8px 20px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid #1e5799;
+      border-radius: 4px;
+      background: #fff;
+      color: #1e5799;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .detect-btn:hover {
+      background: #1e5799;
+      color: #fff;
+    }
+
+    .detect-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Selected Location */
+    .selected-location {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      border-radius: 4px;
+      color: #2e7d32;
+      font-size: 12px;
+      display: none;
+    }
+
+    .error {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #ffebee;
+      border: 1px solid #ef9a9a;
+      border-radius: 4px;
+      color: #c62828;
+      font-size: 12px;
+    }
+
+    /* Primary Button */
+    .btn-primary {
+      display: block;
+      width: 100%;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      border-radius: 4px;
+      background: #f7941d;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary:hover {
+      background: #e8850d;
+      box-shadow: 0 4px 12px rgba(247,148,29,0.3);
+    }
+
+    .btn-primary:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Instructions Card */
+    .instructions {
+      padding: 12px;
+      font-size: 11px;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .instructions h4 {
+      color: #1e5799;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .instructions ol {
+      margin-left: 16px;
+    }
+
+    .instructions li {
+      margin-bottom: 4px;
+    }
+
+    /* Features */
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: #666;
+    }
+
+    .feature-item .icon {
+      color: #4caf50;
+      font-weight: bold;
+    }
+
+    /* Model Display Box */
+    .display-panel {
+      width: 450px;
+      min-width: 450px;
+      max-width: 450px;
+      height: 55%;
+      min-height: 55%;
+      max-height: 55%;
+      background: #1a1a1a;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .display-header {
+      background: rgba(0,0,0,0.8);
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #333;
+    }
+
+    .display-title {
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    #displayStatus {
+      font-size: 10px;
+      font-family: monospace;
+    }
+
+    #displayContainer {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111;
+      overflow: hidden;
+    }
+
+    /* Prevent Cesium container resize issues */
+    #displayContainer .cesium-viewer-cesiumWidgetContainer,
+    #displayContainer .cesium-widget,
+    #displayContainer .cesium-widget canvas {
+      position: absolute !important;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .placeholder-msg {
+      color: #666;
+      font-size: 14px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .placeholder-msg .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+      opacity: 0.5;
+    }
+
+    /* Hide Cesium credits in display viewer */
+    #displayContainer .cesium-credit-logoContainer,
+    #displayContainer .cesium-credit-textContainer {
+      display: none !important;
+    }
+
+    #displayContainer .cesium-viewer {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ViewCube - rotation control */
+    .viewcube-container {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      z-index: 100;
+    }
+
+    .viewcube {
+      width: 50px;
+      height: 50px;
+      perspective: 150px;
+      cursor: grab;
+    }
+
+    .viewcube:active {
+      cursor: grabbing;
+    }
+
+    .viewcube-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: rotateX(-20deg) rotateY(-30deg);
+      transition: transform 0.1s ease;
+    }
+
+    .viewcube-face {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      left: 7px;
+      top: 7px;
+      background: rgba(30, 87, 153, 0.9);
+      border: 1px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      font-weight: bold;
+      color: #fff;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .viewcube-front  { transform: translateZ(18px); }
+    .viewcube-back   { transform: rotateY(180deg) translateZ(18px); }
+    .viewcube-right  { transform: rotateY(90deg) translateZ(18px); }
+    .viewcube-left   { transform: rotateY(-90deg) translateZ(18px); }
+    .viewcube-top    { transform: rotateX(90deg) translateZ(18px); }
+    .viewcube-bottom { transform: rotateX(-90deg) translateZ(18px); }
+
+    .viewcube-hint {
+      text-align: center;
+      font-size: 9px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    /* Plane Data Panel */
+    .data-panel {
+      width: 450px;
+      min-width: 450px;
+      max-width: 450px;
+      flex:1;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .data-panel-header {
+      background: linear-gradient(135deg, #1e5799 0%, #2989d8 100%);
+      padding: 10px 14px;
+      color: #fff;
+    }
+
+    .data-panel-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .data-panel-body {
+      padding: 14px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .plane-select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      margin-bottom: 14px;
+    }
+
+    .plane-select:focus {
+      border-color: #1e5799;
+      outline: none;
+    }
+
+    .plane-info {
+      display: none;
+    }
+
+    .plane-info.show {
+      display: block;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      color: #666;
+      font-size: 13px;
+    }
+
+    .info-value {
+      color: #1e5799;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .no-data-msg {
+      color: #999;
+      font-size: 13px;
+      text-align: center;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-top">
+      <div class="logo-section">
+        <div class="logo-icon">&#9728;</div>
+        <div class="logo-text">
+          <h1>Solar ROI Calculator</h1>
+          <p>Roof Solar Potential Analysis</p>
+        </div>
+      </div>
+      <div class="header-links">
+        <a href="#">About</a>
+        <a href="#">Help</a>
+        <a href="#">Contact</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <!-- Left Column: Map + Input -->
+    <div class="left-column">
+    <!-- 3D Map -->
+    <div class="map-panel">
+      <div class="map-header">
+        <span class="map-title">3D Roof Viewer</span>
+        <span id="status">Ready</span>
+      </div>
+      <div id="cesiumContainer">
+        <div id="toolbar">
+          <button id="btnDrawRoof" onclick="toggleDrawMode()" title="Draw Roof">&#9998;</button>
+          <button id="btnUndo" onclick="undo()" disabled title="Undo">&#8630;</button>
+          <button id="btnRedo" onclick="redo()" disabled title="Redo">&#8631;</button>
+          <button onclick="analyzeBoundary()" title="Analyze">&#9881;</button>
+          <button onclick="resetBoundaries()" title="Reset">&#8635;</button>
+        </div>
+        <div id="overlay"><span id="overlayMsg">Generating...</span></div>
+      </div>
+    </div>
+
+    <!-- Input Form -->
+    <div class="input-panel">
+      <div class="card">
+        <div class="card-header">
+          <h3>Location</h3>
+          <p>Search or detect your location</p>
+        </div>
+        <div class="card-body">
+          <div class="tabs">
+            <button class="tab active" onclick="switchTab('address')">Search Address</button>
+            <button class="tab" onclick="switchTab('detect')">Auto-Detect</button>
+          </div>
+
+          <!-- Address Search Tab -->
+          <div id="addressTab" class="tab-content active">
+            <div class="form-group">
+              <label>Address <span class="hint">(street, city, or coordinates)</span></label>
+              <div class="search-input-wrapper">
+                <input type="text" id="addressInput" class="search-input"
+                       placeholder="Enter address or city..."
+                       onkeyup="handleAddressInput(event)"
+                       autocomplete="off">
+                <button class="search-btn" id="searchBtn" onclick="searchAddress()">Search</button>
+                <div id="suggestions" class="suggestions"></div>
+              </div>
+              <div id="addressSelected" class="selected-location"></div>
+            </div>
+          </div>
+
+          <!-- Detect Location Tab -->
+          <div id="detectTab" class="tab-content">
+            <div class="detect-box">
+              <p>Detect location via IP address</p>
+              <button class="detect-btn" onclick="detectLocation()">
+                Detect My Location
+              </button>
+            </div>
+            <div id="detectSelected" class="selected-location"></div>
+            <div id="detectError" class="error" style="display:none"></div>
+          </div>
+
+          <button class="btn-primary" id="flyBtn" onclick="flyToLocation()">
+            Go to Location
+          </button>
+
+          <div class="features">
+            <div class="feature-item">
+              <span class="icon">&#10003;</span> 3D Visualization
+            </div>
+            <div class="feature-item">
+              <span class="icon">&#10003;</span> Tilt Analysis
+            </div>
+            <div class="feature-item">
+              <span class="icon">&#10003;</span> Panel Sizing
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    </div><!-- end left-column -->
+
+    <!-- Right Column: Display Box + Data Panel -->
+    <div class="right-column">
+      <div class="display-panel">
+        <div class="display-header">
+          <span class="display-title">Roof Model Preview</span>
+          <span id="displayStatus"></span>
+        </div>
+        <div id="displayContainer">
+          <div id="placeholderMsg" class="placeholder-msg">
+            <div class="icon">&#9660;</div>
+            <div>Draw roof boundaries on the left<br>then click <strong>Analyze</strong></div>
+          </div>
+          <!-- ViewCube rotation control - drag to rotate -->
+          <div id="viewcubeWidget" class="viewcube-container" style="display:none;">
+            <div class="viewcube" id="viewcube">
+              <div class="viewcube-inner" id="viewcubeInner">
+                <div class="viewcube-face viewcube-front">FRONT</div>
+                <div class="viewcube-face viewcube-back">BACK</div>
+                <div class="viewcube-face viewcube-right">RIGHT</div>
+                <div class="viewcube-face viewcube-left">LEFT</div>
+                <div class="viewcube-face viewcube-top">TOP</div>
+                <div class="viewcube-face viewcube-bottom">BTM</div>
+              </div>
+            </div>
+            <div class="viewcube-hint">Drag to rotate</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plane Data Panel -->
+      <div class="data-panel">
+        <div class="data-panel-header">
+          <h3>Plane Data</h3>
+        </div>
+        <div class="data-panel-body">
+          <select id="planeSelect" class="plane-select" onchange="showPlaneData()">
+            <option value="">-- Select a plane --</option>
+          </select>
+          <div id="planeInfo" class="plane-info">
+            <div class="info-row">
+              <span class="info-label">Tilt Angle</span>
+              <span class="info-value" id="infoTilt">--</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Azimuth</span>
+              <span class="info-value" id="infoAzimuth">--</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Area</span>
+              <span class="info-value" id="infoArea">--</span>
+            </div>
+          </div>
+          <div id="noDataMsg" class="no-data-msg">
+            Analyze roofs to see plane data
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/Build/Cesium/Cesium.js"></script>
+  <script>
+    Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI1MTIzMTg3Ny05MWFiLTRiNmMtOTEzZS0wMGQzMjRjYjJjZWYiLCJpZCI6MzY1MjY5LCJpYXQiOjE3Njg3MTc3MDV9.k1WwQT5FSOc4GumluujUXoPVMs5YCWv929td7VTjtO0";
+
+    const API_BASE = "http://127.0.0.1:8000";
+    let savedDestination = null;
+    let viewer;
+    let displayViewer = null;  // Second viewer for model display
+    let searchTimeout = null;
+
+    // Drawing state
+    let drawing = false;
+    let positions = [];
+    let polylineEntity = null;
+    let drawingPoints = [];
+
+    // Roof boundaries storage
+    let boundaries = [];
+    let polygonEntities = [];
+
+    // Colors matching display.html colorMap
+    const roofColors = [
+      { name: "Red", cesium: Cesium.Color.RED },
+      { name: "Green", cesium: Cesium.Color.LIME },
+      { name: "Blue", cesium: Cesium.Color.BLUE },
+      { name: "Yellow", cesium: Cesium.Color.YELLOW },
+      { name: "Magenta", cesium: Cesium.Color.MAGENTA },
+      { name: "Cyan", cesium: Cesium.Color.CYAN }
+    ];
+
+    // History for undo/redo
+    let history = [];
+    let historyIndex = -1;
+
+    const STATE_KEY = "cesium_state";
+
+    // =============================
+    // UI helpers
+    // =============================
+    function showOverlay(msg = "Generating...") {
+      document.getElementById("overlayMsg").textContent = msg;
+      document.getElementById("overlay").style.display = "flex";
+    }
+    function hideOverlay() {
+      document.getElementById("overlay").style.display = "none";
+    }
+    function setStatus(msg, color = "#0f0") {
+      const el = document.getElementById("status");
+      el.textContent = msg;
+      el.style.color = color;
+    }
+
+    // =============================
+    // History Management
+    // =============================
+    function updateHistoryButtons() {
+      document.getElementById('btnUndo').disabled = (historyIndex < 0);
+      document.getElementById('btnRedo').disabled = (historyIndex >= history.length - 1);
+    }
+
+    function saveToHistory() {
+      history = history.slice(0, historyIndex + 1);
+      history.push({
+        boundaries: boundaries.map(b => b.map(p => ({x: p.x, y: p.y, z: p.z})))
+      });
+      historyIndex++;
+      updateHistoryButtons();
+      setStatus(`Saved (${historyIndex + 1}/${history.length})`);
+    }
+
+    function restoreFromHistory(state) {
+      polygonEntities.forEach(e => viewer.entities.remove(e));
+      polygonEntities = [];
+      boundaries = [];
+
+      state.boundaries.forEach((b, index) => {
+        const pos = b.map(p => new Cesium.Cartesian3(p.x, p.y, p.z));
+        const colorIndex = index % roofColors.length;
+        const roofColor = roofColors[colorIndex];
+
+        const poly = viewer.entities.add({
+          polygon: {
+            hierarchy: pos,
+            material: roofColor.cesium.withAlpha(0.4),
+            outline: true,
+            outlineColor: roofColor.cesium,
+            outlineWidth: 2
+          }
+        });
+        boundaries.push(pos);
+        polygonEntities.push(poly);
+      });
+    }
+
+    window.undo = () => {
+      if (historyIndex < 0) return;
+      historyIndex--;
+      if (historyIndex < 0) {
+        polygonEntities.forEach(e => viewer.entities.remove(e));
+        polygonEntities = [];
+        boundaries = [];
+        setStatus("Undo to empty", "#ff0");
+      } else {
+        restoreFromHistory(history[historyIndex]);
+        setStatus(`Undo (${historyIndex + 1}/${history.length})`, "#ff0");
+      }
+      updateHistoryButtons();
+    };
+
+    window.redo = () => {
+      if (historyIndex >= history.length - 1) return;
+      historyIndex++;
+      restoreFromHistory(history[historyIndex]);
+      updateHistoryButtons();
+      setStatus(`Redo (${historyIndex + 1}/${history.length})`, "#ff0");
+    };
+
+    // =============================
+    // Init - Simple setup (like original 3d_map.html)
+    // =============================
+    window.addEventListener("DOMContentLoaded", async () => {
+      // Simple viewer - same as original working 3d_map.html
+      viewer = new Cesium.Viewer("cesiumContainer", {
+        animation: false,
+        timeline: false,
+        baseLayerPicker: false,
+        geocoder: false
+      });
+
+      // Make mouse scroll zoom more fine/gradual
+      const controller = viewer.scene.screenSpaceCameraController;
+      controller.zoomEventTypes = [
+        Cesium.CameraEventType.WHEEL,
+        Cesium.CameraEventType.PINCH
+      ];
+      controller._zoomFactor = 1; // Lower = finer zoom (default is 5)
+
+      // Load Google 3D tiles - same as original
+      try {
+        const tiles = await Cesium.createGooglePhotorealistic3DTileset();
+        viewer.scene.primitives.add(tiles);
+      } catch(e) {
+        console.error("Failed to load 3D tiles:", e);
+      }
+
+      setupEventHandlers();
+      setupShortcuts();
+      checkAPIHealth();
+      setStatus("Ready");
+    });
+
+    // =============================
+    // Address Search (using Cesium Ion Geocoder API directly)
+    // =============================
+    async function handleAddressInput(event) {
+      const query = event.target.value.trim();
+
+      // Search on Enter key
+      if (event.key === 'Enter' && query) {
+        searchAddress();
+        return;
+      }
+
+      // Auto-suggest after typing
+      if (query.length < 3) {
+        document.getElementById('suggestions').classList.remove('show');
+        return;
+      }
+
+      // Debounce
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => fetchSuggestions(query), 300);
+    }
+
+    async function fetchSuggestions(query) {
+      try {
+        const geocoder = new Cesium.IonGeocoderService({ scene: viewer.scene });
+        const results = await geocoder.geocode(query);
+
+        const suggestionsEl = document.getElementById('suggestions');
+
+        if (results && results.length > 0) {
+          suggestionsEl.innerHTML = results.slice(0, 5).map((r, i) =>
+            `<div class="suggestion-item" onclick="selectSuggestion(${i})">${r.displayName}</div>`
+          ).join('');
+          suggestionsEl.classList.add('show');
+
+          // Store results for selection
+          window.currentResults = results;
+        } else {
+          suggestionsEl.classList.remove('show');
+        }
+      } catch (e) {
+        console.error('Geocode error:', e);
+      }
+    }
+
+    function selectSuggestion(index) {
+      const result = window.currentResults[index];
+      if (!result) return;
+
+      document.getElementById('addressInput').value = result.displayName;
+      document.getElementById('suggestions').classList.remove('show');
+
+      const dest = result.destination;
+      if (dest instanceof Cesium.Rectangle) {
+        savedDestination = {
+          type: 'rectangle',
+          west: dest.west,
+          south: dest.south,
+          east: dest.east,
+          north: dest.north,
+          name: result.displayName
+        };
+      } else {
+        const carto = Cesium.Cartographic.fromCartesian(dest);
+        savedDestination = {
+          type: 'cartesian',
+          lon: Cesium.Math.toDegrees(carto.longitude),
+          lat: Cesium.Math.toDegrees(carto.latitude),
+          height: carto.height || 500,
+          name: result.displayName
+        };
+      }
+
+      document.getElementById('addressSelected').style.display = 'block';
+      document.getElementById('addressSelected').innerHTML = '<strong>Selected:</strong> ' + result.displayName;
+    }
+
+    async function searchAddress() {
+      const query = document.getElementById('addressInput').value.trim();
+      if (!query) return;
+
+      const btn = document.getElementById('searchBtn');
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      try {
+        const geocoder = new Cesium.IonGeocoderService({ scene: viewer.scene });
+        const results = await geocoder.geocode(query);
+
+        if (results && results.length > 0) {
+          window.currentResults = results;
+          selectSuggestion(0);
+        } else {
+          alert('Location not found. Try a different search.');
+        }
+      } catch (e) {
+        console.error('Search error:', e);
+        alert('Search failed. Please try again.');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Search';
+      document.getElementById('suggestions').classList.remove('show');
+    }
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-input-wrapper')) {
+        document.getElementById('suggestions').classList.remove('show');
+      }
+    });
+
+    // =============================
+    // Event Handlers
+    // =============================
+    function setupEventHandlers() {
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+      handler.setInputAction((e) => {
+        if (!drawing || !drawModeEnabled) return;
+        let p = viewer.scene.pickPosition(e.position);
+        if (!p) return;
+
+        if (positions.length >= 3 &&
+            Cesium.Cartesian3.distance(p, positions[0]) < 1.5) {
+          finishBoundary();
+          return;
+        }
+
+        positions.push(p);
+
+        const pointMarker = viewer.entities.add({
+          position: p,
+          point: {
+            pixelSize: 10,
+            color: Cesium.Color.YELLOW,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2
+          }
+        });
+        drawingPoints.push(pointMarker);
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    }
+
+    function setupShortcuts() {
+      window.addEventListener("keydown", (e) => {
+        // Only trigger if not in input field
+        if (e.target.tagName === 'INPUT') return;
+
+        if (e.ctrlKey && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
+        if (e.ctrlKey && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+        if (e.key.toLowerCase() === "d") toggleDrawMode();
+        if (e.key === "Escape") cancelDrawing();
+      });
+    }
+
+    // =============================
+    // API Health Check
+    // =============================
+    async function checkAPIHealth() {
+      try {
+        const response = await fetch(`${API_BASE}/health`);
+        const data = await response.json();
+        console.log("Backend API connected:", data);
+      } catch(err) {
+        console.error("Backend API not reachable:", err);
+        setStatus("Backend offline", "#f55");
+      }
+    }
+
+    // =============================
+    // Tab switching
+    // =============================
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      if (tab === 'address') {
+        document.querySelector('.tab:first-child').classList.add('active');
+        document.getElementById('addressTab').classList.add('active');
+      } else {
+        document.querySelector('.tab:last-child').classList.add('active');
+        document.getElementById('detectTab').classList.add('active');
+      }
+    }
+
+    // =============================
+    // Detect location via Python backend
+    // =============================
+    async function detectLocation() {
+      const btn = document.querySelector('.detect-btn');
+      const errorEl = document.getElementById('detectError');
+      const selectedEl = document.getElementById('detectSelected');
+
+      btn.disabled = true;
+      btn.textContent = 'Detecting...';
+      errorEl.style.display = 'none';
+      selectedEl.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/detect-location`);
+        const data = await res.json();
+
+        if (data.success) {
+          savedDestination = {
+            type: 'cartesian',
+            lon: data.lon,
+            lat: data.lat,
+            height: 500,
+            name: data.address
+          };
+
+          selectedEl.style.display = 'block';
+          selectedEl.innerHTML = `<strong>Detected:</strong> ${data.address}<br><small style="color:#666">${data.lat.toFixed(4)}, ${data.lon.toFixed(4)}</small>`;
+        } else {
+          errorEl.style.display = 'block';
+          errorEl.textContent = data.error || 'Could not detect location';
+        }
+      } catch (e) {
+        errorEl.style.display = 'block';
+        errorEl.textContent = 'Failed to connect to server';
+        console.error(e);
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Detect My Location';
+    }
+
+    // =============================
+    // Fly to location
+    // =============================
+    function flyToLocation() {
+      if (!savedDestination) {
+        alert('Please select or detect a location first');
+        return;
+      }
+
+      let destination;
+      if (savedDestination.type === 'rectangle') {
+        destination = new Cesium.Rectangle(
+          savedDestination.west,
+          savedDestination.south,
+          savedDestination.east,
+          savedDestination.north
+        );
+      } else {
+        destination = Cesium.Cartesian3.fromDegrees(
+          savedDestination.lon,
+          savedDestination.lat,
+          savedDestination.height || 500
+        );
+      }
+
+      viewer.camera.flyTo({
+        destination: destination,
+        duration: 2,
+        complete: () => {
+          setStatus("Viewing: " + savedDestination.name.substring(0, 20), "#0f0");
+        }
+      });
+    }
+
+    // =============================
+    // Draw Functions
+    // =============================
+    let drawModeEnabled = false;
+
+    window.toggleDrawMode = () => {
+      if (drawModeEnabled) {
+        // Turn off draw mode
+        cancelDrawing();
+        drawModeEnabled = false;
+        document.getElementById('btnDrawRoof').classList.remove('active');
+        setStatus("Draw mode off");
+      } else {
+        // Turn on draw mode
+        drawModeEnabled = true;
+        document.getElementById('btnDrawRoof').classList.add('active');
+        startNewRoof();
+      }
+    };
+
+    function startNewRoof() {
+      positions = [];
+      drawingPoints = [];
+      drawing = true;
+
+      polylineEntity = viewer.entities.add({
+        polyline: {
+          positions: new Cesium.CallbackProperty(() => positions, false),
+          width: 3,
+          material: Cesium.Color.YELLOW
+        }
+      });
+
+      setStatus("Drawing...", "#ff0");
+    }
+
+    function cancelDrawing() {
+      drawing = false;
+      drawModeEnabled = false;
+      document.getElementById('btnDrawRoof').classList.remove('active');
+      if (polylineEntity) {
+        viewer.entities.remove(polylineEntity);
+        polylineEntity = null;
+      }
+      drawingPoints.forEach(p => viewer.entities.remove(p));
+      drawingPoints = [];
+      positions = [];
+    }
+
+    function finishBoundary() {
+      // Get color for this roof (cycles through colors)
+      const colorIndex = boundaries.length % roofColors.length;
+      const roofColor = roofColors[colorIndex];
+
+      const poly = viewer.entities.add({
+        polygon: {
+          hierarchy: positions.slice(),
+          material: roofColor.cesium.withAlpha(0.4),
+          outline: true,
+          outlineColor: roofColor.cesium,
+          outlineWidth: 2
+        }
+      });
+
+      boundaries.push(positions.slice());
+      polygonEntities.push(poly);
+
+      if (polylineEntity) {
+        viewer.entities.remove(polylineEntity);
+        polylineEntity = null;
+      }
+      drawingPoints.forEach(p => viewer.entities.remove(p));
+      drawingPoints = [];
+      positions = [];
+      saveToHistory();
+
+      setStatus(`Roof ${boundaries.length} (${roofColor.name}) added`);
+
+      // Auto-continue drawing if draw mode is still on
+      if (drawModeEnabled) {
+        startNewRoof();
+      }
+    }
+
+    // =============================
+    // Analyze
+    // =============================
+    let roofModelEntity = null;
+    let roofDataCache = null;  // Store roof data for dropdown
+
+    window.analyzeBoundary = async () => {
+      if (!boundaries.length) {
+        alert("Draw at least one roof first");
+        return;
+      }
+
+      // Show loading in display container
+      const displayContainer = document.getElementById('displayContainer');
+      const placeholder = document.getElementById('placeholderMsg');
+      placeholder.innerHTML = '<div class="icon">&#8987;</div><div>Analyzing roof...</div>';
+
+      showOverlay("Analyzing roof...");
+      setStatus("Analyzing...", "#ff0");
+
+      const roofs = boundaries.map(b => b.map(p => [p.x, p.y, p.z]));
+
+      try {
+        const response = await fetch(`${API_BASE}/api/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roofs })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          hideOverlay();
+          placeholder.innerHTML = '<div class="icon">&#10060;</div><div>Analysis failed<br>Try again</div>';
+          alert("Error: " + (data.error || "Unknown error"));
+          setStatus("Failed", "#f55");
+          return;
+        }
+
+        // Hide placeholder
+        placeholder.style.display = 'none';
+
+        // Create display viewer if not exists
+        if (!displayViewer) {
+          displayViewer = new Cesium.Viewer('displayContainer', {
+            animation: false,
+            timeline: false,
+            baseLayerPicker: false,
+            geocoder: false,
+            homeButton: false,
+            sceneModePicker: false,
+            navigationHelpButton: false,
+            fullscreenButton: false,
+            skyBox: false,
+            skyAtmosphere: false,
+            globe: false,
+            requestRenderMode: true,  // Only render when needed
+            maximumRenderTimeChange: Infinity
+          });
+
+          // Disable all Cesium controls - we handle zoom ourselves
+          const controller = displayViewer.scene.screenSpaceCameraController;
+          controller.enableRotate = false;
+          controller.enableTilt = false;
+          controller.enableZoom = false;
+          controller.enablePan = false;
+          controller.enableLook = false;
+
+          // Stop any automatic rendering/updates
+          displayViewer.scene.globe = undefined;
+          displayViewer.clock.shouldAnimate = false;
+        }
+
+        // Show ViewCube widget
+        document.getElementById('viewcubeWidget').style.display = 'block';
+
+        // Clear previous model
+        displayViewer.entities.removeAll();
+
+        // Load the GLB model
+        const modelUrl = `${API_BASE}/backend/static/${data.file}?t=${Date.now()}`;
+
+        roofModelEntity = displayViewer.entities.add({
+          position: Cesium.Cartesian3.ZERO,
+          model: {
+            uri: modelUrl,
+            scale: 1.0,
+            minimumPixelSize: 64
+          }
+        });
+
+        hideOverlay();
+        setStatus("Analysis complete");
+        document.getElementById('displayStatus').textContent = 'Model loaded';
+        document.getElementById('displayStatus').style.color = '#0f0';
+
+        // Wait for model to load, then set initial view
+        displayViewer.zoomTo(roofModelEntity).then(() => {
+          // Get bounding sphere to calculate camera distance
+          const bs = displayViewer.entities.values[0]?.computeViewRectangle?.() ||
+                     Cesium.BoundingSphere.fromPoints([Cesium.Cartesian3.ZERO]);
+          cameraDistance = 50; // Default distance for model
+
+          // Reset to default isometric view
+          currentHeading = -30;
+          currentPitch = -20;
+          applyCameraView();
+          updateViewcubeVisual();
+        });
+
+        // Load roof data for dropdown
+        await loadRoofData();
+
+      } catch(err) {
+        hideOverlay();
+        placeholder.innerHTML = '<div class="icon">&#10060;</div><div>Backend connection failed</div>';
+        console.error("API Error:", err);
+        alert("Backend connection failed");
+        setStatus("Error", "#f55");
+      }
+    };
+
+    window.resetBoundaries = () => {
+      cancelDrawing();
+      boundaries = [];
+      polygonEntities.forEach(e => viewer.entities.remove(e));
+      polygonEntities = [];
+      history = [];
+      historyIndex = -1;
+      updateHistoryButtons();
+      sessionStorage.removeItem(STATE_KEY);
+
+      // Reset display viewer - destroy it completely
+      if (displayViewer) {
+        displayViewer.destroy();
+        displayViewer = null;
+      }
+      roofModelEntity = null;
+
+      // Clean up displayContainer and show placeholder
+      const displayContainer = document.getElementById('displayContainer');
+      displayContainer.innerHTML = `
+        <div id="placeholderMsg" class="placeholder-msg">
+          <div class="icon">&#9660;</div>
+          <div>Draw roof boundaries on the left<br>then click <strong>Analyze</strong></div>
+        </div>
+        <div id="viewcubeWidget" class="viewcube-container" style="display:none;">
+          <div class="viewcube" id="viewcube">
+            <div class="viewcube-inner" id="viewcubeInner">
+              <div class="viewcube-face viewcube-front">FRONT</div>
+              <div class="viewcube-face viewcube-back">BACK</div>
+              <div class="viewcube-face viewcube-right">RIGHT</div>
+              <div class="viewcube-face viewcube-left">LEFT</div>
+              <div class="viewcube-face viewcube-top">TOP</div>
+              <div class="viewcube-face viewcube-bottom">BTM</div>
+            </div>
+          </div>
+          <div class="viewcube-hint">Drag to rotate</div>
+        </div>
+      `;
+
+      // Re-setup viewcube drag after recreating elements
+      setupViewcubeDrag();
+      setupDisplayZoom();
+
+      document.getElementById('displayStatus').textContent = '';
+
+      // Reset plane data panel
+      resetPlaneData();
+
+      setStatus("Reset");
+    };
+
+    // =============================
+    // Plane Data Functions
+    // =============================
+    async function loadRoofData() {
+      try {
+        const res = await fetch(`${API_BASE}/api/roof-info`);
+        if (!res.ok) throw new Error("No data");
+        const data = await res.json();
+        roofDataCache = data.roofs || [];
+        populatePlaneDropdown();
+      } catch(e) {
+        console.error("Failed to load roof data:", e);
+        roofDataCache = [];
+      }
+    }
+
+    function populatePlaneDropdown() {
+      const select = document.getElementById('planeSelect');
+      select.innerHTML = '<option value="">-- Select a plane --</option>';
+
+      if (roofDataCache && roofDataCache.length > 0) {
+        roofDataCache.forEach((roof, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = `Plane ${roof.index} (${roof.color_name})`;
+          select.appendChild(opt);
+        });
+        document.getElementById('noDataMsg').style.display = 'none';
+      } else {
+        document.getElementById('noDataMsg').style.display = 'block';
+      }
+
+      document.getElementById('planeInfo').classList.remove('show');
+    }
+
+    window.showPlaneData = () => {
+      const select = document.getElementById('planeSelect');
+      const idx = select.value;
+
+      if (idx === '' || !roofDataCache || !roofDataCache[idx]) {
+        document.getElementById('planeInfo').classList.remove('show');
+        return;
+      }
+
+      const roof = roofDataCache[idx];
+
+      document.getElementById('infoTilt').textContent = roof.tilt !== null ? roof.tilt + '°' : '--';
+      document.getElementById('infoAzimuth').textContent = roof.azimuth !== null ? roof.azimuth + '°' : '--';
+      document.getElementById('infoArea').textContent = roof.panel_area ? roof.panel_area + ' m²' : '--';
+
+      document.getElementById('planeInfo').classList.add('show');
+    };
+
+    function resetPlaneData() {
+      roofDataCache = null;
+      const select = document.getElementById('planeSelect');
+      select.innerHTML = '<option value="">-- Select a plane --</option>';
+      document.getElementById('planeInfo').classList.remove('show');
+      document.getElementById('noDataMsg').style.display = 'block';
+    }
+
+    // =============================
+    // ViewCube - Display viewer rotation (drag to rotate)
+    // =============================
+    let currentHeading = -30;  // degrees
+    let currentPitch = -20;    // degrees
+    let cameraDistance = 50;   // will be set based on model
+    let isDraggingCube = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    function updateViewcubeVisual() {
+      const cube = document.getElementById('viewcubeInner');
+      if (cube) {
+        cube.style.transform = `rotateX(${-currentPitch}deg) rotateY(${-currentHeading}deg)`;
+      }
+    }
+
+    function applyCameraView() {
+      if (!displayViewer || !roofModelEntity) return;
+
+      const headingRad = Cesium.Math.toRadians(currentHeading);
+      const pitchRad = Cesium.Math.toRadians(currentPitch);
+
+      // Calculate camera position around origin
+      const x = cameraDistance * Math.cos(pitchRad) * Math.sin(headingRad);
+      const y = -cameraDistance * Math.cos(pitchRad) * Math.cos(headingRad);
+      const z = cameraDistance * Math.sin(pitchRad);
+
+      displayViewer.camera.setView({
+        destination: new Cesium.Cartesian3(x, y, z),
+        orientation: {
+          direction: Cesium.Cartesian3.normalize(
+            Cesium.Cartesian3.negate(new Cesium.Cartesian3(x, y, z), new Cesium.Cartesian3()),
+            new Cesium.Cartesian3()
+          ),
+          up: new Cesium.Cartesian3(0, 0, 1)
+        }
+      });
+
+      displayViewer.scene.requestRender();
+    }
+
+    // Setup ViewCube drag handlers
+    function setupViewcubeDrag() {
+      const cube = document.getElementById('viewcube');
+      if (!cube) return;
+
+      cube.addEventListener('mousedown', (e) => {
+        isDraggingCube = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        cube.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDraggingCube) return;
+
+        const deltaX = e.clientX - lastMouseX;
+        const deltaY = e.clientY - lastMouseY;
+
+        currentHeading += deltaX * 0.8;
+        currentPitch += deltaY * 0.8;
+
+        // Clamp pitch
+        currentPitch = Math.max(-90, Math.min(90, currentPitch));
+
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+
+        updateViewcubeVisual();
+        applyCameraView();
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDraggingCube) {
+          isDraggingCube = false;
+          const cube = document.getElementById('viewcube');
+          if (cube) cube.style.cursor = 'grab';
+        }
+      });
+    }
+
+    // Setup zoom with mouse wheel - preserve rotation
+    function setupDisplayZoom() {
+      const container = document.getElementById('displayContainer');
+      if (!container) return;
+
+      container.addEventListener('wheel', (e) => {
+        if (!displayViewer || !roofModelEntity) return;
+
+        e.preventDefault();
+
+        // Adjust camera distance based on scroll
+        const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+        cameraDistance *= zoomFactor;
+
+        // Clamp distance
+        cameraDistance = Math.max(10, Math.min(500, cameraDistance));
+
+        applyCameraView();
+      }, { passive: false });
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      setupViewcubeDrag();
+      setupDisplayZoom();
+    });
+
+    // =============================
+    // View helpers
+    // =============================
+    function getRoofBoundingSphere() {
+      if (!boundaries.length) return null;
+      const pts = [];
+      boundaries.forEach(b => b.forEach(p => pts.push(p)));
+      return Cesium.BoundingSphere.fromPoints(pts);
+    }
+
+    window.zoomToRoofs = () => {
+      const bs = getRoofBoundingSphere();
+      if (!bs) return;
+      viewer.camera.flyToBoundingSphere(bs, { duration: 0.8 });
+    };
+
+    window.viewTop = () => {
+      const bs = getRoofBoundingSphere();
+      if (bs) viewer.camera.flyToBoundingSphere(bs, { duration: 0.6 });
+      viewer.camera.setView({
+        destination: viewer.camera.position,
+        orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 }
+      });
+    };
+
+    window.viewFront = () => {
+      const bs = getRoofBoundingSphere();
+      if (bs) viewer.camera.flyToBoundingSphere(bs, { duration: 0.6 });
+      viewer.camera.setView({
+        destination: viewer.camera.position,
+        orientation: { heading: 0, pitch: 0, roll: 0 }
+      });
+    };
+  </script>
+</body>
+</html>

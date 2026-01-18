@@ -1,4 +1,4 @@
-#!/home/tuibui/solar_roi/src/cesium-local/backend/venv/bin/python3
+#!/home/tuibui/solar/src/cesium-local/backend/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
