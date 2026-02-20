@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Solar ROI Calculator - Register</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/auth.css">
+</head>
+<body class="auth-page">
+
+  <div class="top-strip">
+    <img src="/static/images/kosen_logo.png" alt="Kosen">
+    <img src="/static/images/cesium_logo.png" alt="Cesium">
+  </div>
+
+  <div class="sub-strip">
+    <div class="sub-strip-left">
+      <div class="sub-strip-title">Solar ROI Calculator</div>
+      <a href="/app">User information</a>
+      <a href="/calculate">Calculation</a>
+    </div>
+    <a href="#" id="logoutLink" class="sub-strip-logout">Logout</a>
+  </div>
+
+  <main class="auth-main">
+    <div class="auth-card">
+      <div class="card-header">
+        <div class="auth-logos">
+          <img src="/static/images/kosen_logo.png" alt="Kosen logo">
+          <img src="/static/images/cesium_logo.png" alt="Cesium logo">
+        </div>
+        <div class="auth-title">Create Account</div>
+        <div class="auth-subtitle">Get started with Solar ROI Calculator</div>
+      </div>
+      <div class="card-body">
+        <div class="auth-error" id="authError"></div>
+        <form id="registerForm" class="auth-form">
+          <div class="form-group">
+            <label for="regName">Full Name</label>
+            <input type="text" id="regName" name="name" placeholder="Your name" required>
+          </div>
+          <div class="form-group">
+            <label for="regEmail">Email</label>
+            <input type="email" id="regEmail" name="email" placeholder="name@email.com" required>
+          </div>
+          <div class="form-group">
+            <label for="regPassword">Password</label>
+            <input type="password" id="regPassword" name="password" placeholder="Min. 6 characters" required>
+          </div>
+          <div class="form-group">
+            <label for="regConfirm">Confirm Password</label>
+            <input type="password" id="regConfirm" name="confirmPassword" placeholder="Repeat password" required>
+          </div>
+          <div class="auth-actions">
+            <button type="submit" class="btn-primary">Create Account</button>
+          </div>
+        </form>
+        <div class="auth-links">
+          Already have an account? <a href="/login">Sign in</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function() {
+      const AUTH_KEY = "solar_demo_auth";
+      const USER_KEY = "solar_auth_user";
+      const logoutLink = document.getElementById("logoutLink");
+
+      if (logoutLink) {
+        logoutLink.addEventListener("click", (event) => {
+          event.preventDefault();
+          sessionStorage.removeItem(AUTH_KEY);
+          sessionStorage.removeItem(USER_KEY);
+          localStorage.removeItem("solar_wizard_session");
+          window.location.href = "/login";
+        });
+      }
+
+      const form = document.getElementById("registerForm");
+      const errorEl = document.getElementById("authError");
+
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.add("show");
+      }
+
+      function hideError() {
+        errorEl.classList.remove("show");
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        hideError();
+
+        const name = document.getElementById("regName").value.trim();
+        const email = document.getElementById("regEmail").value.trim();
+        const password = document.getElementById("regPassword").value;
+        const confirm = document.getElementById("regConfirm").value;
+
+        if (!name || !email || !password) {
+          showError("Please fill in all fields");
+          return;
+        }
+
+        if (password !== confirm) {
+          showError("Passwords do not match");
+          return;
+        }
+
+        if (password.length < 6) {
+          showError("Password must be at least 6 characters");
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: name, email: email, password: password })
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            showError(result.error || "Registration failed");
+            return;
+          }
+
+          sessionStorage.setItem(AUTH_KEY, "1");
+          sessionStorage.setItem(USER_KEY, JSON.stringify(result.user));
+          window.location.href = "/app";
+        } catch (error) {
+          console.error("Register error:", error);
+          showError("Connection error. Please try again.");
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

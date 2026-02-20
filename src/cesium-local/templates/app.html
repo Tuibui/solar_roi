@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Solar ROI Calculator - App</title>
+  <script>window.CESIUM_BASE_URL = "/Build/Cesium/";</script>
+  <link rel="stylesheet" href="/Build/Cesium/Widgets/widgets.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/base.css?v=2">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260219">
+  <link rel="stylesheet" href="/static/css/wizard.css?v=3">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <script>
+    (function() {
+      const AUTH_KEY = "solar_demo_auth";
+      if (!sessionStorage.getItem(AUTH_KEY)) {
+        window.location.replace("/login");
+      }
+    })();
+  </script>
+
+  <div class="top-strip">
+    <img src="/static/images/kosen_logo.png" alt="Kosen">
+    <img src="/static/images/cesium_logo.png" alt="Cesium">
+  </div>
+
+  <div class="sub-strip">
+    <div class="sub-strip-left">
+      <div class="sub-strip-title">Solar ROI Calculator</div>
+      <a href="/app" class="active">User information</a>
+      <a href="/calculate">Calculation</a>
+    </div>
+    <a href="#" id="logoutLink" class="sub-strip-logout">Logout</a>
+  </div>
+
+  <div id="wizardOverlay">
+    <span id="wizardOverlayMsg">Generating...</span>
+  </div>
+
+  <!-- Map Mode -->
+  <div id="mapMode" class="map-mode active">
+    <div class="map-stage">
+      <div id="wizardCesiumContainer"></div>
+
+      <div class="map-controls">
+        <div class="map-search-box">
+          <div class="map-controls-row">
+            <div class="search-input-wrapper map-search">
+              <input type="text" id="addressInput" class="search-input" placeholder="Enter an address or place">
+              <div class="suggestions" id="suggestions"></div>
+            </div>
+            <button class="btn-search-action" id="searchBtn" type="button">Search</button>
+            <button class="btn-search-action btn-detect" id="btnDetectLocation" type="button">Detect</button>
+            <div class="toolbar-divider"></div>
+            <div id="wizardToolbar" class="map-toolbar">
+              <button id="btnDrawRoof" class="toolbar-btn" title="Draw Roof"><img src="/static/images/blueprint.png" alt="Draw" style="width:20px;height:20px;vertical-align:middle;"></button>
+              <button id="btnUndo" class="toolbar-btn" disabled title="Undo Point"><img src="/static/images/undo.png" alt="Undo" style="width:18px;height:18px;vertical-align:middle;"></button>
+              <button id="btnRedo" class="toolbar-btn" disabled title="Redo Point"><img src="/static/images/redo.png" alt="Redo" style="width:18px;height:18px;vertical-align:middle;"></button>
+              <button id="btnReset" class="toolbar-btn" title="Reset"><img src="/static/images/reset.png" alt="Reset" style="width:18px;height:18px;vertical-align:middle;"></button>
+            </div>
+          </div>
+          <div id="addressSelected" class="address-selected" style="display:none;"></div>
+          <div id="detectLocationStatus" class="form-hint map-status"></div>
+        </div>
+      </div>
+      
+      <!-- Bottom Right of Map: Big Analyze Button (Icon Only) -->
+      <div class="analyze-button-container">
+        <button id="btnAnalyze" class="btn-analyze-big" title="Analyze">
+          <img src="/static/images/next.png" alt="Analyze">
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Split View (Model + Form) -->
+  <div class="split-view hidden" id="splitView">
+    <div class="split-left">
+      <div class="split-viewer-wrap">
+        <div id="splitModelHost"></div>
+        <div class="panel-toolbar-overlay">
+          <button class="btn-small" id="btnAddPanel" type="button" title="Drag a solar panel onto the roof">☀️ Add Panel</button>
+          <button class="btn-small" id="btnLockView" type="button" title="Lock orbit to adjust panel positions">🔓 Lock View</button>
+          <button class="btn-small" id="btnClearPanels" type="button" title="Remove all panels">🗑️ Clear Panels</button>
+        </div>
+      </div>
+      <div class="split-viewer-toolbar">
+        <button class="btn-small" id="btnEditRoof" type="button">Edit Roof</button>
+      </div>
+    </div>
+    <div class="split-right" id="splitRight">
+      <button class="split-collapse-btn" id="btnCollapseRight" title="Collapse/Expand">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <header class="split-header">
+        <span>Project Details</span>
+      </header>
+      <div class="split-form-body" id="splitFormBody">
+
+        <!-- Section 1: Appliances -->
+        <div class="form-section">
+          <h3 class="form-section-title">Appliances</h3>
+          <div class="form-group">
+            <label for="wizardPresetAppliance">Add Preset Appliance</label>
+            <div style="display: flex; gap: 8px;">
+              <select id="wizardPresetAppliance" style="flex: 1;">
+                <option value="">-- Select Appliance --</option>
+                <option value="led|10">LED Light (10W)</option>
+                <option value="fan|75">Ceiling Fan (75W)</option>
+                <option value="fridge|150">Refrigerator (150W)</option>
+                <option value="tv|120">TV (120W)</option>
+                <option value="laptop|65">Laptop (65W)</option>
+                <option value="desktop|250">Desktop PC (250W)</option>
+                <option value="ac|900">Air Conditioner 9000BTU (900W)</option>
+                <option value="washing|500">Washing Machine (500W)</option>
+                <option value="microwave|1000">Microwave (1000W)</option>
+                <option value="pump|750">Water Pump (750W)</option>
+                <option value="custom">+ Custom Appliance...</option>
+              </select>
+              <button class="btn-small" style="padding: 8px 16px; background: #1a5276; color: white; border: none;" id="btnAddAppliance" type="button">+ Add</button>
+            </div>
+          </div>
+          <div id="wizardAppliancesList" class="appliances-list"></div>
+        </div>
+
+        <!-- Section 2: Monthly Electric Bill -->
+        <div class="form-section">
+          <h3 class="form-section-title">Monthly Electric Bill</h3>
+          <div class="form-group">
+            <label for="wizardMonthlyKwh">Monthly Energy Usage (kWh/month)</label>
+            <input type="number" id="wizardMonthlyKwh" step="1" placeholder="e.g., 500">
+          </div>
+        </div>
+
+        <!-- Section 3: Electricity Price -->
+        <div class="form-section">
+          <h3 class="form-section-title">Electricity Price</h3>
+          <div class="form-group">
+            <label for="wizardTariff">Price per kWh</label>
+            <div class="split-input-row">
+              <input type="number" id="wizardTariff" step="0.01" min="0" value="4.5" placeholder="4.5">
+              <select id="wizardCurrency" aria-label="Tariff currency">
+                <option value="THB">THB</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="JPY">JPY</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Grid Export Price -->
+        <div class="form-section">
+          <h3 class="form-section-title">Grid Export Price (Feed-in Tariff)</h3>
+          <div class="form-group">
+            <label for="splitExportPrice">Export price per kWh</label>
+            <div class="split-input-row">
+              <input type="number" id="splitExportPrice" step="0.01" min="0" placeholder="2.2">
+              <span class="export-currency-label" id="exportCurrencyLabel">THB</span>
+            </div>
+            <p class="form-hint">Price your utility pays for exported solar energy.</p>
+          </div>
+        </div>
+
+        <!-- Project Name + Save -->
+        <div class="form-section">
+          <h3 class="form-section-title">Save Project</h3>
+          <div class="form-group">
+            <label for="splitProjectName">Project Name</label>
+            <input type="text" id="splitProjectName" placeholder="My Solar Project">
+          </div>
+          <div id="splitSaveMsg" style="display:none;" class="success-message"></div>
+          <button class="split-save-btn" id="btnSplitSave" type="button">Save Project</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  
+
+  <!-- Scripts -->
+  <script src="/Build/Cesium/Cesium.js"></script>
+  <script src="/static/js/shared/config.js?v=20260219"></script>
+  <script src="/static/js/shared/utils.js?v=20260219"></script>
+  <script src="/static/js/app/map.js?v=20260219"></script>
+  <script src="/static/js/app/draw.js?v=20260219"></script>
+  <script src="/static/js/app/api.js?v=20260219"></script>
+  <script src="/static/js/app/search.js?v=20260219"></script>
+  <script src="/static/js/app/inputs.js?v=20260219"></script>
+  <script src="/static/js/app/wizard.js?v=20260219"></script>
+  <script src="/static/js/app/main.js?v=20260220"></script>
+  <script src="/static/js/app/panel-placer.js?v=20260220"></script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+    window.THREE = THREE;
+
+    function createViewer(host, options = {}) {
+      const bgColor = options.bgColor || 0xffffff;
+      const gridColor = options.gridColor || 0xcccccc;
+      const w = host.clientWidth || 400;
+      const h = host.clientHeight || 400;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(bgColor);
+
+      const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
+      camera.position.set(0, 5, 10);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      host.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.12;
+
+      
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambient);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+      dir.position.set(5, 10, 5);
+      scene.add(dir);
+
+      let animId;
+      function animate() {
+        animId = requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      function resize() {
+        const nw = host.clientWidth;
+        const nh = host.clientHeight;
+        if (nw && nh) {
+          camera.aspect = nw / nh;
+          camera.updateProjectionMatrix();
+          renderer.setSize(nw, nh);
+        }
+      }
+      window.addEventListener('resize', resize);
+
+      return { scene, camera, renderer, controls, resize, dispose: () => cancelAnimationFrame(animId) };
+    }
+
+    function loadModelToViewer(viewer, url, roofIndex, onReady, onError) {
+      const loader = new GLTFLoader();
+      loader.load(url, (gltf) => {
+        const model = gltf.scene;
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        model.position.sub(center);
+        // 3D model: auto-scale for visual
+        const maxDim = Math.max(size.x, size.y, size.z);
+        model.scale.setScalar(5 / (maxDim || 1));
+        
+        // Roof: lay flat with base parallel to ground, facing UP
+        // Step 1: Rotate 90° around X to lay flat
+        model.rotation.x =+Math.PI / 2;;
+        
+        model.updateMatrixWorld(true);
+        const groundedBox = new THREE.Box3().setFromObject(model);
+        model.position.y -= groundedBox.min.y;
+        model.position.y += 0.1; // Small offset from ground plane
+        viewer.scene.add(model);
+
+        // Expose model root for scatter alignment
+        viewer.modelRoot = model;
+
+        // Add XYZ axes at model center for orientation
+        const axes = new THREE.AxesHelper(2);
+        axes.name = 'model-axes';
+        axes.visible = false;
+        const modelBox = new THREE.Box3().setFromObject(model);
+        const modelCenter = modelBox.getCenter(new THREE.Vector3());
+        axes.position.copy(modelCenter);
+        model.add(axes);
+        
+        viewer.camera.position.set(0, 5, 10);
+        viewer.controls.target.set(0, 0, 0);
+        viewer.controls.update();
+        if (onReady) onReady(model);
+      }, undefined, (err) => {
+        console.error('GLB load error', err);
+        if (onError) onError(err);
+      });
+    }
+
+
+    window.threeViewer = { createViewer, loadModelToViewer };
+
+    // Panel Placer wiring (GLTFLoader available here)
+    let panelPlacer = null;
+
+    function getPanelPlacer() { return panelPlacer; }
+    window.getPanelPlacer = getPanelPlacer;
+
+    async function initPanelPlacer(viewer) {
+      if (panelPlacer) return panelPlacer;
+      if (!window.PanelPlacer) return null;
+
+      panelPlacer = new PanelPlacer(viewer);
+      await panelPlacer.loadPanelModel(GLTFLoader);
+      panelPlacer.init();
+      console.log('[PanelPlacer] Initialized');
+      return panelPlacer;
+    }
+
+    // Button handlers (run after DOM ready)
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnAdd = document.getElementById('btnAddPanel');
+      const btnLock = document.getElementById('btnLockView');
+      const btnClear = document.getElementById('btnClearPanels');
+
+      if (btnAdd) {
+        btnAdd.addEventListener('click', async () => {
+          // Lazy-init on first click
+          const viewer = window.splitViewerRef;
+          if (!viewer) { console.warn('[PanelPlacer] Split viewer not ready'); return; }
+          const pp = await initPanelPlacer(viewer);
+          if (pp) pp.startDrag();
+        });
+      }
+
+      if (btnLock) {
+        btnLock.addEventListener('click', async () => {
+          const viewer = window.splitViewerRef;
+          if (!viewer) return;
+          const pp = await initPanelPlacer(viewer);
+          if (!pp) return;
+          const locked = pp.toggleLock();
+          btnLock.textContent = locked ? '🔓 Unlock' : '🔓 Lock View';
+          btnLock.classList.toggle('active', locked);
+        });
+      }
+
+      if (btnClear) {
+        btnClear.addEventListener('click', () => {
+          if (panelPlacer) panelPlacer.clearAll();
+        });
+      }
+    });
+  </script>
+  <script>
+    (function() {
+      const logoutLink = document.getElementById("logoutLink");
+      if (!logoutLink) return;
+      logoutLink.addEventListener("click", (event) => {
+        event.preventDefault();
+        sessionStorage.removeItem("solar_demo_auth");
+        sessionStorage.removeItem("solar_auth_user");
+        localStorage.removeItem("solar_wizard_session");
+        window.location.href = "/login";
+      });
+    })();
+  </script>
+</body>
+</html>

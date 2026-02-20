@@ -1,0 +1,2295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Solar ROI Calculator - Calculate</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    .calc-container {
+      max-width: 980px;
+      margin: var(--sp-3) auto;
+      padding: var(--sp-4) var(--sp-5);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 12px 24px rgba(15, 39, 53, 0.08);
+    }
+
+    .calc-header {
+      margin-bottom: var(--sp-4);
+      padding-bottom: var(--sp-3);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .calc-header h2 {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 var(--sp-1) 0;
+    }
+
+    .calc-header p {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .calc-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: var(--sp-4);
+      align-items: start;
+    }
+
+    .project-panel {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+      border-right: 1px solid var(--border-light);
+      padding-right: var(--sp-3);
+      min-height: 520px;
+    }
+
+    .project-panel-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .project-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .dataset-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: var(--sp-2) var(--sp-3);
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+
+    .dataset-card:hover {
+      border-color: var(--accent);
+    }
+
+    .dataset-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-subtle);
+      border-width: 2px;
+      padding: calc(var(--sp-3) - 1px);
+    }
+
+    .dataset-name {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--sp-2);
+    }
+
+    .dataset-meta {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .dataset-meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--sp-2);
+    }
+
+    .dataset-meta-value {
+      color: var(--text-primary);
+      font-weight: 500;
+      font-family: var(--font-mono);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: var(--sp-6);
+      color: var(--text-muted);
+    }
+
+    .empty-state h3 {
+      font-size: var(--text-md);
+      color: var(--text-primary);
+      margin: 0 0 var(--sp-2) 0;
+    }
+
+    .empty-state a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .empty-state a:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      text-align: center;
+      padding: var(--sp-6);
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+    }
+
+    .action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-2);
+      align-items: center;
+    }
+
+    .action-bar button {
+      padding: var(--sp-2) var(--sp-4);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.1s ease;
+    }
+
+    .btn-calc {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .btn-calc:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .btn-calc:disabled {
+      background: var(--border-medium);
+      border-color: var(--border-medium);
+      cursor: not-allowed;
+    }
+
+    .btn-del {
+      background: var(--bg-card);
+      color: var(--error);
+      border-color: var(--error);
+    }
+
+    .btn-del:hover:not(:disabled) {
+      background: var(--error);
+      color: #fff;
+    }
+
+    .btn-del:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .selected-info {
+      margin-left: auto;
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    .model-panel {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+
+    .model-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: var(--sp-3);
+    }
+
+    .model-card-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--sp-2);
+    }
+
+    .model-viewer-wrap {
+      position: relative;
+      height: 360px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--border-medium);
+      overflow: hidden;
+    }
+
+    #threeModelHost,
+    #threeModelHostSolar {
+      width: 100%;
+      height: 100%;
+    }
+
+    #threeModelHost canvas,
+    #threeModelHostSolar canvas {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+
+    .model-placeholder,
+    .model-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: var(--sp-3);
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      background: rgba(242, 244, 247, 0.85);
+    }
+
+    .model-placeholder.hidden,
+    .model-loading.hidden {
+      display: none;
+    }
+
+    /* Irradiation Chart Section */
+    .chart-section {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+      display: none;
+    }
+
+    .chart-section.visible {
+      display: block;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--sp-3);
+      flex-wrap: wrap;
+      gap: var(--sp-2);
+    }
+
+    .chart-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .chart-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-2);
+      align-items: center;
+    }
+
+    .chart-controls label {
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+    }
+
+    .roof-checkbox-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-2);
+      margin-top: var(--sp-2);
+    }
+
+    .roof-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+      padding: var(--sp-1) var(--sp-2);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+
+    .roof-checkbox-item:hover {
+      border-color: var(--accent);
+    }
+
+    .roof-checkbox-item.checked {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+    }
+
+    .roof-checkbox-item input[type="checkbox"] {
+      margin: 0;
+      accent-color: var(--accent);
+    }
+
+    .roof-checkbox-item .roof-label {
+      color: var(--text-primary);
+    }
+
+    .roof-checkbox-item .roof-meta {
+      color: var(--text-muted);
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+    }
+
+    .roof-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-update-chart {
+      padding: var(--sp-2) var(--sp-3);
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+
+    .btn-update-chart:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .btn-update-chart:disabled {
+      background: var(--border-medium);
+      cursor: not-allowed;
+    }
+
+    .data-source-badge {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      margin-left: var(--sp-2);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 320px;
+      width: 100%;
+      background: var(--bg-surface);
+      border-radius: var(--radius-md);
+      padding: var(--sp-3);
+    }
+
+    .chart-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.9);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+    }
+
+    .chart-loading.hidden {
+      display: none;
+    }
+
+    .chart-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--sp-2);
+      margin-top: var(--sp-3);
+    }
+
+    .summary-stat {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: var(--sp-2) var(--sp-3);
+      text-align: center;
+    }
+
+    .summary-stat-value {
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+
+    .summary-stat-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .chart-error {
+      text-align: center;
+      padding: var(--sp-4);
+      color: var(--error);
+      font-size: var(--text-sm);
+    }
+
+    .sizing-section {
+      margin-top: var(--sp-4);
+      padding: var(--sp-4);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 20px rgba(15, 39, 53, 0.06);
+      display: none;
+    }
+
+    .sizing-section.visible {
+      display: block;
+    }
+
+    .sizing-title {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--sp-2);
+    }
+
+    .sizing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: var(--sp-2);
+      margin-bottom: var(--sp-3);
+    }
+
+    .sizing-breakdown {
+      border-top: 1px solid var(--border-light);
+      padding-top: var(--sp-2);
+    }
+
+    .sizing-breakdown table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+    }
+
+    .sizing-breakdown th,
+    .sizing-breakdown td {
+      text-align: left;
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .sizing-note {
+      margin-top: var(--sp-2);
+      color: var(--text-muted);
+      font-size: var(--text-xs);
+    }
+
+    /* Roof Info Table Overlay */
+    .roof-info-table {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 12px;
+      min-width: 200px;
+      max-width: 280px;
+      z-index: 10;
+      font-size: var(--text-xs);
+    }
+
+    .roof-info-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .roof-info-table th {
+      text-align: left;
+      padding: 6px 8px;
+      background: var(--bg-ink);
+      color: var(--text-inverse);
+      font-weight: 600;
+      font-size: var(--text-xs);
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .roof-info-table th:first-child {
+      border-radius: var(--radius-sm) 0 0 0;
+    }
+
+    .roof-info-table th:last-child {
+      border-radius: 0 var(--radius-sm) 0 0;
+    }
+
+    .roof-info-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+
+    .roof-info-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .roof-info-table tr:hover td {
+      background: var(--accent-subtle);
+    }
+
+    .roof-color-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-strip">
+    <img src="/static/images/kosen_logo.png" alt="Kosen">
+    <img src="/static/images/cesium_logo.png" alt="Cesium">
+  </div>
+
+  <div class="sub-strip">
+    <div class="sub-strip-left">
+      <div class="sub-strip-title">Solar ROI Calculator</div>
+      <a href="/app">User information</a>
+      <a href="/calculate" class="active">Calculation</a>
+    </div>
+    <a href="#" id="logoutLink" class="sub-strip-logout">Logout</a>
+  </div>
+
+  <div class="calc-container">
+    <div class="calc-header">
+      <h2>Calculation</h2>
+      <p>Select a project on the left to preview the roof model and chart.</p>
+    </div>
+
+    <div class="calc-layout">
+      <aside class="project-panel">
+        <div class="project-panel-title">Projects</div>
+        <div id="datasetsContainer" class="loading project-list">Loading projects...</div>
+        <div class="action-bar" id="actionBar" style="display: none;">
+          <button class="btn-calc" id="btnCalc" disabled>Show Irradiation</button>
+          <button class="btn-del" id="btnDel" disabled>Delete</button>
+          <span class="selected-info" id="selectedInfo">No selection</span>
+        </div>
+      </aside>
+
+      <main class="model-panel">
+        <div class="model-card">
+          <div class="model-card-title">3D Roof Model</div>
+          <div class="model-viewer-wrap">
+            <div id="threeModelHost"></div>
+            <div class="model-placeholder" id="modelPlaceholder">Select a project to load its roof model.</div>
+            <div class="model-loading hidden" id="modelLoading">Loading roof model...</div>
+            <!-- Roof Info Table Overlay -->
+            <div id="roofInfoTable" class="roof-info-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Roof</th>
+                    <th>Tilt (°)</th>
+                    <th>Azimuth (°)</th>
+                    <th>Height (m)</th>
+                    <th>Area (m²)</th>
+                  </tr>
+                </thead>
+                <tbody id="roofInfoTableBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="model-card" id="solarModelCard" style="display:none;">
+          <div class="model-card-title">Roof + Solar Panels</div>
+          <div class="model-viewer-wrap">
+            <div id="threeModelHostSolar"></div>
+            <div class="model-placeholder" id="modelPlaceholderSolar">Calculate system size to preview panels.</div>
+            <div class="model-loading hidden" id="modelLoadingSolar">Loading roof model...</div>
+            <!-- Roof Info Table Overlay -->
+            <div id="roofInfoTableSolar" class="roof-info-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Roof</th>
+                    <th>Tilt (°)</th>
+                    <th>Azimuth (°)</th>
+                    <th>Height (m)</th>
+                    <th>Area (m²)</th>
+                  </tr>
+                </thead>
+                <tbody id="roofInfoTableBodySolar">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Irradiation Chart Section -->
+        <div class="chart-section" id="chartSection">
+          <div class="chart-header">
+            <h3 class="chart-title">Monthly Solar Irradiation <span class="data-source-badge">PVGIS</span></h3>
+          </div>
+          <div class="chart-controls">
+            <label>Select roofs:</label>
+            <button class="btn-update-chart" id="btnUpdateChart">Update Chart</button>
+            <button class="btn-update-chart" id="btnSize" disabled>Calculate System Size</button>
+          </div>
+          <div class="roof-checkbox-list" id="roofCheckboxList"></div>
+          <div class="chart-container">
+            <canvas id="irradiationChart"></canvas>
+            <div class="chart-loading" id="chartLoading">Loading irradiation data from PVGIS...</div>
+          </div>
+          <div class="chart-summary" id="chartSummary"></div>
+          <div class="chart-error" id="chartError" style="display:none;"></div>
+        </div>
+
+        <section class="sizing-section" id="sizingSection">
+          <div class="sizing-title">System Sizing (Self-Consumption)</div>
+          <div class="chart-loading hidden" id="sizingLoading">Calculating system size...</div>
+          <div class="chart-error" id="sizingError" style="display:none;"></div>
+          <div class="sizing-grid" id="sizingSummary"></div>
+          <div class="sizing-breakdown" id="sizingBreakdown"></div>
+          <div class="sizing-breakdown" id="sizingInstalled"></div>
+          <div class="sizing-note" id="sizingNote"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+    import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+    const Chart = window.Chart;
+
+    (function() {
+      const AUTH_KEY = "solar_demo_auth";
+      if (!sessionStorage.getItem(AUTH_KEY)) {
+        window.location.replace("/login");
+      }
+      const USER_KEY = "solar_auth_user";
+      const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const ROOF_COLOR_MAP = {
+        Red: [255, 0, 0],
+        Green: [0, 255, 0],
+        Blue: [0, 0, 255],
+        Yellow: [255, 255, 0],
+        Magenta: [255, 0, 255],
+        Cyan: [0, 255, 255]
+      };
+      const DEFAULT_CHART_COLOR = [26, 82, 118];
+
+      let selectedId = null;
+      let datasets = [];
+      let currentProject = null;
+      let irradiationChart = null;
+      let selectedRoofIndices = new Set(); // Track selected roof indices
+      let currentModelUrl = null;
+
+      const modelHost = document.getElementById("threeModelHost");
+      const modelPlaceholder = document.getElementById("modelPlaceholder");
+      const modelLoading = document.getElementById("modelLoading");
+      const modelHostSolar = document.getElementById("threeModelHostSolar");
+      const modelPlaceholderSolar = document.getElementById("modelPlaceholderSolar");
+      const modelLoadingSolar = document.getElementById("modelLoadingSolar");
+      const solarModelCard = document.getElementById("solarModelCard");
+      const btnSize = document.getElementById("btnSize");
+      const sizingSection = document.getElementById("sizingSection");
+      const sizingLoading = document.getElementById("sizingLoading");
+      const sizingError = document.getElementById("sizingError");
+      const sizingSummary = document.getElementById("sizingSummary");
+      const sizingBreakdown = document.getElementById("sizingBreakdown");
+      const sizingInstalled = document.getElementById("sizingInstalled");
+      const sizingNote = document.getElementById("sizingNote");
+
+      let baseViewer = null;
+      let solarViewer = null;
+      let modelLoadToken = 0;
+      let sizingData = null;
+      let solarModelUrl = null;
+      function createViewer(host) {
+        if (!host) return null;
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf6f7f8);
+
+        const width = host.clientWidth || 800;
+        const height = host.clientHeight || 600;
+        const aspect = width / height;
+        const frustum = 10;
+
+        const camera = new THREE.OrthographicCamera(
+          -frustum * aspect,
+          frustum * aspect,
+          frustum,
+          -frustum,
+          0.1,
+          1000
+        );
+        camera.position.set(15, 15, 15);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setPixelRatio(window.devicePixelRatio || 1);
+        renderer.setSize(width, height, false);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        host.appendChild(renderer.domElement);
+
+        const grid = new THREE.GridHelper(50, 50, 0xcbd5e1, 0xe2e8f0);
+        grid.position.y = -0.01;
+        scene.add(grid);
+
+        // XYZ axes at center for orientation debugging
+        const axesHelper = new THREE.AxesHelper(3);
+        axesHelper.name = 'axesHelper';
+        scene.add(axesHelper);
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambient);
+        const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+        dir.position.set(10, 15, 10);
+        scene.add(dir);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.screenSpacePanning = true;
+
+        const animate = () => {
+          controls?.update();
+          renderer.render(scene, camera);
+          requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+
+        const resizeObserver = new ResizeObserver(() => {
+          const w = host.clientWidth || 800;
+          const h = host.clientHeight || 600;
+          const a = w / h;
+          camera.left = -frustum * a;
+          camera.right = frustum * a;
+          camera.top = frustum;
+          camera.bottom = -frustum;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h, false);
+        });
+        resizeObserver.observe(host);
+
+        return { host, scene, camera, renderer, controls, root: null, panelGroup: null, resizeObserver };
+      }
+
+      function latlonToEcef(lat, lon, alt = 0) {
+        const a = 6378137.0;
+        const f = 1 / 298.257223563;
+        const e2 = 2 * f - f * f;
+        const latRad = (lat * Math.PI) / 180;
+        const lonRad = (lon * Math.PI) / 180;
+        const N = a / Math.sqrt(1 - e2 * Math.sin(latRad) ** 2);
+        const x = (N + alt) * Math.cos(latRad) * Math.cos(lonRad);
+        const y = (N + alt) * Math.cos(latRad) * Math.sin(lonRad);
+        const z = (N * (1 - e2) + alt) * Math.sin(latRad);
+        return new THREE.Vector3(x, y, z);
+      }
+
+      function ecefToEnu(point, lat0, lon0) {
+        const lat = (lat0 * Math.PI) / 180;
+        const lon = (lon0 * Math.PI) / 180;
+        const sinLat = Math.sin(lat);
+        const cosLat = Math.cos(lat);
+        const sinLon = Math.sin(lon);
+        const cosLon = Math.cos(lon);
+        const origin = latlonToEcef(lat0, lon0, 0);
+        const dx = point.x - origin.x;
+        const dy = point.y - origin.y;
+        const dz = point.z - origin.z;
+        const east = -sinLon * dx + cosLon * dy;
+        const north = -sinLat * cosLon * dx - sinLat * sinLon * dy + cosLat * dz;
+        const up = cosLat * cosLon * dx + cosLat * sinLon * dy + sinLat * dz;
+        return new THREE.Vector3(east, north, up);
+      }
+
+      function bestFitNormal(points) {
+        if (points.length < 3) return new THREE.Vector3(0, 1, 0);
+        const centroid = new THREE.Vector3();
+        points.forEach(p => centroid.add(p));
+        centroid.multiplyScalar(1 / points.length);
+        let xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
+        points.forEach(p => {
+          const r = p.clone().sub(centroid);
+          xx += r.x * r.x;
+          xy += r.x * r.y;
+          xz += r.x * r.z;
+          yy += r.y * r.y;
+          yz += r.y * r.z;
+          zz += r.z * r.z;
+        });
+        const detX = yy * zz - yz * yz;
+        const detY = xx * zz - xz * xz;
+        const detZ = xx * yy - xy * xy;
+        let dir = new THREE.Vector3();
+        if (detX >= detY && detX >= detZ) {
+          dir.set(detX, xz * yz - xy * zz, xy * yz - xz * yy);
+        } else if (detY >= detX && detY >= detZ) {
+          dir.set(xz * yz - xy * zz, detY, xy * xz - yz * xx);
+        } else {
+          dir.set(xy * yz - xz * yy, xy * xz - yz * xx, detZ);
+        }
+        if (dir.lengthSq() < 1e-8) dir.set(0, 1, 0);
+        return dir.normalize();
+      }
+
+      function planeBasis(normal) {
+        // Prefer global east (X) projected onto plane for consistent panel alignment
+        const east = new THREE.Vector3(1, 0, 0);
+        const north = new THREE.Vector3(0, 0, 1);
+        const proj = east.clone().sub(normal.clone().multiplyScalar(east.dot(normal)));
+        let u = proj.lengthSq() > 1e-6 ? proj.normalize() : north.clone().sub(normal.clone().multiplyScalar(north.dot(normal))).normalize();
+        if (u.lengthSq() < 1e-6) {
+          u = new THREE.Vector3(1, 0, 0);
+        }
+        const v = new THREE.Vector3().crossVectors(normal, u).normalize();
+        return { u, v };
+      }
+
+      function projectTo2D(points, normal) {
+        const centroid = new THREE.Vector3();
+        points.forEach(p => centroid.add(p));
+        centroid.multiplyScalar(1 / points.length);
+        const { u, v } = planeBasis(normal);
+        let pts2d = points.map(p => {
+          const d = p.clone().sub(centroid);
+          return new THREE.Vector2(d.dot(u), d.dot(v));
+        });
+        // Align basis with longest roof edge so panels are parallel to roof boundary
+        let longest = { len: 0, dx: 1, dy: 0 };
+        for (let i = 0; i < pts2d.length; i++) {
+          const j = (i + 1) % pts2d.length;
+          const dx = pts2d[j].x - pts2d[i].x;
+          const dy = pts2d[j].y - pts2d[i].y;
+          const len = dx * dx + dy * dy;
+          if (len > longest.len) longest = { len, dx, dy };
+        }
+        const angle = Math.atan2(longest.dy, longest.dx);
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        const u2 = u.clone().multiplyScalar(cosA).add(v.clone().multiplyScalar(sinA)).normalize();
+        const v2 = v.clone().multiplyScalar(cosA).sub(u.clone().multiplyScalar(sinA)).normalize();
+        pts2d = points.map(p => {
+          const d = p.clone().sub(centroid);
+          return new THREE.Vector2(d.dot(u2), d.dot(v2));
+        });
+        return { pts2d, centroid, u: u2, v: v2 };
+      }
+
+      function pointInPoly(pt, poly) {
+        let inside = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const xi = poly[i].x, yi = poly[i].y;
+          const xj = poly[j].x, yj = poly[j].y;
+          const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
+            (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi + 1e-12) + xi);
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      }
+
+      function buildRoofMesh(pointsEnu, colorHex = 0x94a3b8, thickness = 0.3) {
+        const normal = bestFitNormal(pointsEnu);
+        const { pts2d, centroid, u, v } = projectTo2D(pointsEnu, normal);
+        const shape = new THREE.Shape(pts2d);
+        const geom = thickness > 0
+          ? new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false })
+          : new THREE.ShapeGeometry(shape);
+        const pos = geom.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i);
+          const y = pos.getY(i);
+          const z = thickness > 0 ? pos.getZ(i) : 0;
+          const mapped = centroid.clone()
+            .add(u.clone().multiplyScalar(x))
+            .add(v.clone().multiplyScalar(y))
+            .add(normal.clone().multiplyScalar(z));
+          pos.setXYZ(i, mapped.x, mapped.y, mapped.z);
+        }
+        geom.computeVertexNormals();
+        const mat = new THREE.MeshStandardMaterial({ color: colorHex, side: THREE.DoubleSide, roughness: 0.7 });
+        const mesh = new THREE.Mesh(geom, mat);
+        return { mesh, normal, centroid, u, v, pts2d };
+      }
+
+      function placePanelsInPolygon(pts2d, count, panelW, panelH) {
+        if (count <= 0) return [];
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        pts2d.forEach(p => {
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y);
+          maxY = Math.max(maxY, p.y);
+        });
+        const placements = [];
+        const gap = 0.08;
+        const stepX = panelW + gap;
+        const stepY = panelH + gap;
+        for (let y = minY + panelH / 2; y <= maxY - panelH / 2; y += stepY) {
+          for (let x = minX + panelW / 2; x <= maxX - panelW / 2; x += stepX) {
+            const corners = [
+              new THREE.Vector2(x - panelW / 2, y - panelH / 2),
+              new THREE.Vector2(x + panelW / 2, y - panelH / 2),
+              new THREE.Vector2(x + panelW / 2, y + panelH / 2),
+              new THREE.Vector2(x - panelW / 2, y + panelH / 2),
+            ];
+            if (corners.every(c => pointInPoly(c, pts2d))) {
+              placements.push(new THREE.Vector2(x, y));
+              if (placements.length >= count) return placements;
+            }
+          }
+        }
+        return placements;
+      }
+
+      function renderSolarFromPolygons() {
+        if (!solarViewer || !currentProject || !sizingData) return;
+        clearViewer(solarViewer);
+        console.info("[Solar] render start", {
+          roofs: (currentProject.roofs || []).length,
+          hasSizing: !!sizingData
+        });
+
+        const roofs = currentProject.roofs || [];
+        if (!roofs.length) return;
+        const firstPoly = roofs.find(r => (r.polygon || []).length >= 3);
+        const ref = firstPoly?.polygon?.[0];
+        if (!ref) {
+          if (modelPlaceholderSolar) {
+            modelPlaceholderSolar.textContent = "No roof boundary found for this project.";
+            modelPlaceholderSolar.classList.remove("hidden");
+          }
+          return;
+        }
+        const lat0 = Array.isArray(ref) ? ref[0] : ref.lat;
+        const lon0 = Array.isArray(ref) ? ref[1] : ref.lon;
+        if (!Number.isFinite(lat0) || !Number.isFinite(lon0)) {
+          if (modelPlaceholderSolar) {
+            modelPlaceholderSolar.textContent = "Invalid roof boundary coordinates.";
+            modelPlaceholderSolar.classList.remove("hidden");
+          }
+          return;
+        }
+        console.info("[Solar] ref lat/lon", lat0, lon0);
+
+        const perRoofSizing = new Map();
+        (sizingData.per_roof || []).forEach(r => perRoofSizing.set(r.index, r));
+
+        const group = new THREE.Group();
+        roofs.forEach(roof => {
+          const poly = roof.polygon || [];
+          if (poly.length < 3) return;
+          console.info("[Solar] roof poly", roof.index, poly.length);
+          const ptsEnu = poly.map(p => {
+            const lat = Array.isArray(p) ? p[0] : p.lat;
+            const lon = Array.isArray(p) ? p[1] : p.lon;
+            const height = Array.isArray(p) ? (p[2] || 0) : (p.height || 0);
+            const ecef = latlonToEcef(lat, lon, height);
+            const enu = ecefToEnu(ecef, lat0, lon0);
+            // Map ENU (E,N,U) to Three (X,Y,Z) where Y is up
+            return new THREE.Vector3(enu.x, enu.z, enu.y);
+          });
+          const color = ROOF_COLOR_MAP[roof.color_name] || DEFAULT_CHART_COLOR;
+          const colorHex = (color[0] << 16) + (color[1] << 8) + color[2];
+          const built = buildRoofMesh(ptsEnu, colorHex, 0.3);
+          group.add(built.mesh);
+
+          const sizing = perRoofSizing.get(roof.index)?.sizing;
+          console.info("[Solar] roof sizing", roof.index, sizing);
+          if (!sizing || !sizing.fits_on_roof || !(sizing.panel_count > 0)) return;
+          const panelW = (sizing.panel_dimensions || {}).width_m || 1.134;
+          const panelH = (sizing.panel_dimensions || {}).height_m || 1.762;
+          const placements = placePanelsInPolygon(built.pts2d, sizing.panel_count, panelW, panelH);
+          console.info("[Solar] placements", roof.index, placements.length);
+          if (!placements.length) return;
+
+          const panelT = 0.4;
+          const geom = new THREE.BoxGeometry(panelW, panelH, panelT);
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x0a0a0a,
+            roughness: 0.25,
+            metalness: 0.25,
+            emissive: 0x050505,
+            clearcoat: 0.35,
+            clearcoatRoughness: 0.25
+          });
+          const inst = new THREE.InstancedMesh(geom, mat, placements.length);
+          placements.forEach((p2, idx) => {
+            const pos = built.centroid.clone()
+              .add(built.u.clone().multiplyScalar(p2.x))
+              .add(built.v.clone().multiplyScalar(p2.y))
+              .add(built.normal.clone().multiplyScalar(panelT / 2 + 0.02));
+            const tangent = built.u.clone();
+            const bitangent = built.v.clone();
+            const m = new THREE.Matrix4().makeBasis(tangent, bitangent, built.normal);
+            m.setPosition(pos);
+            inst.setMatrixAt(idx, m);
+          });
+          inst.instanceMatrix.needsUpdate = true;
+          group.add(inst);
+        });
+
+        // Lay roof flat: rotate +90° around X axis (facing DOWNWARD - user confirmed)
+        group.rotation.x = Math.PI / 2;
+        // Align to grid: ensure roof edge is colinear with grid line
+        const yaw = getPrincipalYaw(group);
+        const snapAngle = Math.round(yaw / (Math.PI / 2)) * (Math.PI / 2);
+        // Consistent downward orientation: always add PI to flip upside down
+        group.rotation.z = snapAngle - yaw + Math.PI;
+
+        solarViewer.scene.add(group);
+        solarViewer.root = group;
+        const box = new THREE.Box3().setFromObject(group);
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+        group.position.sub(center);
+
+        // 3D model: auto-scale for visual (decoration)
+        const autoScale = 5 / (Math.max(size.x, size.y, size.z) || 1);
+        group.scale.setScalar(autoScale);
+        
+        const box2 = new THREE.Box3().setFromObject(group);
+        if (Number.isFinite(box2.min.y)) {
+          group.position.y -= box2.min.y;
+        }
+        // Y offset: scale proportionally to 3D model size (not table data)
+        const visualHeight = size.y * autoScale;
+        group.position.y += visualHeight * 0.3; // 30% of model height
+        
+        const scaledSize = new THREE.Vector3(size.x, size.y, size.z).multiplyScalar(autoScale);
+        const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
+        const distance = maxDim * 1.6 || 10;
+        solarViewer.camera.position.set(distance, distance, distance);
+        solarViewer.camera.lookAt(0, 0, 0);
+        solarViewer.controls.target.set(0, 0, 0);
+        solarViewer.controls.update();
+        console.info("[Solar] render done", { size, maxDim });
+        
+        // Populate roof info table for solar view
+        populateRoofInfoTableSolar();
+      }
+
+      // Populate roof info table for solar panel view
+      function populateRoofInfoTableSolar() {
+        const tbody = document.getElementById('roofInfoTableBodySolar');
+        if (!tbody || !currentProject || !currentProject.roofs) return;
+        
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+        
+        const rows = currentProject.roofs.map((roof, index) => {
+          const color = colors[index % colors.length];
+          const tilt = roof.tilt != null ? roof.tilt.toFixed(1) : '-';
+          const azimuth = roof.azimuth != null ? roof.azimuth.toFixed(1) : '-';
+          // Scale: real Euclidean 2.821m, data shows ~4.46m, factor = 0.632
+          const rawHeight = roof.polygon && roof.polygon[0] ? ((Array.isArray(roof.polygon[0]) ? roof.polygon[0][2] : roof.polygon[0].height) || 0) : 0;
+          const height = (rawHeight * 0.632).toFixed(2);
+          const area = roof.area != null ? roof.area.toFixed(2) : '-';
+          return `
+            <tr>
+              <td><span class="roof-color-indicator" style="background-color: ${color};"></span>#${index + 1}</td>
+              <td>${tilt}</td>
+              <td>${azimuth}</td>
+              <td>${height}</td>
+              <td>${area}</td>
+            </tr>
+          `;
+        }).join('');
+        
+        tbody.innerHTML = rows;
+      }
+
+      function clearViewer(viewer) {
+        if (!viewer || !viewer.scene) return;
+        if (viewer.root) {
+          viewer.scene.remove(viewer.root);
+          viewer.root.traverse((obj) => {
+            if (obj.isMesh) {
+              obj.geometry?.dispose?.();
+              if (Array.isArray(obj.material)) {
+                obj.material.forEach((m) => m.dispose?.());
+              } else {
+                obj.material?.dispose?.();
+              }
+            }
+          });
+          viewer.root = null;
+        }
+        if (viewer.panelGroup) {
+          viewer.scene.remove(viewer.panelGroup);
+          viewer.panelGroup.traverse((obj) => {
+            if (obj.isMesh) {
+              obj.geometry?.dispose?.();
+              obj.material?.dispose?.();
+            }
+          });
+          viewer.panelGroup = null;
+        }
+      }
+
+      function clearCurrentModel() {
+        clearViewer(baseViewer);
+        clearViewer(solarViewer);
+        if (currentModelUrl) {
+          URL.revokeObjectURL(currentModelUrl);
+          currentModelUrl = null;
+        }
+        if (solarModelUrl) {
+          URL.revokeObjectURL(solarModelUrl);
+          solarModelUrl = null;
+        }
+      }
+
+      baseViewer = createViewer(modelHost);
+      solarViewer = null;
+
+      function getUser() {
+        try {
+        return JSON.parse(sessionStorage.getItem(USER_KEY));
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function formatDate(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        return d.toLocaleDateString("ja-JP") + " " + d.toLocaleTimeString("ja-JP", {hour: "2-digit", minute: "2-digit"});
+      }
+
+      function rgbToRgba(rgb, alpha) {
+        return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+      }
+
+      function getRoofDisplayIndex(roof, fallbackIndex) {
+        if (Number.isFinite(roof.index)) {
+          return roof.index === 0 ? 1 : roof.index;
+        }
+        return fallbackIndex + 1;
+      }
+
+      function getRoofColorRgb(roof) {
+        if (!roof || !roof.color_name) return DEFAULT_CHART_COLOR;
+        return ROOF_COLOR_MAP[roof.color_name] || DEFAULT_CHART_COLOR;
+      }
+
+      function mixColors(colors) {
+        if (!colors.length) return DEFAULT_CHART_COLOR;
+        const sums = colors.reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]], [0, 0, 0]);
+        return [
+          Math.round(sums[0] / colors.length),
+          Math.round(sums[1] / colors.length),
+          Math.round(sums[2] / colors.length)
+        ];
+      }
+
+      function getSelectedRoofColor() {
+        if (!currentProject || !currentProject.roofs) return DEFAULT_CHART_COLOR;
+        const roofsByIndex = new Map(currentProject.roofs.map(r => [r.index, r]));
+        const indices = selectedRoofIndices.size > 0
+          ? Array.from(selectedRoofIndices)
+          : currentProject.roofs.map(r => r.index);
+
+        const colors = indices.map(idx => getRoofColorRgb(roofsByIndex.get(idx)));
+        return mixColors(colors);
+      }
+
+      function getRoofByIndex(index) {
+        if (!currentProject || !currentProject.roofs) return null;
+        return currentProject.roofs.find(r => r.index === index) || null;
+      }
+
+      function getPrincipalYaw(object3d) {
+        if (!object3d) return 0;
+        const sampleLimit = 2000;
+        const temp = new THREE.Vector3();
+        let count = 0;
+        let meanX = 0;
+        let meanZ = 0;
+        object3d.updateMatrixWorld(true);
+        object3d.traverse((child) => {
+          const pos = child.geometry?.attributes?.position;
+          if (!child.isMesh || !pos) return;
+          const step = Math.max(1, Math.floor(pos.count / sampleLimit));
+          for (let i = 0; i < pos.count; i += step) {
+            temp.fromBufferAttribute(pos, i).applyMatrix4(child.matrixWorld);
+            meanX += temp.x;
+            meanZ += temp.z;
+            count++;
+          }
+        });
+        if (count < 2) return 0;
+        meanX /= count;
+        meanZ /= count;
+        let xx = 0, zz = 0, xz = 0;
+        object3d.traverse((child) => {
+          const pos = child.geometry?.attributes?.position;
+          if (!child.isMesh || !pos) return;
+          const step = Math.max(1, Math.floor(pos.count / sampleLimit));
+          for (let i = 0; i < pos.count; i += step) {
+            temp.fromBufferAttribute(pos, i).applyMatrix4(child.matrixWorld);
+            const dx = temp.x - meanX;
+            const dz = temp.z - meanZ;
+            xx += dx * dx;
+            zz += dz * dz;
+            xz += dx * dz;
+          }
+        });
+        if (Math.abs(xz) < 1e-6 && Math.abs(xx - zz) < 1e-6) return 0;
+        return 0.5 * Math.atan2(2 * xz, xx - zz);
+      }
+
+      function loadModelToViewer(viewer, url, loadToken, onReady, onError) {
+        if (!viewer) return;
+        const loader = new GLTFLoader();
+        loader.load(url, (gltf) => {
+          if (loadToken !== modelLoadToken) {
+            gltf.scene?.traverse?.((obj) => {
+              if (obj.isMesh) {
+                obj.geometry?.dispose?.();
+                if (Array.isArray(obj.material)) {
+                  obj.material.forEach((m) => m.dispose?.());
+                } else {
+                  obj.material?.dispose?.();
+                }
+              }
+            });
+            return;
+          }
+          viewer.root = gltf.scene;
+          viewer.root.traverse((obj) => {
+            if (obj.isMesh && obj.material) {
+              if (Array.isArray(obj.material)) {
+                obj.material.forEach((m) => {
+                  m.flatShading = true;
+                  m.needsUpdate = true;
+                });
+              } else {
+                obj.material.flatShading = true;
+                obj.material.needsUpdate = true;
+              }
+              const edges = new THREE.EdgesGeometry(obj.geometry, 30);
+              const line = new THREE.LineSegments(
+                edges,
+                new THREE.LineBasicMaterial({ color: 0x334155 })
+              );
+              obj.add(line);
+            }
+          });
+
+          // Lay roof flat: rotate +90° around X axis (facing DOWNWARD - user confirmed)
+          viewer.root.rotation.x = Math.PI / 2;
+          // Align to grid: ensure roof edge is colinear with grid line
+          const yaw = getPrincipalYaw(viewer.root);
+          const snapAngle = Math.round(yaw / (Math.PI / 2)) * (Math.PI / 2);
+          // Consistent downward orientation: always add PI to flip upside down
+          viewer.root.rotation.z = snapAngle - yaw + Math.PI;
+
+          viewer.scene.add(viewer.root);
+
+          const box2 = new THREE.Box3().setFromObject(viewer.root);
+          const size2 = new THREE.Vector3();
+          const center2 = new THREE.Vector3();
+          box2.getSize(size2);
+          box2.getCenter(center2);
+          viewer.root.position.x -= center2.x;
+          viewer.root.position.z -= center2.z;
+          viewer.root.position.y -= box2.min.y;
+          // Y offset: scale proportionally to 3D model size (not table data)
+          const visualHeight = modelHeight * autoScale;
+          viewer.root.position.y += visualHeight * 0.3; // 30% of model height
+
+          // 3D model: auto-scale for visual (decoration)
+          const modelHeight = size2.y;
+          const autoScale = 5 / (Math.max(size2.x, size2.y, size2.z) || 1);
+          viewer.root.scale.setScalar(autoScale);
+          const scaledMaxDim = Math.max(size2.x, size2.y, size2.z) * autoScale;
+          const distance = scaledMaxDim * 1.6 || 10;
+          viewer.camera.position.set(distance, distance, distance);
+          viewer.camera.lookAt(0, 0, 0);
+          viewer.controls.target.set(0, 0, 0);
+          viewer.controls.update();
+
+          if (onReady) onReady();
+          
+          // Populate roof info table
+          populateRoofInfoTable();
+        }, undefined, onError);
+      }
+
+      // Populate roof info table from current project
+      function populateRoofInfoTable() {
+        const tbody = document.getElementById('roofInfoTableBody');
+        const tbodySolar = document.getElementById('roofInfoTableBodySolar');
+        if (!currentProject || !currentProject.roofs) return;
+        
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+        
+        const rows = currentProject.roofs.map((roof, index) => {
+          const color = colors[index % colors.length];
+          const tilt = roof.tilt != null ? roof.tilt.toFixed(1) : '-';
+          const azimuth = roof.azimuth != null ? roof.azimuth.toFixed(1) : '-';
+          // Scale: real Euclidean 2.821m, data shows ~4.46m, factor = 0.632
+          const rawHeight = roof.polygon && roof.polygon[0] ? ((Array.isArray(roof.polygon[0]) ? roof.polygon[0][2] : roof.polygon[0].height) || 0) : 0;
+          const height = (rawHeight * 0.632).toFixed(2);
+          const area = roof.area != null ? roof.area.toFixed(2) : '-';
+          return `
+            <tr>
+              <td><span class="roof-color-indicator" style="background-color: ${color};"></span>#${index + 1}</td>
+              <td>${tilt}</td>
+              <td>${azimuth}</td>
+              <td>${height}</td>
+              <td>${area}</td>
+            </tr>
+          `;
+        }).join('');
+        
+        if (tbody) tbody.innerHTML = rows;
+        if (tbodySolar) tbodySolar.innerHTML = rows;
+      }
+
+      function colorKeyFromRGB(r, g, b) {
+        const rr = Math.round(r);
+        const gg = Math.round(g);
+        const bb = Math.round(b);
+        return `${rr},${gg},${bb}`;
+      }
+
+      function getRoofColorKey(roof) {
+        const color = ROOF_COLOR_MAP[roof.color_name] || DEFAULT_CHART_COLOR;
+        return colorKeyFromRGB(color[0], color[1], color[2]);
+      }
+
+      function buildTriangleBuckets(mesh) {
+        const geom = mesh.geometry;
+        const pos = geom.attributes.position;
+        let norm = geom.attributes.normal;
+        const col = geom.attributes.color;
+        if (!pos) return {};
+        if (!norm) {
+          geom.computeVertexNormals();
+          norm = geom.attributes.normal;
+          if (!norm) return {};
+        }
+
+        const index = geom.index;
+        const buckets = {};
+        const triCount = index ? index.count / 3 : pos.count / 3;
+
+        const v0 = new THREE.Vector3();
+        const v1 = new THREE.Vector3();
+        const v2 = new THREE.Vector3();
+        const n = new THREE.Vector3();
+        const c = new THREE.Color();
+
+        const fallbackColor = mesh.material?.color
+          ? colorKeyFromRGB(
+              Math.round(mesh.material.color.r * 255),
+              Math.round(mesh.material.color.g * 255),
+              Math.round(mesh.material.color.b * 255)
+            )
+          : "__all__";
+
+        for (let i = 0; i < triCount; i++) {
+          const i0 = index ? index.getX(i * 3) : i * 3;
+          const i1 = index ? index.getX(i * 3 + 1) : i * 3 + 1;
+          const i2 = index ? index.getX(i * 3 + 2) : i * 3 + 2;
+
+          v0.fromBufferAttribute(pos, i0);
+          v1.fromBufferAttribute(pos, i1);
+          v2.fromBufferAttribute(pos, i2);
+          const centroid = new THREE.Vector3()
+            .add(v0).add(v1).add(v2)
+            .multiplyScalar(1 / 3);
+
+          n.fromBufferAttribute(norm, i0)
+            .add(new THREE.Vector3().fromBufferAttribute(norm, i1))
+            .add(new THREE.Vector3().fromBufferAttribute(norm, i2))
+            .normalize();
+
+          let key = fallbackColor;
+          if (col) {
+            c.setRGB(
+              (col.getX(i0) + col.getX(i1) + col.getX(i2)) / 3,
+              (col.getY(i0) + col.getY(i1) + col.getY(i2)) / 3,
+              (col.getZ(i0) + col.getZ(i1) + col.getZ(i2)) / 3
+            );
+            key = colorKeyFromRGB(Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255));
+          }
+          if (!buckets[key]) buckets[key] = [];
+          buckets[key].push({ centroid, normal: n.clone() });
+        }
+
+        return buckets;
+      }
+
+      function resolveBucketKey(desiredKey, buckets) {
+        if (buckets[desiredKey]) return desiredKey;
+        if (buckets["__all__"]) return "__all__";
+        const keys = Object.keys(buckets);
+        if (!keys.length) return null;
+        const parse = (k) => k.split(",").map(v => parseInt(v, 10));
+        const [dr, dg, db] = parse(desiredKey);
+        let bestKey = keys[0];
+        let bestDist = Infinity;
+        keys.forEach(k => {
+          if (k === "__all__") return;
+          const [r, g, b] = parse(k);
+          const d = (r - dr) ** 2 + (g - dg) ** 2 + (b - db) ** 2;
+          if (d < bestDist) {
+            bestDist = d;
+            bestKey = k;
+          }
+        });
+        return bestKey;
+      }
+
+      function placePanelsOnRoof(tris, panelCount, panelWidth, panelHeight) {
+        if (!tris || tris.length === 0 || panelCount <= 0) return [];
+        const placed = [];
+        const minDist = Math.max(panelWidth, panelHeight) * 0.3;
+        const shuffled = tris.slice().sort(() => Math.random() - 0.5);
+        for (const t of shuffled) {
+          let ok = true;
+          for (const p of placed) {
+            if (p.centroid.distanceTo(t.centroid) < minDist) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) {
+            placed.push(t);
+            if (placed.length >= panelCount) break;
+          }
+        }
+        return placed;
+      }
+
+      function kMeansClusters(tris, k, iterations = 6) {
+        if (!tris || !tris.length || k <= 0) return [];
+        const picks = tris.slice(0, k).map(t => t.centroid.clone());
+        let centers = picks.length ? picks : [tris[0].centroid.clone()];
+        for (let it = 0; it < iterations; it++) {
+          const groups = Array.from({ length: centers.length }, () => []);
+          tris.forEach(t => {
+            let best = 0;
+            let bestDist = Infinity;
+            centers.forEach((c, idx) => {
+              const d = c.distanceToSquared(t.centroid);
+              if (d < bestDist) {
+                bestDist = d;
+                best = idx;
+              }
+            });
+            groups[best].push(t);
+          });
+          centers = groups.map((g, idx) => {
+            if (!g.length) return centers[idx];
+            const sum = new THREE.Vector3();
+            g.forEach(t => sum.add(t.centroid));
+            return sum.multiplyScalar(1 / g.length);
+          });
+          if (groups.length === k) {
+            return groups;
+          }
+        }
+        return Array.from({ length: centers.length }, () => []);
+      }
+
+      function applyPanelOverlay(viewer) {
+        if (!viewer || !viewer.scene || !sizingData) return;
+        if (!viewer.root) {
+          const geom = new THREE.BoxGeometry(2, 1, 0.2);
+          const mat = new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0x442200 });
+          const cube = new THREE.Mesh(geom, mat);
+          viewer.scene.add(cube);
+          return;
+        }
+        if (viewer.panelGroup) {
+          viewer.scene.remove(viewer.panelGroup);
+          viewer.panelGroup = null;
+        }
+
+        viewer.panelGroup = new THREE.Group();
+        const meshList = [];
+        viewer.root.traverse((obj) => {
+          if (obj.isMesh) meshList.push(obj);
+        });
+        if (!meshList.length) {
+          return;
+        }
+
+        const roofMap = new Map();
+        (currentProject?.roofs || []).forEach(r => {
+          roofMap.set(r.index, r);
+        });
+
+        const perRoof = sizingData.per_roof || [];
+        const colorBuckets = {};
+        meshList.forEach(mesh => {
+          const buckets = buildTriangleBuckets(mesh);
+          Object.keys(buckets).forEach(k => {
+            if (!colorBuckets[k]) colorBuckets[k] = [];
+            colorBuckets[k].push(...buckets[k]);
+          });
+        });
+        const allTris = Object.values(colorBuckets).flat();
+        const roofsNeedingPanels = perRoof.filter(r => {
+          const rs = r.sizing || {};
+          return rs.fits_on_roof && (rs.panel_count || 0) > 0;
+        });
+        const fallbackClusters = allTris.length && roofsNeedingPanels.length
+          ? kMeansClusters(allTris, roofsNeedingPanels.length)
+          : [];
+
+        perRoof.forEach(r => {
+          const roof = roofMap.get(r.index) || {};
+          const rs = r.sizing || {};
+          const count = rs.panel_count || 0;
+          if (!rs.fits_on_roof || count <= 0) return;
+          const dims = rs.panel_dimensions || {};
+          const panelW = dims.width_m || 1.134;
+          const panelH = dims.height_m || 1.762;
+          const key = getRoofColorKey(roof);
+          const resolvedKey = resolveBucketKey(key, colorBuckets);
+          let tris = resolvedKey ? (colorBuckets[resolvedKey] || []) : [];
+          if (!tris.length && fallbackClusters.length) {
+            const idx = roofsNeedingPanels.findIndex(rr => rr.index === r.index);
+            if (idx >= 0 && fallbackClusters[idx] && fallbackClusters[idx].length) {
+              tris = fallbackClusters[idx];
+            }
+          }
+          if (!tris.length) tris = allTris;
+          const placed = placePanelsOnRoof(tris, count, panelW, panelH);
+          if (!placed.length) return;
+
+          const panelThickness = 1;
+          const geom = new THREE.BoxGeometry(panelW, panelH, panelThickness);
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x000000,
+            metalness: 0.1,
+            roughness: 0.6,
+            side: THREE.DoubleSide
+          });
+          const inst = new THREE.InstancedMesh(geom, mat, placed.length);
+
+          const up = new THREE.Vector3(0, 1, 0);
+          placed.forEach((p, idx) => {
+            const normal = p.normal.clone();
+            if (!Number.isFinite(normal.x) || !Number.isFinite(normal.y) || !Number.isFinite(normal.z)) {
+              normal.set(0, 1, 0);
+            }
+            if (normal.lengthSq() < 1e-8) {
+              normal.set(0, 1, 0);
+            }
+            normal.normalize();
+            const tangent = new THREE.Vector3().crossVectors(up, normal);
+            if (tangent.lengthSq() < 1e-6) {
+              tangent.set(1, 0, 0);
+            }
+            tangent.normalize();
+            const bitangent = new THREE.Vector3().crossVectors(normal, tangent).normalize();
+            const m = new THREE.Matrix4().makeBasis(tangent, bitangent, normal);
+            const pos = p.centroid.clone().add(normal.clone().multiplyScalar(panelThickness / 2 + 0.02));
+            m.setPosition(pos);
+            inst.setMatrixAt(idx, m);
+          });
+          inst.instanceMatrix.needsUpdate = true;
+          viewer.panelGroup.add(inst);
+        });
+
+        if (viewer.panelGroup.children.length === 0 && viewer.root) {
+          const box = new THREE.Box3().setFromObject(viewer.root);
+          const center = new THREE.Vector3();
+          box.getCenter(center);
+          const panelW = 2;
+          const panelH = 1;
+          const panelT = 0.1;
+          const geom = new THREE.BoxGeometry(panelW, panelH, panelT);
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x000000,
+            emissive: 0x111111,
+            metalness: 0.1,
+            roughness: 0.6
+          });
+          const fallback = new THREE.Mesh(geom, mat);
+          fallback.position.copy(center);
+          fallback.position.y += (box.max.y - box.min.y) * 0.2;
+          viewer.panelGroup.add(fallback);
+        }
+
+        if (viewer.panelGroup.children.length === 0 && allTris.length) {
+          const debugMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          const debugGeom = new THREE.SphereGeometry(0.2, 8, 8);
+          const sample = allTris.slice(0, Math.min(20, allTris.length));
+          sample.forEach(t => {
+            const s = new THREE.Mesh(debugGeom, debugMat);
+            s.position.copy(t.centroid);
+            viewer.panelGroup.add(s);
+          });
+        }
+
+        viewer.scene.add(viewer.panelGroup);
+      }
+
+      async function loadProjectModel(projectId) {
+        if (!modelHost || !modelPlaceholder || !modelLoading) return;
+
+        const loadToken = ++modelLoadToken;
+        modelLoading.classList.remove("hidden");
+        modelPlaceholder.classList.add("hidden");
+
+        if (!projectId) {
+          clearCurrentModel();
+          modelLoading.classList.add("hidden");
+          modelPlaceholder.textContent = "Select a project to load its roof model.";
+          modelPlaceholder.classList.remove("hidden");
+          return;
+        }
+
+        try {
+          const cacheBust = Date.now();
+          const res = await fetch(`/api/projects/${projectId}/model?lite=1&refresh=1&t=${cacheBust}`);
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || "Model generation failed");
+          }
+          const blob = await res.blob();
+          clearCurrentModel();
+          currentModelUrl = URL.createObjectURL(blob);
+
+          loadModelToViewer(
+            baseViewer,
+            currentModelUrl,
+            loadToken,
+            () => {
+              modelLoading.classList.add("hidden");
+              modelPlaceholder.classList.add("hidden");
+            },
+            () => {
+              modelLoading.classList.add("hidden");
+              modelPlaceholder.textContent = "Unable to load roof model.";
+              modelPlaceholder.classList.remove("hidden");
+            }
+          );
+
+        } catch (err) {
+          modelLoading.classList.add("hidden");
+          modelPlaceholder.textContent = "Model unavailable: " + err.message;
+          modelPlaceholder.classList.remove("hidden");
+        }
+      }
+
+      async function loadDatasets() {
+        const container = document.getElementById("datasetsContainer");
+        const actionBar = document.getElementById("actionBar");
+        const user = getUser();
+
+        if (!user || !user.id) {
+          container.innerHTML = '<div class="empty-state"><h3>Not Logged In</h3><p><a href="/login">Login</a> to view your projects.</p></div>';
+          loadProjectModel(null);
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/projects?user_id=" + user.id);
+          const data = await res.json();
+          datasets = data.projects || [];
+
+          if (datasets.length === 0) {
+            container.innerHTML = '<div class="empty-state"><h3>No Projects</h3><p>Create a project in the <a href="/app">App</a> first.</p></div>';
+            actionBar.style.display = "none";
+            loadProjectModel(null);
+            return;
+          }
+
+          container.className = "project-list";
+          container.innerHTML = datasets.map(ds => {
+            const roofCount = ds.roofs?.length || 0;
+            const loc = ds.location?.address || (ds.location?.lat ? ds.location.lat.toFixed(4) + ", " + ds.location.lon.toFixed(4) : "-");
+            return '<div class="dataset-card" data-id="' + ds.id + '">' +
+              '<div class="dataset-name">' + (ds.name || "Untitled") + '</div>' +
+              '<div class="dataset-meta">' +
+                '<div class="dataset-meta-row"><span class="dataset-meta-label">Created</span><span class="dataset-meta-value">' + formatDate(ds.created_at) + '</span></div>' +
+                '<div class="dataset-meta-row"><span class="dataset-meta-label">Location</span><span class="dataset-meta-value">' + loc + '</span></div>' +
+                '<div class="dataset-meta-row"><span class="dataset-meta-label">Roofs</span><span class="dataset-meta-value">' + roofCount + '</span></div>' +
+              '</div></div>';
+          }).join("");
+
+          actionBar.style.display = "flex";
+
+          container.querySelectorAll(".dataset-card").forEach(card => {
+            card.addEventListener("click", () => selectCard(card));
+          });
+        } catch (err) {
+          container.innerHTML = '<div class="empty-state"><h3>Error</h3><p>' + err.message + '</p></div>';
+        }
+      }
+
+      function selectCard(card) {
+        document.querySelectorAll(".dataset-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        selectedId = parseInt(card.dataset.id);
+        currentProject = datasets.find(d => d.id === selectedId);
+        document.getElementById("btnCalc").disabled = false;
+        document.getElementById("btnDel").disabled = false;
+        document.getElementById("selectedInfo").textContent = "Selected: " + (currentProject?.name || "Untitled");
+        if (btnSize) btnSize.disabled = true;
+        if (sizingSection) sizingSection.classList.remove("visible");
+        sizingData = null;
+        if (solarModelCard) solarModelCard.style.display = "none";
+        if (solarViewer) {
+          clearViewer(solarViewer);
+        }
+
+        // Hide chart section when changing selection
+        document.getElementById("chartSection").classList.remove("visible");
+        selectedRoofIndices.clear();
+        loadProjectModel(selectedId);
+
+        // Ensure full roof polygons are loaded
+        if (!currentProject?.roofs || currentProject.roofs.every(r => !(r.polygon && r.polygon.length))) {
+          fetch(`/api/projects/${selectedId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.id === selectedId) {
+                currentProject = data;
+              }
+            })
+            .catch(() => {});
+        }
+      }
+
+      // Populate roof checkboxes
+      function populateRoofCheckboxes() {
+        const container = document.getElementById("roofCheckboxList");
+        selectedRoofIndices.clear();
+
+        if (!currentProject || !currentProject.roofs || currentProject.roofs.length === 0) {
+          container.innerHTML = '<span style="color: var(--text-muted);">No roofs available</span>';
+          return;
+        }
+
+        // Add "All Roofs" checkbox
+        let html = `
+          <label class="roof-checkbox-item checked" data-index="all">
+            <input type="checkbox" id="roofCheckAll" checked>
+            <span class="roof-label">All Roofs</span>
+            <span class="roof-meta">(aggregate)</span>
+          </label>
+        `;
+
+        // Add individual roof checkboxes
+        currentProject.roofs.forEach((roof, idx) => {
+          const tilt = (roof.user_tilt || roof.tilt || 15).toFixed(0);
+          const area = roof.area ? roof.area.toFixed(1) : "?";
+          const displayIndex = getRoofDisplayIndex(roof, idx);
+          const color = getRoofColorRgb(roof);
+          html += `
+            <label class="roof-checkbox-item checked" data-index="${roof.index}">
+              <input type="checkbox" data-roof-index="${roof.index}" checked>
+              <span class="roof-color-dot" style="background:${rgbToRgba(color, 0.85)};"></span>
+              <span class="roof-label">Roof ${displayIndex}</span>
+              <span class="roof-meta">${area} m², ${tilt}°</span>
+            </label>
+          `;
+          selectedRoofIndices.add(roof.index);
+        });
+
+        container.innerHTML = html;
+
+        // Event listeners for checkboxes
+        const allCheckbox = container.querySelector('#roofCheckAll');
+        const roofCheckboxes = container.querySelectorAll('input[data-roof-index]');
+
+        allCheckbox.addEventListener('change', (e) => {
+          const isChecked = e.target.checked;
+          roofCheckboxes.forEach(cb => {
+            cb.checked = isChecked;
+            cb.closest('.roof-checkbox-item').classList.toggle('checked', isChecked);
+            const idx = parseInt(cb.dataset.roofIndex);
+            if (isChecked) {
+              selectedRoofIndices.add(idx);
+            } else {
+              selectedRoofIndices.delete(idx);
+            }
+          });
+          e.target.closest('.roof-checkbox-item').classList.toggle('checked', isChecked);
+        });
+
+        roofCheckboxes.forEach(cb => {
+          cb.addEventListener('change', (e) => {
+            const idx = parseInt(e.target.dataset.roofIndex);
+            const isChecked = e.target.checked;
+            e.target.closest('.roof-checkbox-item').classList.toggle('checked', isChecked);
+
+            if (isChecked) {
+              selectedRoofIndices.add(idx);
+            } else {
+              selectedRoofIndices.delete(idx);
+            }
+
+            // Update "All" checkbox state
+            const allSelected = selectedRoofIndices.size === currentProject.roofs.length;
+            allCheckbox.checked = allSelected;
+            allCheckbox.closest('.roof-checkbox-item').classList.toggle('checked', allSelected);
+          });
+        });
+      }
+
+      // Get selected roof indices string for API
+      function getSelectedIndicesParam() {
+        if (!currentProject || !currentProject.roofs) return "all";
+        if (selectedRoofIndices.size === 0) return "all";
+        if (selectedRoofIndices.size === currentProject.roofs.length) return "all";
+        return Array.from(selectedRoofIndices).join(",");
+      }
+
+      // Fetch and display irradiation data
+      async function loadIrradiationData() {
+        if (!selectedId) return;
+
+        const chartSection = document.getElementById("chartSection");
+        const chartLoading = document.getElementById("chartLoading");
+        const chartError = document.getElementById("chartError");
+        const chartSummary = document.getElementById("chartSummary");
+
+        chartSection.classList.add("visible");
+        chartLoading.classList.remove("hidden");
+        chartError.style.display = "none";
+        chartSummary.innerHTML = "";
+
+        const roofIndicesParam = getSelectedIndicesParam();
+
+        try {
+          const url = `/api/projects/${selectedId}/irradiation?roof_indices=${roofIndicesParam}`;
+          const res = await fetch(url);
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.error || "Failed to fetch irradiation data");
+          }
+
+          chartLoading.classList.add("hidden");
+
+          // Determine label for chart
+          const isAllRoofs = roofIndicesParam === "all";
+          const selectedCount = data.selected_count || selectedRoofIndices.size;
+          let chartLabel;
+          if (isAllRoofs) {
+            chartLabel = `All Roofs (${data.roof_count})`;
+          } else if (selectedCount === 1) {
+            const idx = Array.from(selectedRoofIndices)[0];
+            const roof = getRoofByIndex(idx) || { index: idx };
+            chartLabel = `Roof ${getRoofDisplayIndex(roof, 0)}`;
+          } else {
+            chartLabel = `${selectedCount} Roofs Selected`;
+          }
+
+          // Update chart
+          const chartColor = getSelectedRoofColor();
+          updateChart(data.monthly_kwh_m2, chartLabel, chartColor);
+
+          // Update summary stats
+          let summaryHtml = `
+            <div class="summary-stat">
+              <div class="summary-stat-value">${data.annual_kwh_m2.toFixed(1)}</div>
+              <div class="summary-stat-label">Annual (kWh/m²)</div>
+            </div>
+            <div class="summary-stat">
+              <div class="summary-stat-value">${data.daily_avg_kwh_m2.toFixed(2)}</div>
+              <div class="summary-stat-label">Daily Avg (kWh/m²/day)</div>
+            </div>
+            <div class="summary-stat">
+              <div class="summary-stat-value">${data.total_energy_annual_kwh.toFixed(0)}</div>
+              <div class="summary-stat-label">Total Energy (kWh/year)</div>
+            </div>
+            <div class="summary-stat">
+              <div class="summary-stat-value">${data.total_area_m2.toFixed(1)}</div>
+              <div class="summary-stat-label">Total Area (m²)</div>
+            </div>
+          `;
+
+          // Show per-roof details if available
+          if (data.per_roof && data.per_roof.length > 0 && !isAllRoofs) {
+            const perRoofHtml = data.per_roof.map(r => {
+              const roof = getRoofByIndex(r.index) || { index: r.index };
+              const displayIndex = getRoofDisplayIndex(roof, 0);
+              if (r.error) {
+                return `<div class="summary-stat" style="border-color: var(--error);">
+                  <div class="summary-stat-value" style="color: var(--error);">Error</div>
+                  <div class="summary-stat-label">Roof ${displayIndex}</div>
+                </div>`;
+              }
+              return `<div class="summary-stat">
+                <div class="summary-stat-value">${r.annual.toFixed(0)}</div>
+                <div class="summary-stat-label">Roof ${displayIndex} (kWh/m²/y)</div>
+              </div>`;
+            }).join("");
+            summaryHtml += perRoofHtml;
+          }
+
+          chartSummary.innerHTML = summaryHtml;
+          if (btnSize) btnSize.disabled = false;
+
+        } catch (err) {
+          chartLoading.classList.add("hidden");
+          chartError.style.display = "block";
+          chartError.textContent = "Error: " + err.message;
+        }
+      }
+
+      function renderSizing(data) {
+        if (!sizingSummary || !sizingBreakdown || !sizingNote || !sizingInstalled) return;
+        console.info("[Sizing] renderSizing called");
+        const c = data.consumption || {};
+        const s = data.sizing || {};
+        const i = data.irradiation || {};
+
+        const perRoof = data.per_roof || [];
+        const perRoofHtml = perRoof.map(r => {
+          const rs = r.sizing || {};
+          return `
+            <div class="summary-stat">
+              <div class="summary-stat-value">Roof ${r.index ?? "-"}</div>
+              <div class="summary-stat-label">${(r.area_m2 || 0).toFixed(1)} m² · ${((r.irradiation || {}).daily_avg_kwh_m2 || 0).toFixed(2)} kWh/m²</div>
+            </div>
+            <div class="summary-stat">
+              <div class="summary-stat-value">${(rs.system_kwp || 0).toFixed(2)}</div>
+              <div class="summary-stat-label">System kWp</div>
+            </div>
+            <div class="summary-stat">
+              <div class="summary-stat-value">${rs.panel_count || 0}</div>
+              <div class="summary-stat-label">Panels (${rs.panel_watt || 0}W)</div>
+            </div>
+            <div class="summary-stat">
+              <div class="summary-stat-value">${(rs.total_panel_area_m2 || 0).toFixed(2)}</div>
+              <div class="summary-stat-label">Panel Area (m²)</div>
+            </div>
+            <div class="summary-stat">
+              <div class="summary-stat-value">${rs.fits_on_roof ? "Yes" : "No"}</div>
+              <div class="summary-stat-label">Fits on Roof</div>
+            </div>
+          `;
+        }).join("");
+
+        sizingSummary.innerHTML = `
+          <div class="summary-stat">
+            <div class="summary-stat-value">${(c.daytime_kwh || 0).toFixed(2)}</div>
+            <div class="summary-stat-label">Daytime kWh/day</div>
+          </div>
+          <div class="summary-stat">
+            <div class="summary-stat-value">${(c.total_daily_kwh || 0).toFixed(2)}</div>
+            <div class="summary-stat-label">Total kWh/day</div>
+          </div>
+          ${perRoofHtml || `
+            <div class="summary-stat">
+              <div class="summary-stat-value">${(s.system_kwp || 0).toFixed(2)}</div>
+              <div class="summary-stat-label">System kWp</div>
+            </div>
+          `}
+        `;
+
+        const roofRows = (perRoof || []).map(r => {
+          const rs = r.sizing || {};
+          return `
+            <tr>
+              <td>Roof ${r.index ?? "-"}</td>
+              <td>${(r.area_m2 || 0).toFixed(2)}</td>
+              <td>${((r.irradiation || {}).daily_avg_kwh_m2 || 0).toFixed(2)}</td>
+              <td>${(rs.system_kwp || 0).toFixed(2)}</td>
+              <td>${rs.panel_count || 0}</td>
+              <td>${(rs.total_panel_area_m2 || 0).toFixed(2)}</td>
+              <td>${rs.fits_on_roof ? "Yes" : "No"}</td>
+            </tr>
+          `;
+        }).join("");
+
+        const rows = (c.appliances || []).map(a => `
+          <tr>
+            <td>${a.name || "-"}</td>
+            <td>${a.power || 0} W</td>
+            <td>${a.quantity || 1}</td>
+            <td>${(a.overlap_hours || 0).toFixed(2)}</td>
+            <td>${(a.daytime_kwh || 0).toFixed(2)}</td>
+            <td>${(a.total_kwh || 0).toFixed(2)}</td>
+          </tr>
+        `).join("");
+
+        sizingBreakdown.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Roof</th>
+                <th>Area (m²)</th>
+                <th>PSH</th>
+                <th>System (kWp)</th>
+                <th>Panels</th>
+                <th>Panel Area (m²)</th>
+                <th>Fits</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${roofRows || `<tr><td colspan="7">No roof sizing data.</td></tr>`}
+            </tbody>
+          </table>
+          <div style="height: 12px;"></div>
+          <table>
+            <thead>
+              <tr>
+                <th>Appliance</th>
+                <th>Power</th>
+                <th>Qty</th>
+                <th>Daytime h</th>
+                <th>Daytime kWh</th>
+                <th>Total kWh</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan="6">No appliance data.</td></tr>`}
+            </tbody>
+          </table>
+        `;
+
+        const installed = (perRoof || []).filter(r => {
+          const rs = r.sizing || {};
+          return rs.fits_on_roof && (rs.panel_count || 0) > 0;
+        });
+        sizingInstalled.innerHTML = `
+          <div class="sizing-title" style="margin-top: 0;">Roofs Selected for Panel Installation</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Roof</th>
+                <th>Panels</th>
+                <th>System (kWp)</th>
+                <th>Panel Area (m²)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(installed.length
+                ? installed.map(r => {
+                    const rs = r.sizing || {};
+                    return `
+                      <tr>
+                        <td>Roof ${r.index ?? "-"}</td>
+                        <td>${rs.panel_count || 0}</td>
+                        <td>${(rs.system_kwp || 0).toFixed(2)}</td>
+                        <td>${(rs.total_panel_area_m2 || 0).toFixed(2)}</td>
+                      </tr>
+                    `;
+                  }).join("")
+                : `<tr><td colspan="4">No roofs fit the selected system size.</td></tr>`)}
+            </tbody>
+          </table>
+        `;
+
+        sizingNote.textContent = s.self_consumption_note || "";
+        console.info("[Solar] calling renderSolarFromPolygons from renderSizing");
+        renderSolarFromPolygons();
+        if (solarViewer?.root && modelPlaceholderSolar) {
+          modelPlaceholderSolar.classList.add("hidden");
+        }
+      }
+
+      async function loadSizingData() {
+        if (!selectedId || !sizingSection || !sizingLoading || !sizingError) return;
+        sizingSection.classList.add("visible");
+        sizingLoading.classList.remove("hidden");
+        sizingError.style.display = "none";
+        if (sizingSummary) sizingSummary.innerHTML = "";
+        if (sizingBreakdown) sizingBreakdown.innerHTML = "";
+        if (sizingInstalled) sizingInstalled.innerHTML = "";
+        if (sizingNote) sizingNote.textContent = "";
+
+        const roofIndicesParam = getSelectedIndicesParam();
+        try {
+          const missingPolys = !currentProject?.roofs ||
+            currentProject.roofs.every(r => !(r.polygon && r.polygon.length >= 3));
+          if (missingPolys) {
+            const projRes = await fetch(`/api/projects/${selectedId}`);
+            const projData = await projRes.json();
+            if (projRes.ok && projData?.id === selectedId) {
+              currentProject = projData;
+            }
+          }
+
+          const url = `/api/projects/${selectedId}/sizing?roof_indices=${roofIndicesParam}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || "Failed to compute sizing");
+          }
+          sizingData = data;
+          sizingLoading.classList.add("hidden");
+          renderSizing(data);
+          console.info("[Sizing] data", data);
+          if (solarModelCard) solarModelCard.style.display = "block";
+          if (!solarViewer && modelHostSolar) {
+            solarViewer = createViewer(modelHostSolar);
+          }
+          if (solarViewer) {
+            if (modelLoadingSolar) modelLoadingSolar.classList.remove("hidden");
+            if (modelPlaceholderSolar) modelPlaceholderSolar.classList.add("hidden");
+            requestAnimationFrame(() => renderSolarFromPolygons());
+            if (modelLoadingSolar) modelLoadingSolar.classList.add("hidden");
+            if (modelPlaceholderSolar) modelPlaceholderSolar.classList.add("hidden");
+          }
+        } catch (err) {
+          sizingLoading.classList.add("hidden");
+          sizingError.style.display = "block";
+          sizingError.textContent = "Error: " + err.message;
+        }
+      }
+
+      // Create or update the bar chart
+      function updateChart(monthlyData, label, colorRgb) {
+        const ctx = document.getElementById("irradiationChart").getContext("2d");
+
+        const bgColor = rgbToRgba(colorRgb, 0.8);
+        const borderColor = rgbToRgba(colorRgb, 1);
+
+        if (irradiationChart) {
+          irradiationChart.data.datasets[0].data = monthlyData;
+          irradiationChart.data.datasets[0].label = label;
+          irradiationChart.data.datasets[0].backgroundColor = bgColor;
+          irradiationChart.data.datasets[0].borderColor = borderColor;
+          irradiationChart.update();
+          return;
+        }
+
+        irradiationChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: MONTH_LABELS,
+            datasets: [{
+              label: label,
+              data: monthlyData,
+              backgroundColor: bgColor,
+              borderColor: borderColor,
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: "top"
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.parsed.y.toFixed(1) + " kWh/m²";
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Irradiation (kWh/m²)"
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "Month"
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Event: Show Irradiation button
+      document.getElementById("btnCalc").addEventListener("click", () => {
+        if (selectedId) {
+          populateRoofCheckboxes();
+          loadIrradiationData();
+        }
+      });
+
+      // Event: Update Chart button
+      document.getElementById("btnUpdateChart").addEventListener("click", () => {
+        if (selectedId && selectedRoofIndices.size > 0) {
+          loadIrradiationData();
+        } else if (selectedRoofIndices.size === 0) {
+          alert("Please select at least one roof.");
+        }
+      });
+
+      if (btnSize) {
+        btnSize.addEventListener("click", () => {
+          if (selectedId) {
+            loadSizingData();
+          }
+        });
+      }
+
+      // Event: Delete button
+      document.getElementById("btnDel").addEventListener("click", async () => {
+        if (!selectedId) return;
+        const ds = datasets.find(d => d.id === selectedId);
+        if (!confirm('Delete "' + (ds?.name || "this project") + '"?')) return;
+        try {
+          const res = await fetch("/api/projects/" + selectedId, { method: "DELETE" });
+          if (res.ok) {
+            selectedId = null;
+            currentProject = null;
+            document.getElementById("chartSection").classList.remove("visible");
+            loadProjectModel(null);
+            loadDatasets();
+          }
+        } catch (err) {
+          alert("Delete failed");
+        }
+      });
+
+      // Event: Logout
+      document.getElementById("logoutLink").addEventListener("click", (e) => {
+        e.preventDefault();
+        sessionStorage.removeItem(AUTH_KEY);
+        sessionStorage.removeItem(USER_KEY);
+        localStorage.removeItem("solar_wizard_session");
+        window.location.href = "/login";
+      });
+
+      loadDatasets();
+    })();
+  </script>
+</body>
+</html>

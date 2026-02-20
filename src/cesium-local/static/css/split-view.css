@@ -1,0 +1,247 @@
+/* ============================================
+   SPLIT-VIEW LAYOUT (Model + Form)
+   Clean, efficient side-by-side layout
+   ============================================ */
+
+.split-view {
+  display: flex;
+  flex-direction: row;
+  height: calc(100vh - 108px);
+  width: 100%;
+}
+
+.split-view.hidden {
+  display: none;
+}
+
+/* Generic hidden utility */
+.hidden {
+  display: none;
+}
+
+/* Left: 3D Model Viewer */
+.split-left {
+  flex: 1;
+  min-width: 0;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.split-viewer-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.split-viewer-wrap > div:first-child {
+  width: 100%;
+  height: 100%;
+}
+
+.panel-toolbar-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+}
+
+.panel-toolbar-overlay .btn-small {
+  font-size: 12px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.panel-toolbar-overlay .btn-small:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.panel-toolbar-overlay .btn-small.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.panel-toolbar-overlay .btn-small.active:hover {
+  background: #1d4ed8;
+}
+
+
+.split-viewer-toolbar {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: transparent;
+  border-top: none;
+  flex-shrink: 0;
+}
+
+.split-viewer-toolbar .btn-small {
+  color: #333;
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.split-viewer-toolbar .btn-small:hover {
+  background: rgba(0, 0, 0, 0.12);
+  color: #000;
+}
+
+/* Right: Project Details Form */
+.split-right {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border-light);
+  overflow: hidden;
+  width: 400px;
+  min-width: 280px;
+  max-width: 400px;
+  transition: width 0.25s ease, min-width 0.25s ease;
+  position: relative;
+}
+
+.split-right.collapsed {
+  width: 40px !important;
+  min-width: 40px !important;
+}
+
+.split-header {
+  padding: var(--sp-3) var(--sp-4) var(--sp-3) 44px;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  background: var(--bg-card);
+}
+
+.split-right.collapsed .split-header {
+  padding: var(--sp-3) var(--sp-2);
+}
+
+.split-right.collapsed .split-header span {
+  display: none;
+}
+
+.split-collapse-btn {
+  position: absolute;
+  left: 8px;
+  top: 12px;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.split-collapse-btn:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.split-collapse-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.split-right.collapsed .split-collapse-btn svg {
+  transform: rotate(180deg);
+}
+
+.split-form-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.split-right.collapsed .split-form-body {
+  display: none;
+}
+
+.split-form-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.split-form-body::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+
+.split-form-body::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 2px;
+}
+
+/* Split form inputs - all same width */
+.split-form-body .form-group input,
+.split-form-body .form-group select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.split-input-row {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.split-input-row input {
+  flex: 1;
+}
+
+.split-input-row select,
+.split-input-row .export-currency-label {
+  flex: 0 0 80px;
+  width: 80px !important;
+}
+
+/* Mobile: Stack vertically */
+@media (max-width: 768px) {
+  .split-view {
+    flex-direction: column;
+  }
+  
+  .split-left {
+    height: 50%;
+    flex: none;
+  }
+  
+  .split-right {
+    width: 100% !important;
+    min-width: auto !important;
+    max-width: none;
+    border-left: none;
+    border-top: 1px solid var(--border-light);
+    flex: 1;
+  }
+  
+  .split-right.collapsed {
+    height: 50px !important;
+    min-height: 50px !important;
+    flex: none;
+  }
+}
