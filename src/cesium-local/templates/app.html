@@ -87,11 +87,40 @@
     <div class="split-left">
       <div class="split-viewer-wrap">
         <div id="splitModelHost"></div>
-        <div class="panel-toolbar-overlay">
-          <button class="btn-small" id="btnAddPanel" type="button" title="Drag a solar panel onto the roof">☀️ Add Panel</button>
-          <button class="btn-small" id="btnLockView" type="button" title="Lock orbit to adjust panel positions">🔓 Lock View</button>
-          <button class="btn-small" id="btnClearPanels" type="button" title="Remove all panels">🗑️ Clear Panels</button>
+
+        <!-- SolidWorks-style toolbar (top-left) -->
+        <div class="cad-toolbar" id="cadToolbar">
+          <button class="cad-btn" id="btnSelectPlane" title="Select a roof face">
+            <span class="cad-icon">⬡</span> Select Plane
+          </button>
+          <div class="cad-separator"></div>
+          <div class="cad-dropdown-wrap">
+            <button class="cad-btn" id="btnInstallPanel" title="Place solar panel" disabled>
+              <span class="cad-icon">⊞</span> Install Panel <span class="cad-caret">▾</span>
+            </button>
+            <div class="cad-dropdown" id="panelDropdown">
+              <button class="cad-dropdown-item" data-panel="solar_panel">Standard Panel</button>
+              <button class="cad-dropdown-item" data-panel="solar_panel_72">72-Cell Panel</button>
+              <button class="cad-dropdown-item" data-panel="solar_panel_120">120-Cell Panel</button>
+            </div>
+          </div>
+          <div class="cad-separator"></div>
+          <button class="cad-btn" id="btnPlacerUndo" title="Undo (Ctrl+Z)" disabled>
+            <span class="cad-icon">↩</span>
+          </button>
+          <button class="cad-btn" id="btnPlacerRedo" title="Redo (Ctrl+Shift+Z)" disabled>
+            <span class="cad-icon">↪</span>
+          </button>
         </div>
+
+        <!-- Sketch mode confirm/cancel (top-right) -->
+        <div class="sketch-confirm-bar hidden" id="sketchConfirmBar">
+          <button class="sketch-btn sketch-btn-ok" id="btnSketchFinish" title="Finish sketch">✓</button>
+          <button class="sketch-btn sketch-btn-cancel" id="btnSketchCancel" title="Cancel sketch">✗</button>
+        </div>
+
+        <!-- Sketch mode indicator -->
+        <div class="sketch-mode-badge hidden" id="sketchModeBadge">SKETCH MODE</div>
       </div>
       <div class="split-viewer-toolbar">
         <button class="btn-small" id="btnEditRoof" type="button">Edit Roof</button>
@@ -307,56 +336,134 @@
 
     window.threeViewer = { createViewer, loadModelToViewer };
 
-    // Panel Placer wiring (GLTFLoader available here)
+    // ──── Panel Placer Wiring (GLTFLoader available in module scope) ────
     let panelPlacer = null;
+    window.getPanelPlacer = () => panelPlacer;
+    window.resetPanelPlacer = () => {
+      if (panelPlacer) {
+        panelPlacer.destroy();
+        panelPlacer = null;
+      }
+    };
 
-    function getPanelPlacer() { return panelPlacer; }
-    window.getPanelPlacer = getPanelPlacer;
+    const PANEL_MODELS = {
+      solar_panel:     { url: '/static/models/solar_panel.glb',     label: 'Standard Panel' },
+      solar_panel_72:  { url: '/static/models/solar_panel_72.glb',  label: '72-Cell Panel' },
+      solar_panel_120: { url: '/static/models/solar_panel_120.glb', label: '120-Cell Panel' }
+    };
 
-    async function initPanelPlacer(viewer) {
+    async function ensurePanelPlacer() {
+      const viewer = window.splitViewerRef;
+      if (!viewer || !window.PanelPlacer) return null;
       if (panelPlacer) return panelPlacer;
-      if (!window.PanelPlacer) return null;
 
       panelPlacer = new PanelPlacer(viewer);
-      await panelPlacer.loadPanelModel(GLTFLoader);
+      panelPlacer.setLoaderClass(GLTFLoader);
+
+      // Pre-load first model
+      const firstKey = Object.keys(PANEL_MODELS)[0];
+      await panelPlacer.loadPanelModel(firstKey, PANEL_MODELS[firstKey].url);
+      panelPlacer.setActiveModel(firstKey);
+
       panelPlacer.init();
+
+      // State change handler — update UI
+      panelPlacer.onStateChange = (state) => {
+        const isSketch = state === PlacerState.SKETCH;
+        const isSelecting = state === PlacerState.SELECT_PLANE;
+
+        // Show/hide sketch UI
+        document.getElementById('sketchConfirmBar')?.classList.toggle('hidden', !isSketch);
+        document.getElementById('sketchModeBadge')?.classList.toggle('hidden', !isSketch);
+
+        // Toggle button states
+        const btnSelect = document.getElementById('btnSelectPlane');
+        const btnInstall = document.getElementById('btnInstallPanel');
+        const btnUndo = document.getElementById('btnPlacerUndo');
+        const btnRedo = document.getElementById('btnPlacerRedo');
+
+        if (btnSelect) btnSelect.classList.toggle('active', isSelecting);
+        if (btnInstall) btnInstall.disabled = !isSketch;
+        if (btnUndo) btnUndo.disabled = !isSketch;
+        if (btnRedo) btnRedo.disabled = !isSketch;
+      };
+
       console.log('[PanelPlacer] Initialized');
       return panelPlacer;
     }
 
-    // Button handlers (run after DOM ready)
     document.addEventListener('DOMContentLoaded', () => {
-      const btnAdd = document.getElementById('btnAddPanel');
-      const btnLock = document.getElementById('btnLockView');
-      const btnClear = document.getElementById('btnClearPanels');
+      // Select Plane
+      document.getElementById('btnSelectPlane')?.addEventListener('click', async () => {
+        const pp = await ensurePanelPlacer();
+        if (!pp) return;
+        if (pp.state === PlacerState.SELECT_PLANE) {
+          pp.exitSelectPlane();
+        } else if (pp.state === PlacerState.IDLE) {
+          pp.enterSelectPlane();
+        }
+      });
 
-      if (btnAdd) {
-        btnAdd.addEventListener('click', async () => {
-          // Lazy-init on first click
-          const viewer = window.splitViewerRef;
-          if (!viewer) { console.warn('[PanelPlacer] Split viewer not ready'); return; }
-          const pp = await initPanelPlacer(viewer);
-          if (pp) pp.startDrag();
+      // Install Panel dropdown toggle
+      const btnInstall = document.getElementById('btnInstallPanel');
+      const dropdown = document.getElementById('panelDropdown');
+      if (btnInstall && dropdown) {
+        btnInstall.addEventListener('click', () => {
+          dropdown.classList.toggle('open');
+        });
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!btnInstall.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.remove('open');
+          }
         });
       }
 
-      if (btnLock) {
-        btnLock.addEventListener('click', async () => {
-          const viewer = window.splitViewerRef;
-          if (!viewer) return;
-          const pp = await initPanelPlacer(viewer);
+      // Dropdown item selection
+      document.querySelectorAll('.cad-dropdown-item').forEach(item => {
+        item.addEventListener('click', async () => {
+          const key = item.dataset.panel;
+          if (!key) return;
+          dropdown?.classList.remove('open');
+
+          const pp = await ensurePanelPlacer();
           if (!pp) return;
-          const locked = pp.toggleLock();
-          btnLock.textContent = locked ? '🔓 Unlock' : '🔓 Lock View';
-          btnLock.classList.toggle('active', locked);
-        });
-      }
 
-      if (btnClear) {
-        btnClear.addEventListener('click', () => {
-          if (panelPlacer) panelPlacer.clearAll();
+          // Load model if needed
+          if (!pp.panelModels[key] && PANEL_MODELS[key]) {
+            btnInstall.disabled = true;
+            btnInstall.querySelector('.cad-icon').textContent = '⏳';
+            try {
+              await pp.loadPanelModel(key, PANEL_MODELS[key].url);
+            } finally {
+              btnInstall.disabled = false;
+              btnInstall.querySelector('.cad-icon').textContent = '⊞';
+            }
+          }
+
+          pp.setActiveModel(key);
+          pp.startInstall();
+
+          // Update button label
+          btnInstall.childNodes[1].textContent = ` ${PANEL_MODELS[key]?.label || key} `;
         });
-      }
+      });
+
+      // Undo / Redo
+      document.getElementById('btnPlacerUndo')?.addEventListener('click', () => {
+        if (panelPlacer) panelPlacer.undo();
+      });
+      document.getElementById('btnPlacerRedo')?.addEventListener('click', () => {
+        if (panelPlacer) panelPlacer.redo();
+      });
+
+      // Finish / Cancel sketch
+      document.getElementById('btnSketchFinish')?.addEventListener('click', () => {
+        if (panelPlacer) panelPlacer.finishSketch();
+      });
+      document.getElementById('btnSketchCancel')?.addEventListener('click', () => {
+        if (panelPlacer) panelPlacer.cancelSketch();
+      });
     });
   </script>
   <script>

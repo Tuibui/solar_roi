@@ -186,6 +186,37 @@ function resizeCesium() {
 }
 
 // ============ THREE.JS VIEWER FOR SPLIT VIEW ============
+function clearSplitScene() {
+  if (!splitViewer) return;
+  const scene = splitViewer.scene;
+  const toRemove = [];
+  scene.traverse((obj) => {
+    if (obj === scene) return;
+    // Keep lights and camera
+    if (obj.isLight || obj.isCamera) return;
+    toRemove.push(obj);
+  });
+  // Remove only top-level children (traverse covers nested)
+  toRemove.forEach((obj) => {
+    if (obj.parent === scene) {
+      scene.remove(obj);
+      obj.traverse((c) => {
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) {
+          if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+          else if (c.material.dispose) c.material.dispose();
+        }
+      });
+    }
+  });
+  splitViewer.modelRoot = null;
+  boundaryScatterBusy = false;
+  // Reset panel placer so it re-initializes with new model
+  if (typeof window.resetPanelPlacer === 'function') {
+    window.resetPanelPlacer();
+  }
+}
+
 function initSplitViewer() {
   const host = document.getElementById('splitModelHost');
   if (!host) return;
@@ -198,6 +229,9 @@ function initSplitViewer() {
     });
     window.splitViewerRef = splitViewer;
   }
+
+  // Clean old scene objects before loading new model
+  clearSplitScene();
 
   // Resize after layout settles
   setTimeout(() => {
