@@ -31,7 +31,7 @@ const ProjectTree = (function () {
   // ─── Default skeleton — Roofs only ───
   function getDefaultTree() {
     return {
-      id: 'roofs', icon: '', label: 'Roofs', open: true, type: 'root',
+      id: 'roofs', icon: '', label: 'My House', open: true, type: 'root',
       children: []
     };
   }
@@ -42,7 +42,7 @@ const ProjectTree = (function () {
     const fmt = (v, unit, dec) => v != null ? v.toFixed(dec) + unit : '—';
 
     return {
-      id: `roof-${index}`, icon: color, label: `Roof_${index + 1}`, open: false, type: 'feature',
+      id: `roof-${index}`, icon: color, label: `Roof_${index + 1}`, open: true, type: 'feature',
       children: [
         {
           id: `panels-${index}`, icon: '', label: 'Panels', open: false, type: 'folder',
@@ -65,7 +65,7 @@ const ProjectTree = (function () {
   const CONTEXT_MENUS = {
     root:     [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
     folder:   [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
-    feature:  [{ action: 'add-panel', label: '⊞ Add Panel' }, { sep: true }, { action: 'select-3d', label: 'Select in 3D' }, { action: 'hide', label: 'Hide' }, { action: 'show', label: 'Show' }, { sep: true }, { action: 'expand-all', label: 'Expand All' }],
+    feature:  [{ action: 'add-panel', label: '⊞ Add Panel' }],
     param:    [{ action: 'copy-value', label: 'Copy Value' }],
     data:     [{ action: 'copy-value', label: 'Copy Value' }]
   };
