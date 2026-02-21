@@ -1,6 +1,7 @@
 /**
  * Project Tree - SolidWorks FeatureManager Design Tree
  * Roof-focused hierarchical tree with selection, context menus, keyboard nav
+ * Includes panel browser (right-click roof → Add Panel)
  */
 
 const ProjectTree = (function () {
@@ -10,6 +11,22 @@ const ProjectTree = (function () {
   let contextMenuEl = null;
   let onSelectCallback = null;
   let onContextActionCallback = null;
+  let panelBrowserEl = null;
+  let panelBrowserRoofId = null;
+
+  // ─── Demo Panel Catalog ───
+  const DEMO_PANELS = [
+    { brand: 'LONGi',          model: 'Hi-MO 6',       watt: 580, price: 185 },
+    { brand: 'JA Solar',       model: 'DeepBlue 4.0',  watt: 550, price: 165 },
+    { brand: 'Trina Solar',    model: 'Vertex S+',      watt: 510, price: 155 },
+    { brand: 'Canadian Solar', model: 'HiHero',         watt: 445, price: 140 },
+    { brand: 'Jinko Solar',    model: 'Tiger Neo',      watt: 585, price: 190 },
+    { brand: 'REC',            model: 'Alpha Pure-R',   watt: 430, price: 210 },
+    { brand: 'SunPower',       model: 'Maxeon 7',       watt: 440, price: 280 },
+    { brand: 'Q CELLS',        model: 'Q.TRON BLK',    watt: 420, price: 175 },
+    { brand: 'Risen Energy',   model: 'Titan S',        watt: 505, price: 148 },
+    { brand: 'Hyundai',        model: 'HiE-S485VG',    watt: 485, price: 195 },
+  ];
 
   // ─── Default skeleton — Roofs only ───
   function getDefaultTree() {
@@ -32,13 +49,6 @@ const ProjectTree = (function () {
           children: []
         },
         {
-          id: `shading-${index}`, icon: '', label: 'Shading', open: false, type: 'folder',
-          children: [
-            { id: `sample-pts-${index}`, icon: '', label: 'SamplePoints', value: '—', type: 'data' },
-            { id: `shadow-mesh-${index}`, icon: '', label: 'ShadowMesh', value: '—', type: 'data' }
-          ]
-        },
-        {
           id: `props-${index}`, icon: '', label: 'Properties', open: true, type: 'folder',
           children: [
             { id: `area-${index}`, icon: '', label: 'Area', value: fmt(roof.area_m2, ' m²', 1), type: 'param' },
@@ -55,7 +65,7 @@ const ProjectTree = (function () {
   const CONTEXT_MENUS = {
     root:     [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
     folder:   [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
-    feature:  [{ action: 'select-3d', label: 'Select in 3D' }, { action: 'hide', label: 'Hide' }, { action: 'show', label: 'Show' }, { sep: true }, { action: 'expand-all', label: 'Expand All' }],
+    feature:  [{ action: 'add-panel', label: '⊞ Add Panel' }, { sep: true }, { action: 'select-3d', label: 'Select in 3D' }, { action: 'hide', label: 'Hide' }, { action: 'show', label: 'Show' }, { sep: true }, { action: 'expand-all', label: 'Expand All' }],
     param:    [{ action: 'copy-value', label: 'Copy Value' }],
     data:     [{ action: 'copy-value', label: 'Copy Value' }]
   };
@@ -229,6 +239,9 @@ const ProjectTree = (function () {
       case 'copy-value':
         if (node.value != null) navigator.clipboard.writeText(String(node.value)).catch(() => {});
         break;
+      case 'add-panel':
+        showPanelBrowser(node.id);
+        break;
       case 'select-3d': case 'hide': case 'show':
         if (onContextActionCallback) onContextActionCallback(action, node);
         break;
@@ -332,21 +345,133 @@ const ProjectTree = (function () {
     render();
   }
 
-  function updateShading(roofIndex, data) {
-    if (!treeData) return;
-    const sp = findNode(treeData, `sample-pts-${roofIndex}`);
-    const sm = findNode(treeData, `shadow-mesh-${roofIndex}`);
-    if (sp && data.samplePoints != null) sp.value = data.samplePoints + ' pts';
-    if (sm && data.shadowMesh != null) sm.value = data.shadowMesh;
-    render();
+  // ─── Panel Browser ───
+  function showPanelBrowser(roofId) {
+    panelBrowserRoofId = roofId;
+    const panel = treeRoot?.closest('.project-tree-panel');
+    if (!panel) return;
+
+    // Create browser container if needed
+    if (!panelBrowserEl) {
+      panelBrowserEl = document.createElement('div');
+      panelBrowserEl.className = 'panel-browser';
+      panel.insertBefore(panelBrowserEl, panel.querySelector('.ptree-status-bar'));
+    }
+
+    // Hide tree body, show browser
+    if (treeRoot) treeRoot.style.display = 'none';
+    panelBrowserEl.style.display = 'flex';
+
+    renderPanelBrowser('');
+    updateStatusBar(null);
+    const bar = document.getElementById('ptreeStatusText');
+    if (bar) {
+      const node = findNode(treeData, roofId);
+      bar.textContent = `Select panel for ${node ? node.label : roofId}`;
+    }
+  }
+
+  function hidePanelBrowser() {
+    if (panelBrowserEl) panelBrowserEl.style.display = 'none';
+    if (treeRoot) treeRoot.style.display = '';
+    panelBrowserRoofId = null;
+    updateStatusBar(selectedId);
+  }
+
+  function renderPanelBrowser(filterText) {
+    if (!panelBrowserEl) return;
+    const ft = (filterText || '').toLowerCase();
+    const filtered = DEMO_PANELS.filter(p =>
+      !ft || p.brand.toLowerCase().includes(ft) || p.model.toLowerCase().includes(ft) || String(p.watt).includes(ft)
+    );
+
+    const roofNode = panelBrowserRoofId ? findNode(treeData, panelBrowserRoofId) : null;
+    const roofLabel = roofNode ? roofNode.label : 'Roof';
+
+    panelBrowserEl.innerHTML = `
+      <div class="pb-header">
+        <button class="pb-back-btn" title="Back to tree">← Back</button>
+        <span class="pb-title">Add Panel — ${roofLabel}</span>
+      </div>
+      <div class="pb-search-wrap">
+        <input type="text" class="pb-search" placeholder="Search brand, model, watt..." value="${filterText || ''}" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="pb-list">
+        ${filtered.map((p, i) => `
+          <div class="pb-card" data-idx="${i}" data-brand="${p.brand}" data-model="${p.model}" data-watt="${p.watt}" data-price="${p.price}">
+            <div class="pb-card-top">
+              <span class="pb-brand">${p.brand}</span>
+              <span class="pb-price">$${p.price}</span>
+            </div>
+            <div class="pb-model">${p.model}</div>
+            <div class="pb-card-bottom">
+              <span class="pb-watt">${p.watt}W</span>
+              <span class="pb-eff">${(p.watt / 21.5).toFixed(1)}% eff</span>
+            </div>
+          </div>
+        `).join('')}
+        ${filtered.length === 0 ? '<div class="pb-empty">No panels found</div>' : ''}
+      </div>
+    `;
+
+    // Wire back button
+    panelBrowserEl.querySelector('.pb-back-btn').addEventListener('click', hidePanelBrowser);
+
+    // Wire search
+    const searchInput = panelBrowserEl.querySelector('.pb-search');
+    let debounce = null;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => renderPanelBrowser(searchInput.value), 150);
+    });
+    searchInput.focus();
+
+    // Wire card clicks
+    panelBrowserEl.querySelectorAll('.pb-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const brand = card.dataset.brand;
+        const model = card.dataset.model;
+        const watt = card.dataset.watt;
+        const price = card.dataset.price;
+
+        // Add to tree under Panels folder
+        if (panelBrowserRoofId) {
+          const roofIdx = panelBrowserRoofId.replace('roof-', '');
+          const panelsNode = findNode(treeData, `panels-${roofIdx}`);
+          if (panelsNode) {
+            const n = panelsNode.children.length;
+            panelsNode.children.push({
+              id: `panel-${roofIdx}-${n}`, icon: '', type: 'data',
+              label: `${brand} ${model}`,
+              value: `${watt}W · $${price}`
+            });
+            panelsNode.open = true;
+            // Open parent roof too
+            const roofNode = findNode(treeData, panelBrowserRoofId);
+            if (roofNode) roofNode.open = true;
+          }
+        }
+
+        hidePanelBrowser();
+        render();
+
+        if (onContextActionCallback) {
+          onContextActionCallback('panel-selected', {
+            roofId: panelBrowserRoofId,
+            brand, model, watt: Number(watt), price: Number(price)
+          });
+        }
+      });
+    });
   }
 
   function getSelected() { return selectedId; }
 
   return {
     init, render,
-    updateRoofs, updatePanels, updateShading,
+    updateRoofs, updatePanels,
     getSelected, selectNode,
+    showPanelBrowser, hidePanelBrowser,
     set onSelect(fn) { onSelectCallback = fn; },
     set onContextAction(fn) { onContextActionCallback = fn; },
     findNode: (id) => treeData ? findNode(treeData, id) : null,
