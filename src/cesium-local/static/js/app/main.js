@@ -22,6 +22,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Setup handlers
   setupWizardToolbar();
   setupSplitViewHandlers();
+  setupProjectTree();
 
   mapMode = document.getElementById('mapMode');
   splitView = document.getElementById('splitView');
@@ -45,6 +46,23 @@ function setupWizardToolbar() {
   if (btnRedo) btnRedo.addEventListener('click', () => redoDrawPoint());
   if (btnAnalyze) btnAnalyze.addEventListener('click', () => onAnalyzeRoof());
   if (btnReset) btnReset.addEventListener('click', () => onResetRoof());
+}
+
+// ============ PROJECT TREE SETUP ============
+function setupProjectTree() {
+  const treeBody = document.getElementById('projectTreeBody');
+  if (treeBody && window.ProjectTree) {
+    ProjectTree.init(treeBody);
+  }
+  // Collapse/expand toggle
+  const btnToggle = document.getElementById('btnTreeToggle');
+  const panel = document.getElementById('projectTreePanel');
+  if (btnToggle && panel) {
+    btnToggle.addEventListener('click', () => {
+      panel.classList.toggle('collapsed');
+      setTimeout(() => { if (splitViewer) splitViewer.resize(); }, 250);
+    });
+  }
 }
 
 // ============ SPLIT-VIEW HANDLERS ============
@@ -1075,6 +1093,11 @@ async function onAnalyzeRoof() {
 
     wizard.setRoofs(roofs);
     window.lastAnalysisStats = data.stats || null;
+
+    // Update project tree with roof data
+    if (window.ProjectTree) {
+      ProjectTree.updateRoofs(roofs);
+    }
 
     if (data.stats.house_lat != null && data.stats.house_lon != null) {
       wizard.setLocationData(

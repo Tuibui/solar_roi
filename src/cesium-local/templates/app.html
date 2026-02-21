@@ -85,6 +85,18 @@
   <!-- Split View (Model + Form) -->
   <div class="split-view hidden" id="splitView">
     <div class="split-left">
+
+      <!-- Project Tree Panel (SolidWorks FeatureManager) -->
+      <div class="project-tree-panel" id="projectTreePanel">
+        <div class="ptree-header">
+          <span class="ptree-header-title">Project Tree</span>
+          <button class="ptree-toggle-btn" id="btnTreeToggle" title="Collapse tree">◀</button>
+        </div>
+        <div class="ptree-body" id="projectTreeBody"></div>
+      </div>
+
+      <!-- 3D Viewer Column -->
+      <div class="split-viewer-col">
       <div class="split-viewer-wrap">
         <div id="splitModelHost"></div>
 
@@ -125,6 +137,7 @@
       <div class="split-viewer-toolbar">
         <button class="btn-small" id="btnEditRoof" type="button">Edit Roof</button>
       </div>
+      </div><!-- /.split-viewer-col -->
     </div>
     <div class="split-right" id="splitRight">
       <button class="split-collapse-btn" id="btnCollapseRight" title="Collapse/Expand">
@@ -229,6 +242,7 @@
   <script src="/static/js/app/search.js?v=20260219"></script>
   <script src="/static/js/app/inputs.js?v=20260219"></script>
   <script src="/static/js/app/wizard.js?v=20260219"></script>
+  <script src="/static/js/app/project-tree.js?v=20260221"></script>
   <script src="/static/js/app/main.js?v=20260220"></script>
   <script src="/static/js/app/panel-placer.js?v=20260220"></script>
   <script type="module">
