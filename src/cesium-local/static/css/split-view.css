@@ -32,16 +32,17 @@
 
 /* ── Project Tree Panel (SolidWorks FeatureManager) ── */
 .project-tree-panel {
-  width: 240px;
+  width: 250px;
   min-width: 200px;
-  max-width: 300px;
-  background: #1e1e1e;
-  border-right: 1px solid #333;
+  max-width: 320px;
+  background: #252526;
+  border-right: 1px solid #3c3c3c;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   flex-shrink: 0;
   transition: width 0.2s ease, min-width 0.2s ease;
+  font-family: -apple-system, 'Segoe UI', 'Noto Sans JP', sans-serif;
 }
 
 .project-tree-panel.collapsed {
@@ -49,28 +50,54 @@
   min-width: 32px !important;
 }
 
+/* Header with filter */
 .ptree-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  background: #252526;
-  border-bottom: 1px solid #333;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3c3c3c;
   flex-shrink: 0;
 }
 
 .ptree-header-title {
   font-size: 11px;
   font-weight: 600;
-  color: #ccc;
-  letter-spacing: 0.5px;
+  color: #cccccc;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
-.project-tree-panel.collapsed .ptree-header-title {
+.project-tree-panel.collapsed .ptree-header-title,
+.project-tree-panel.collapsed .ptree-filter {
   display: none;
+}
+
+.ptree-filter {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11px;
+  color: #cccccc;
+  background: #3c3c3c;
+  border: 1px solid #4a4a4a;
+  border-radius: 3px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ptree-filter:focus {
+  border-color: #0078d4;
+  background: #37373d;
+}
+
+.ptree-filter::placeholder {
+  color: #6d6d6d;
 }
 
 .ptree-toggle-btn {
@@ -78,112 +105,225 @@
   height: 20px;
   background: transparent;
   border: none;
-  color: #888;
+  color: #999;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 12px;
   padding: 0;
   flex-shrink: 0;
   transition: color 0.15s;
+  border-radius: 3px;
 }
 
 .ptree-toggle-btn:hover {
   color: #fff;
+  background: rgba(255,255,255,0.08);
 }
 
 .project-tree-panel.collapsed .ptree-toggle-btn {
   transform: rotate(180deg);
 }
 
+/* Tree body */
 .ptree-body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px 0;
+  padding: 2px 0;
+  outline: none;
 }
 
 .project-tree-panel.collapsed .ptree-body {
   display: none;
 }
 
-.ptree-body::-webkit-scrollbar {
-  width: 4px;
-}
+.ptree-body::-webkit-scrollbar { width: 6px; }
+.ptree-body::-webkit-scrollbar-track { background: #252526; }
+.ptree-body::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 3px; }
+.ptree-body::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
 
-.ptree-body::-webkit-scrollbar-track {
-  background: #1e1e1e;
-}
-
-.ptree-body::-webkit-scrollbar-thumb {
-  background: #555;
-  border-radius: 2px;
-}
-
-/* Tree node styles */
+/* ── Tree Row — high information density ── */
 .ptree-row {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 3px 6px;
+  gap: 2px;
+  padding: 1px 8px 1px 4px;
+  min-height: 22px;
   font-size: 12px;
-  color: #ccc;
+  color: #cccccc;
   white-space: nowrap;
-  transition: background 0.1s;
+  cursor: default;
   user-select: none;
+  border: 1px solid transparent;
+  transition: none; /* no transition for snappy feel */
 }
 
+/* Hover — subtle background */
 .ptree-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
 }
 
+/* SELECTED — SolidWorks blue highlight (critical UX) */
+.ptree-row.selected {
+  background: #0060c0;
+  color: #ffffff;
+  border-color: #0078d4;
+}
+
+.ptree-row.selected .ptree-label { color: #ffffff; }
+.ptree-row.selected .ptree-value { color: rgba(255, 255, 255, 0.75); }
+.ptree-row.selected .ptree-arrow { color: #ffffff; }
+
+/* Arrow toggle */
 .ptree-arrow {
-  width: 14px;
-  font-size: 10px;
-  color: #888;
-  text-align: center;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  line-height: 1;
+  color: #858585;
+  border-radius: 2px;
 }
 
 .ptree-arrow.clickable {
-  color: #aaa;
+  cursor: pointer;
 }
 
+.ptree-arrow.clickable:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #cccccc;
+}
+
+.ptree-arrow svg {
+  display: block;
+}
+
+/* Icon */
 .ptree-icon {
   font-size: 13px;
   flex-shrink: 0;
   line-height: 1;
+  width: 18px;
+  text-align: center;
 }
 
+/* Label */
 .ptree-label {
-  color: #d4d4d4;
+  color: #cccccc;
   font-size: 12px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Value — monospace, right-aligned */
 .ptree-value {
   color: #808080;
   font-size: 11px;
   margin-left: auto;
   padding-left: 8px;
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+  flex-shrink: 0;
 }
 
+/* Count badge */
 .ptree-badge {
-  font-size: 10px;
-  background: rgba(37, 99, 235, 0.7);
+  font-size: 9px;
+  font-weight: 600;
+  background: #0e639c;
   color: #fff;
   padding: 0 5px;
   border-radius: 8px;
   margin-left: 4px;
-  line-height: 16px;
+  line-height: 15px;
   flex-shrink: 0;
 }
 
+/* Children container */
 .ptree-children {
-  /* indent handled by paddingLeft on rows */
+  position: relative;
+}
+
+.ptree-children.collapsed {
+  display: none;
+}
+
+/* Tree indent guide lines */
+.ptree-children::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--guide-left, 22px));
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #3c3c3c;
+  pointer-events: none;
+}
+
+/* ── Context Menu ── */
+.ptree-ctx-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 160px;
+  background: #2d2d2d;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  padding: 4px 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+}
+
+.ptree-ctx-item {
+  display: block;
+  width: 100%;
+  padding: 5px 24px 5px 12px;
+  font-size: 12px;
+  color: #cccccc;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ptree-ctx-item:hover {
+  background: #0060c0;
+  color: #ffffff;
+}
+
+.ptree-ctx-sep {
+  height: 1px;
+  background: #454545;
+  margin: 4px 0;
+}
+
+/* ── Status Bar (bottom of tree panel) ── */
+.ptree-status-bar {
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  background: #007acc;
+  color: #ffffff;
+  font-size: 11px;
+  flex-shrink: 0;
+  min-height: 22px;
+  border-top: 1px solid #0078d4;
+  overflow: hidden;
+}
+
+.project-tree-panel.collapsed .ptree-status-bar {
+  display: none;
+}
+
+.ptree-status-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  font-family: -apple-system, 'Segoe UI', sans-serif;
 }
 
 /* 3D viewer column (sits next to tree) */

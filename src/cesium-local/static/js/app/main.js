@@ -51,9 +51,35 @@ function setupWizardToolbar() {
 // ============ PROJECT TREE SETUP ============
 function setupProjectTree() {
   const treeBody = document.getElementById('projectTreeBody');
-  if (treeBody && window.ProjectTree) {
-    ProjectTree.init(treeBody);
+  if (!treeBody || !window.ProjectTree) return;
+
+  ProjectTree.init(treeBody);
+
+  // Filter input
+  const filterInput = document.getElementById('ptreeFilter');
+  if (filterInput) {
+    let debounce = null;
+    filterInput.addEventListener('input', () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => ProjectTree.setFilter(filterInput.value), 150);
+    });
   }
+
+  // Selection callback — highlight roof in 3D viewer
+  ProjectTree.onSelect = (id, node) => {
+    if (node && node.type === 'feature' && id.startsWith('roof-') && splitViewer) {
+      const roofIndex = parseInt(id.replace('roof-', ''), 10);
+      if (!isNaN(roofIndex)) {
+        console.log('[ProjectTree] Selected roof', roofIndex);
+      }
+    }
+  };
+
+  // Context action callback
+  ProjectTree.onContextAction = (action, node) => {
+    console.log('[ProjectTree] Context action:', action, node.id);
+  };
+
   // Collapse/expand toggle
   const btnToggle = document.getElementById('btnTreeToggle');
   const panel = document.getElementById('projectTreePanel');
