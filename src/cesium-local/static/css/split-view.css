@@ -35,8 +35,8 @@
   width: 250px;
   min-width: 200px;
   max-width: 320px;
-  background: #252526;
-  border-right: 1px solid #3c3c3c;
+  background: #d4d4d4;
+  border-right: 1px solid #b0b0b0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -50,21 +50,21 @@
   min-width: 32px !important;
 }
 
-/* Header with filter */
+/* Header */
 .ptree-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   padding: 6px 8px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3c3c3c;
+  background: #c0c0c0;
+  border-bottom: 1px solid #a0a0a0;
   flex-shrink: 0;
 }
 
 .ptree-header-title {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  color: #cccccc;
+  color: #333333;
   letter-spacing: 0.3px;
   text-transform: uppercase;
   white-space: nowrap;
@@ -72,45 +72,21 @@
   flex-shrink: 0;
 }
 
-.project-tree-panel.collapsed .ptree-header-title,
-.project-tree-panel.collapsed .ptree-filter {
+.project-tree-panel.collapsed .ptree-header-title {
   display: none;
 }
 
-.ptree-filter {
-  flex: 1;
-  min-width: 0;
-  height: 22px;
-  padding: 0 6px;
-  font-size: 11px;
-  color: #cccccc;
-  background: #3c3c3c;
-  border: 1px solid #4a4a4a;
-  border-radius: 3px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.ptree-filter:focus {
-  border-color: #0078d4;
-  background: #37373d;
-}
-
-.ptree-filter::placeholder {
-  color: #6d6d6d;
-}
-
 .ptree-toggle-btn {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   background: transparent;
   border: none;
-  color: #999;
+  color: #666;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   padding: 0;
   flex-shrink: 0;
   transition: color 0.15s;
@@ -118,8 +94,8 @@
 }
 
 .ptree-toggle-btn:hover {
-  color: #fff;
-  background: rgba(255,255,255,0.08);
+  color: #222;
+  background: rgba(0,0,0,0.08);
 }
 
 .project-tree-panel.collapsed .ptree-toggle-btn {
@@ -131,8 +107,9 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px 0;
+  padding: 4px 0;
   outline: none;
+  background: #e8e8e8;
 }
 
 .project-tree-panel.collapsed .ptree-body {
@@ -140,32 +117,31 @@
 }
 
 .ptree-body::-webkit-scrollbar { width: 6px; }
-.ptree-body::-webkit-scrollbar-track { background: #252526; }
-.ptree-body::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 3px; }
-.ptree-body::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+.ptree-body::-webkit-scrollbar-track { background: #e8e8e8; }
+.ptree-body::-webkit-scrollbar-thumb { background: #b0b0b0; border-radius: 3px; }
+.ptree-body::-webkit-scrollbar-thumb:hover { background: #999; }
 
-/* ── Tree Row — high information density ── */
+/* ── Tree Row — bigger font ── */
 .ptree-row {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 1px 8px 1px 4px;
-  min-height: 22px;
-  font-size: 12px;
-  color: #cccccc;
+  gap: 3px;
+  padding: 2px 10px 2px 6px;
+  min-height: 26px;
+  font-size: 14px;
+  color: #333333;
   white-space: nowrap;
   cursor: default;
   user-select: none;
   border: 1px solid transparent;
-  transition: none; /* no transition for snappy feel */
+  transition: none;
 }
 
-/* Hover — subtle background */
 .ptree-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.06);
 }
 
-/* SELECTED — SolidWorks blue highlight (critical UX) */
+/* SELECTED — SolidWorks blue highlight */
 .ptree-row.selected {
   background: #0060c0;
   color: #ffffff;
@@ -173,47 +149,43 @@
 }
 
 .ptree-row.selected .ptree-label { color: #ffffff; }
-.ptree-row.selected .ptree-value { color: rgba(255, 255, 255, 0.75); }
+.ptree-row.selected .ptree-value { color: rgba(255, 255, 255, 0.8); }
 .ptree-row.selected .ptree-arrow { color: #ffffff; }
 
 /* Arrow toggle */
 .ptree-arrow {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #858585;
+  color: #666;
   border-radius: 2px;
 }
 
-.ptree-arrow.clickable {
-  cursor: pointer;
-}
+.ptree-arrow.clickable { cursor: pointer; }
 
 .ptree-arrow.clickable:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #cccccc;
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
 }
 
-.ptree-arrow svg {
-  display: block;
-}
+.ptree-arrow svg { display: block; }
 
-/* Icon */
+/* Icon (roof color circles only) */
 .ptree-icon {
-  font-size: 13px;
+  font-size: 14px;
   flex-shrink: 0;
   line-height: 1;
-  width: 18px;
+  width: 20px;
   text-align: center;
 }
 
 /* Label */
 .ptree-label {
-  color: #cccccc;
-  font-size: 12px;
+  color: #333333;
+  font-size: 14px;
   flex-shrink: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -221,8 +193,8 @@
 
 /* Value — monospace, right-aligned */
 .ptree-value {
-  color: #808080;
-  font-size: 11px;
+  color: #666666;
+  font-size: 13px;
   margin-left: auto;
   padding-left: 8px;
   font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
@@ -231,35 +203,30 @@
 
 /* Count badge */
 .ptree-badge {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   background: #0e639c;
   color: #fff;
-  padding: 0 5px;
+  padding: 0 6px;
   border-radius: 8px;
   margin-left: 4px;
-  line-height: 15px;
+  line-height: 17px;
   flex-shrink: 0;
 }
 
 /* Children container */
-.ptree-children {
-  position: relative;
-}
-
-.ptree-children.collapsed {
-  display: none;
-}
+.ptree-children { position: relative; }
+.ptree-children.collapsed { display: none; }
 
 /* Tree indent guide lines */
 .ptree-children::before {
   content: '';
   position: absolute;
-  left: calc(var(--guide-left, 22px));
+  left: calc(var(--guide-left, 24px));
   top: 0;
   bottom: 0;
   width: 1px;
-  background: #3c3c3c;
+  background: #b0b0b0;
   pointer-events: none;
 }
 
@@ -267,21 +234,21 @@
 .ptree-ctx-menu {
   position: fixed;
   z-index: 10000;
-  min-width: 160px;
-  background: #2d2d2d;
-  border: 1px solid #454545;
+  min-width: 170px;
+  background: #f0f0f0;
+  border: 1px solid #999;
   border-radius: 4px;
   padding: 4px 0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   font-family: -apple-system, 'Segoe UI', sans-serif;
 }
 
 .ptree-ctx-item {
   display: block;
   width: 100%;
-  padding: 5px 24px 5px 12px;
-  font-size: 12px;
-  color: #cccccc;
+  padding: 6px 24px 6px 14px;
+  font-size: 13px;
+  color: #333;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -296,7 +263,7 @@
 
 .ptree-ctx-sep {
   height: 1px;
-  background: #454545;
+  background: #ccc;
   margin: 4px 0;
 }
 
@@ -307,9 +274,9 @@
   padding: 3px 8px;
   background: #007acc;
   color: #ffffff;
-  font-size: 11px;
+  font-size: 12px;
   flex-shrink: 0;
-  min-height: 22px;
+  min-height: 24px;
   border-top: 1px solid #0078d4;
   overflow: hidden;
 }
@@ -347,102 +314,105 @@
   height: 100%;
 }
 
-/* ── CAD Toolbar (SolidWorks-style, top-left of 3D viewer) ── */
+/* ── CAD Tab Bar (full-width ribbon tabs above 3D viewer) ── */
 
-.cad-toolbar {
-  position: absolute;
-  top: 8px;
-  left: 8px;
+.cad-tab-bar {
+  display: flex;
+  align-items: stretch;
+  background: #d4d4d4;
+  border-bottom: 1px solid #b0b0b0;
+  flex-shrink: 0;
+  min-height: 40px;
+}
+
+.cad-tab {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 2px;
-  z-index: 10;
-  background: rgba(40, 40, 40, 0.92);
-  backdrop-filter: blur(6px);
-  border-radius: 6px;
-  padding: 3px 4px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-}
-
-.cad-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  font-size: 12px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
   font-weight: 500;
-  color: #e0e0e0;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
+  color: #555;
+  background: #d4d4d4;
+  border: none;
+  border-right: 1px solid #b0b0b0;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s;
-}
-
-.cad-btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.12);
-  color: #fff;
-}
-
-.cad-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.cad-btn.active {
-  background: #2563eb;
-  color: #fff;
-  border-color: #3b82f6;
-}
-
-.cad-icon {
-  font-size: 14px;
-  line-height: 1;
-}
-
-.cad-caret {
-  font-size: 10px;
-  opacity: 0.6;
-  margin-left: 2px;
-}
-
-.cad-separator {
-  width: 1px;
-  height: 20px;
-  background: rgba(255,255,255,0.15);
-  margin: 0 2px;
-}
-
-/* Dropdown */
-.cad-dropdown-wrap {
+  transition: background 0.15s, color 0.15s;
   position: relative;
 }
 
-.cad-dropdown {
+.cad-tab:last-child {
+  border-right: none;
+}
+
+.cad-tab:hover:not(:disabled) {
+  background: #c8c8c8;
+  color: #333;
+}
+
+.cad-tab:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cad-tab.active {
+  background: #ffffff;
+  color: #0060c0;
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 #0060c0;
+}
+
+.cad-tab .cad-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cad-tab .cad-caret {
+  font-size: 11px;
+  opacity: 0.5;
+  margin-left: 2px;
+}
+
+/* Dropdown from tab */
+.cad-tab-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+}
+
+.cad-tab-wrap .cad-tab {
+  width: 100%;
+}
+
+.cad-tab-wrap .cad-dropdown {
   display: none;
   position: absolute;
-  top: calc(100% + 4px);
+  top: 100%;
   left: 0;
-  min-width: 160px;
-  background: rgba(40, 40, 40, 0.96);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
+  right: 0;
+  min-width: 100%;
+  background: #f0f0f0;
+  border: 1px solid #b0b0b0;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
   padding: 4px 0;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   z-index: 20;
 }
 
-.cad-dropdown.open {
+.cad-tab-wrap .cad-dropdown.open {
   display: block;
 }
 
 .cad-dropdown-item {
   display: block;
   width: 100%;
-  padding: 7px 14px;
-  font-size: 12px;
-  color: #d0d0d0;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #333;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -451,8 +421,58 @@
 }
 
 .cad-dropdown-item:hover {
-  background: rgba(255,255,255,0.1);
+  background: #0060c0;
   color: #fff;
+}
+
+/* Undo/Redo in tab bar */
+.cad-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-left: 1px solid #b0b0b0;
+}
+
+.cad-tab-actions .cad-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 16px;
+  color: #555;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cad-tab-actions .cad-btn:hover:not(:disabled) {
+  background: #c0c0c0;
+  color: #333;
+}
+
+.cad-tab-actions .cad-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ── XYZ Triad (bottom-left of 3D viewport) ── */
+.viewport-triad {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  width: 80px;
+  height: 80px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.viewport-triad canvas {
+  width: 100%;
+  height: 100%;
 }
 
 /* Sketch confirm bar (top-right) */

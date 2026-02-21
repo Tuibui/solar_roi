@@ -55,16 +55,6 @@ function setupProjectTree() {
 
   ProjectTree.init(treeBody);
 
-  // Filter input
-  const filterInput = document.getElementById('ptreeFilter');
-  if (filterInput) {
-    let debounce = null;
-    filterInput.addEventListener('input', () => {
-      clearTimeout(debounce);
-      debounce = setTimeout(() => ProjectTree.setFilter(filterInput.value), 150);
-    });
-  }
-
   // Selection callback — highlight roof in 3D viewer
   ProjectTree.onSelect = (id, node) => {
     if (node && node.type === 'feature' && id.startsWith('roof-') && splitViewer) {
@@ -272,6 +262,14 @@ function initSplitViewer() {
       gridColor: 0xcccccc
     });
     window.splitViewerRef = splitViewer;
+
+    // Setup XYZ triad (bottom-left orientation indicator)
+    if (window.threeViewer.setupTriad) {
+      const triad = window.threeViewer.setupTriad(splitViewer);
+      if (triad && splitViewer.addAnimHook) {
+        splitViewer.addAnimHook(triad.update);
+      }
+    }
   }
 
   // Clean old scene objects before loading new model

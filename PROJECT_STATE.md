@@ -1,7 +1,7 @@
 # Solar ROI Calculator - Project State
 
-> **Last Updated:** 2026-02-20 (Session 6)
-> **Session Summary:** Fixed critical ray casting bug (pickFromRay exclusion backwards); switched shading from OSM to Google 3D tiles; added drag-and-drop solar panel placement on 3D roof
+> **Last Updated:** 2026-02-20 (Session 7)
+> **Session Summary:** Redesigned panel placement to SolidWorks-style workflow: Select Plane → Sketch Mode (camera snap, locked rotation, ✓/✗ confirm), Install Panel dropdown (3 models), Undo/Redo
 
 ---
 
@@ -24,7 +24,7 @@
   - map.js          # Cesium init + Google tiles + OSM buildings
   - search.js       # Address search (fixed suggestions bug)
   - wizard.js       # State management
-  - panel-placer.js # Drag-and-drop solar panel placement (NEW Session 6)
+  - panel-placer.js # SolidWorks-style panel placement (REWRITTEN Session 7)
   - shading-engine.js    # Shading ray cast engine (offscreen Cesium)
   - shading-controller.js # Monthly shading orchestrator
   - shading-visualizer.js # Heatmap visualization
@@ -33,9 +33,11 @@
   - base.css        # Base variables and resets
   - app.css         # App-specific styles (analyze button, cursor)
   - wizard.css      # Wizard UI + imports split-view.css
-  - split-view.css  # Split view layout + panel toolbar overlay
+  - split-view.css  # Split view layout + CAD toolbar styles
 /static/models/     # 3D model assets
-  - solar_panel.glb # Solar panel GLB model for drag-and-drop (NEW Session 6)
+  - solar_panel.glb     # Standard panel GLB (NEW Session 6)
+  - solar_panel_72.glb  # 72-Cell panel GLB (NEW Session 6)
+  - solar_panel_120.glb # 120-Cell panel GLB (NEW Session 6)
 /backend/           # Flask API
   - services/mesh_builder.py  # GLB model generation (no panel mesh)
 ```
@@ -47,22 +49,42 @@
 ### Split View Layout (app.html)
 ```
 ┌──────────────────────────────────┬──────────────────────┐
-│ [☀️Add][🔓Lock][🗑️Clear] ← top-left│ Project Details  [◀] │
-│  ┌─────────────────────────┐     ├──────────────────────┤
-│  │ Roof│Tilt│Azim│Hgt│Area │     │ Appliances           │
-│  │ 🔴#1│25.5│180 │2.8│45.2│     │ Monthly Electric Bill│
-│  │ 🟢#2│30.0│ 90 │3.2│38.5│     │ Electricity Price    │
-│  └─────────────────────────┘     │ Grid Export Price    │
-│                                  │ Save Project         │
-│         [3D ROOF MODEL]         │                      │
-│      (base facing upward)       │                      │
-│      (solar panels draggable)   │                      │
-│  [Edit Roof]                    │                      │
-│  [shading: colored squares on   │                      │
-│   roof surface]                 │                      │
+│ [⬡ Select Plane][⊞ Install ▾]  │ Project Details  [◀] │
+│ [↩ Undo][↪ Redo]               │                      │
+│  ┌─────────────────────────┐    │──────────────────────│
+│  │ Roof│Tilt│Azim│Hgt│Area │    │ Appliances           │
+│  │ 🔴#1│25.5│180 │2.8│45.2│    │ Monthly Electric Bill│
+│  │ 🟢#2│30.0│ 90 │3.2│38.5│    │ Electricity Price    │
+│  └─────────────────────────┘    │ Grid Export Price    │
+│                          [✓][✗] │ Save Project         │
+│         [3D ROOF MODEL]        │                      │
+│      (base facing upward)      │                      │
+│      (sketch mode: top-down)   │                      │
+│  [Edit Roof]                   │                      │
+│         [SKETCH MODE]          │                      │
 └──────────────────────────────────┴──────────────────────┘
          ↑                                  ↑
     split-left (flex: 1)         split-right (400px, collapsible)
+```
+
+#### Sketch Mode Detail
+```
+┌──────────────────────────────────┐
+│ [⬡ Select Plane][⊞ 72-Cell ▾]  │
+│ [↩][↪]          ┌──────────┐   │
+│                  │Std Panel │   │
+│                  │72-Cell ✓ │   │
+│                  │120-Cell  │   │
+│                  └──────────┘   │
+│                          [✓][✗] │   ← top-right confirm/cancel
+│  ┌──────────────────────────┐   │
+│  │ ████ selected face ████  │   │   ← blue highlight
+│  │ [ghost panel follows     │   │
+│  │  mouse on face, click    │   │
+│  │  to place]               │   │
+│  └──────────────────────────┘   │
+│         [SKETCH MODE]           │   ← badge bottom-center
+└──────────────────────────────────┘
 ```
 
 ### Map Page Layout (Before Analyze)
@@ -187,17 +209,25 @@ const result = viewer.scene.pickFromRay(ray, excludeList);
 - Each roof uses a unique object name: `roof-scatter-<index>`
 - Rendered after ray casting; optional timeout fallback draws base scatter
 
-### H. Solar Panel Drag & Drop (NEW Session 6)
-- **File:** `static/js/app/panel-placer.js`
-- **Panel model:** `static/models/solar_panel.glb`
-- **☀️ Add Panel** — click to start drag, move mouse over roof, click to place
-- **🔓 Lock View** — disables orbit, enables panel repositioning by drag
-- **🗑️ Clear Panels** — removes all placed panels
-- **Delete/Backspace** — removes last panel (when locked)
-- **Escape** — cancels current drag
-- Panels auto-align to roof surface normal
-- Buttons overlaid at **top-left** of 3D viewer (`.panel-toolbar-overlay`)
-- Lazy-loaded: panel GLB only loaded on first "Add Panel" click
+### H. SolidWorks-Style Panel Placement (REWRITTEN Session 7)
+- **File:** `static/js/app/panel-placer.js` — State machine: IDLE → SELECT_PLANE → SKETCH
+- **Panel models:** `static/models/solar_panel.glb`, `solar_panel_72.glb`, `solar_panel_120.glb`
+- **Workflow:**
+  1. Click **⬡ Select Plane** → cursor changes to crosshair, faces highlight on hover
+  2. Click a roof face → **Sketch Mode** activates:
+     - Camera animates to look straight down at face (500ms eased)
+     - Orbit rotation locked (pan + zoom only)
+     - Selected face highlighted in blue
+     - Top-right: **✓ Finish** (green) + **✗ Cancel** (red) buttons appear
+     - Bottom: **SKETCH MODE** badge
+  3. Click **⊞ Install Panel ▾** dropdown → choose model
+  4. Click on face to place panels (ghost follows cursor)
+  5. **Undo/Redo** (toolbar buttons or Ctrl+Z/Ctrl+Shift+Z)
+  6. **✓ Finish** → exits sketch, camera returns, panels stay
+  7. **✗ Cancel** → exits sketch, reverts all session panels
+- **Face detection:** Finds all coplanar triangles (dot product > 0.85) to form full face
+- **Dark CAD toolbar:** rgba(40,40,40,0.92) with backdrop-blur
+- **Lazy-loaded:** PanelPlacer created on first "Select Plane" click
 
 ---
 
@@ -221,12 +251,27 @@ const result = viewer.scene.pickFromRay(ray, excludeList);
 </div>
 ```
 
-### Panel Toolbar Overlay (app.html)
+### CAD Toolbar (app.html — Session 7)
 ```html
-<div class="panel-toolbar-overlay">
-  <button class="btn-small" id="btnAddPanel">☀️ Add Panel</button>
-  <button class="btn-small" id="btnLockView">🔓 Lock View</button>
-  <button class="btn-small" id="btnClearPanels">🗑️ Clear Panels</button>
+<div class="cad-toolbar" id="cadToolbar">
+  <button class="cad-btn" id="btnSelectPlane">⬡ Select Plane</button>
+  <div class="cad-separator"></div>
+  <div class="cad-dropdown-wrap">
+    <button class="cad-btn" id="btnInstallPanel" disabled>⊞ Install Panel ▾</button>
+    <div class="cad-dropdown" id="panelDropdown">
+      <button class="cad-dropdown-item" data-panel="solar_panel">Standard Panel</button>
+      <button class="cad-dropdown-item" data-panel="solar_panel_72">72-Cell Panel</button>
+      <button class="cad-dropdown-item" data-panel="solar_panel_120">120-Cell Panel</button>
+    </div>
+  </div>
+  <div class="cad-separator"></div>
+  <button class="cad-btn" id="btnPlacerUndo" disabled>↩</button>
+  <button class="cad-btn" id="btnPlacerRedo" disabled>↪</button>
+</div>
+<!-- Top-right sketch confirm -->
+<div class="sketch-confirm-bar hidden" id="sketchConfirmBar">
+  <button class="sketch-btn sketch-btn-ok" id="btnSketchFinish">✓</button>
+  <button class="sketch-btn sketch-btn-cancel" id="btnSketchCancel">✗</button>
 </div>
 ```
 
@@ -254,21 +299,29 @@ btnCollapseRight.addEventListener('click', () => {
 
 ---
 
-## 6. FILES MODIFIED (Session 6)
+## 6. FILES MODIFIED (Session 7 — SolidWorks Redesign)
 
 ### HTML
 - `templates/app.html`
-  - Added panel toolbar overlay buttons (Add Panel, Lock View, Clear Panels) inside `split-viewer-wrap`
-  - Added `panel-placer.js` script tag
-  - Added PanelPlacer wiring in module script (GLTFLoader access)
+  - Replaced `.panel-toolbar-overlay` with `.cad-toolbar` (dark CAD-style)
+  - Added `.sketch-confirm-bar` (✓/✗ top-right) and `.sketch-mode-badge`
+  - Rewrote module script wiring: `ensurePanelPlacer()`, dropdown handlers, undo/redo, state callbacks
 
 ### CSS
 - `static/css/split-view.css`
-  - Added `.panel-toolbar-overlay` (absolute, top-left, z-index 10)
-  - Added `.active` state for lock button (blue)
+  - Replaced `.panel-toolbar-overlay` with `.cad-toolbar`, `.cad-btn`, `.cad-dropdown` styles
+  - Added `.sketch-confirm-bar`, `.sketch-btn-ok/cancel`, `.sketch-mode-badge`
 
-### JS (NEW)
-- `static/js/app/panel-placer.js` — Full drag-and-drop panel placement system
+### JS (REWRITTEN)
+- `static/js/app/panel-placer.js` — Complete SolidWorks-style state machine
+  - States: `PlacerState.IDLE` → `SELECT_PLANE` → `SKETCH`
+  - Face detection: `_findCoplanarFace()` with dot product > 0.85
+  - Camera snap: animated 500ms eased transition
+  - Undo/redo stack: `{action, panel}` entries
+  - Multi-model: `loadPanelModel(key, url)`, `setActiveModel(key)`
+  - Ghost panel: semi-transparent clone follows mouse on selected face
+
+## 6b. FILES MODIFIED (Session 6 — Ray Casting Fix)
 
 ### JS (MODIFIED)
 - `static/js/app/main.js`
@@ -285,8 +338,10 @@ btnCollapseRight.addEventListener('click', () => {
   - Fixed `castRay()`: passes `[]` instead of `[this.osmTileset]` to exclusion list
   - Added ray origin offset (1.5m along sun direction)
 
-### Assets (NEW)
-- `static/models/solar_panel.glb` — Solar panel 3D model for drag-and-drop
+### Assets
+- `static/models/solar_panel.glb` — Standard panel
+- `static/models/solar_panel_72.glb` — 72-Cell panel
+- `static/models/solar_panel_120.glb` — 120-Cell panel
 
 ---
 
@@ -373,12 +428,16 @@ btnCollapseRight.addEventListener('click', () => {
 3. `pickFromRay` 2nd param = `objectsToExclude` (NOT objectsToQuery!)
 4. Ray origin must be offset above surface (0.5m geodetic UP)
 
-### Check Panel Placement
-1. Click "☀️ Add Panel" → ghost follows mouse over roof
-2. Click on roof → panel placed, aligned to surface
-3. "🔓 Lock View" → orbit disabled, drag panels to reposition
-4. "🗑️ Clear Panels" → all panels removed
-5. Delete key → removes last panel (when locked)
+### Check Panel Placement (SolidWorks-style)
+1. Click "⬡ Select Plane" → cursor changes to crosshair
+2. Hover over roof → faces highlight blue on hover
+3. Click a face → camera snaps to top-down view, "SKETCH MODE" badge appears
+4. Top-right: ✓ (green) and ✗ (red) buttons appear
+5. "⊞ Install Panel ▾" dropdown becomes enabled → pick a model
+6. Click on highlighted face → panel placed, ghost follows for next placement
+7. Ctrl+Z / Ctrl+Shift+Z → undo/redo
+8. Click ✓ → exits sketch, panels stay, camera returns to 3D
+9. Click ✗ → exits sketch, session panels removed
 
 ---
 
@@ -395,18 +454,19 @@ btnCollapseRight.addEventListener('click', () => {
 9. **No "Location detected" message** after geolocation
 10. **Fixed toolbar row** - no flex, no free space
 11. **Shading scatter** - points on roof surface for shading viz (green=low, red=high)
-12. **Panel placement** - drag & drop from top-left overlay buttons, lock view to adjust
+12. **Panel placement** - SolidWorks-style: Select Plane → Sketch Mode → Install → ✓ Finish
 
 ---
 
 ## 11. NEXT STEPS (Suggested)
 
 1. Validate ray casting results with real shaded buildings
-2. Add panel snap-to-grid / alignment tools
-3. Add save/load for drawn boundaries
-4. Improve height calculation accuracy
-5. Mobile responsive testing for toolbar row
-6. PDF export of calculation results
+2. Add panel snap-to-grid / alignment tools on sketch mode
+3. Panel count + capacity display in sketch mode
+4. Add save/load for drawn boundaries
+5. Improve height calculation accuracy
+6. Mobile responsive testing for toolbar row
+7. PDF export of calculation results
 
 ---
 
@@ -423,6 +483,8 @@ btnCollapseRight.addEventListener('click', () => {
 5. Split view CSS: `split-view.css` imported via `wizard.css`
 6. Ray casting: `pickFromRay(ray, [osmTileset])` — 2nd param EXCLUDES
 7. Panel placer: needs `window.splitViewerRef` set in `initSplitViewer()`
+8. CAD toolbar: `.cad-toolbar` in `split-view.css`, buttons wired in module script
+9. PanelPlacer state machine: `PlacerState.IDLE/SELECT_PLANE/SKETCH`
 
 **To continue work:**
 > "Based on PROJECT_STATE.md, I want to [feature]. Current issue: [problem]"

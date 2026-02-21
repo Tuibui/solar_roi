@@ -90,7 +90,6 @@
       <div class="project-tree-panel" id="projectTreePanel">
         <div class="ptree-header">
           <span class="ptree-header-title">Tree</span>
-          <input type="text" class="ptree-filter" id="ptreeFilter" placeholder="🔍 Filter..." autocomplete="off" spellcheck="false">
           <button class="ptree-toggle-btn" id="btnTreeToggle" title="Collapse tree">◀</button>
         </div>
         <div class="ptree-body" id="projectTreeBody"></div>
@@ -101,33 +100,33 @@
 
       <!-- 3D Viewer Column -->
       <div class="split-viewer-col">
+
+      <!-- Full-width Tab Bar (Select Plane / Install Panel) -->
+      <div class="cad-tab-bar" id="cadToolbar">
+        <button class="cad-tab active" id="btnSelectPlane" title="Select a roof face">
+          <span class="cad-icon">⬡</span> Select Plane
+        </button>
+        <div class="cad-tab-wrap">
+          <button class="cad-tab" id="btnInstallPanel" title="Place solar panel" disabled>
+            <span class="cad-icon">⊞</span> Install Panel <span class="cad-caret">▾</span>
+          </button>
+          <div class="cad-dropdown" id="panelDropdown">
+            <button class="cad-dropdown-item" data-panel="solar_panel">Standard Panel</button>
+            <button class="cad-dropdown-item" data-panel="solar_panel_72">72-Cell Panel</button>
+            <button class="cad-dropdown-item" data-panel="solar_panel_120">120-Cell Panel</button>
+          </div>
+        </div>
+        <div class="cad-tab-actions">
+          <button class="cad-btn" id="btnPlacerUndo" title="Undo (Ctrl+Z)" disabled>↩</button>
+          <button class="cad-btn" id="btnPlacerRedo" title="Redo (Ctrl+Shift+Z)" disabled>↪</button>
+        </div>
+      </div>
+
       <div class="split-viewer-wrap">
         <div id="splitModelHost"></div>
 
-        <!-- SolidWorks-style toolbar (top-left) -->
-        <div class="cad-toolbar" id="cadToolbar">
-          <button class="cad-btn" id="btnSelectPlane" title="Select a roof face">
-            <span class="cad-icon">⬡</span> Select Plane
-          </button>
-          <div class="cad-separator"></div>
-          <div class="cad-dropdown-wrap">
-            <button class="cad-btn" id="btnInstallPanel" title="Place solar panel" disabled>
-              <span class="cad-icon">⊞</span> Install Panel <span class="cad-caret">▾</span>
-            </button>
-            <div class="cad-dropdown" id="panelDropdown">
-              <button class="cad-dropdown-item" data-panel="solar_panel">Standard Panel</button>
-              <button class="cad-dropdown-item" data-panel="solar_panel_72">72-Cell Panel</button>
-              <button class="cad-dropdown-item" data-panel="solar_panel_120">120-Cell Panel</button>
-            </div>
-          </div>
-          <div class="cad-separator"></div>
-          <button class="cad-btn" id="btnPlacerUndo" title="Undo (Ctrl+Z)" disabled>
-            <span class="cad-icon">↩</span>
-          </button>
-          <button class="cad-btn" id="btnPlacerRedo" title="Redo (Ctrl+Shift+Z)" disabled>
-            <span class="cad-icon">↪</span>
-          </button>
-        </div>
+        <!-- XYZ Triad (bottom-left orientation indicator) -->
+        <div class="viewport-triad" id="viewportTriad"></div>
 
         <!-- Sketch mode confirm/cancel (top-right) -->
         <div class="sketch-confirm-bar hidden" id="sketchConfirmBar">
@@ -286,10 +285,12 @@
       scene.add(dir);
 
       let animId;
+      const _animHooks = [];
       function animate() {
         animId = requestAnimationFrame(animate);
         controls.update();
         renderer.render(scene, camera);
+        for (const fn of _animHooks) fn();
       }
       animate();
 
@@ -304,7 +305,82 @@
       }
       window.addEventListener('resize', resize);
 
-      return { scene, camera, renderer, controls, resize, dispose: () => cancelAnimationFrame(animId) };
+      return { scene, camera, renderer, controls, resize, addAnimHook: fn => _animHooks.push(fn), dispose: () => cancelAnimationFrame(animId) };
+    }
+
+    // ── XYZ Triad (orientation indicator, bottom-left of viewport) ──
+    function setupTriad(mainViewer) {
+      const container = document.getElementById('viewportTriad');
+      if (!container) return null;
+
+      const triadScene = new THREE.Scene();
+      const triadCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
+      triadCamera.position.set(0, 0, 3);
+      triadCamera.lookAt(0, 0, 0);
+
+      const triadRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      triadRenderer.setSize(80, 80);
+      triadRenderer.setPixelRatio(window.devicePixelRatio);
+      triadRenderer.setClearColor(0x000000, 0);
+      container.appendChild(triadRenderer.domElement);
+
+      const axLen = 1.0;
+      // X axis — red
+      const xMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+      const xGeo = new THREE.CylinderGeometry(0.04, 0.04, axLen, 8);
+      const xAxis = new THREE.Mesh(xGeo, xMat);
+      xAxis.rotation.z = -Math.PI / 2;
+      xAxis.position.x = axLen / 2;
+      triadScene.add(xAxis);
+
+      // Y axis — green
+      const yMat = new THREE.MeshBasicMaterial({ color: 0x33cc33 });
+      const yGeo = new THREE.CylinderGeometry(0.04, 0.04, axLen, 8);
+      const yAxis = new THREE.Mesh(yGeo, yMat);
+      yAxis.position.y = axLen / 2;
+      triadScene.add(yAxis);
+
+      // Z axis — blue
+      const zMat = new THREE.MeshBasicMaterial({ color: 0x3366ff });
+      const zGeo = new THREE.CylinderGeometry(0.04, 0.04, axLen, 8);
+      const zAxis = new THREE.Mesh(zGeo, zMat);
+      zAxis.rotation.x = Math.PI / 2;
+      zAxis.position.z = axLen / 2;
+      triadScene.add(zAxis);
+
+      // Axis labels
+      function makeLabel(text, color, pos) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32; canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 16, 16);
+        const tex = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.copy(pos);
+        sprite.scale.set(0.3, 0.3, 1);
+        return sprite;
+      }
+      triadScene.add(makeLabel('X', '#ff3333', new THREE.Vector3(axLen + 0.2, 0, 0)));
+      triadScene.add(makeLabel('Y', '#33cc33', new THREE.Vector3(0, axLen + 0.2, 0)));
+      triadScene.add(makeLabel('Z', '#3366ff', new THREE.Vector3(0, 0, axLen + 0.2)));
+
+      const ambient = new THREE.AmbientLight(0xffffff, 1);
+      triadScene.add(ambient);
+
+      function updateTriad() {
+        if (!mainViewer || !mainViewer.camera) return;
+        const q = mainViewer.camera.quaternion.clone();
+        triadCamera.position.set(0, 0, 3).applyQuaternion(q);
+        triadCamera.lookAt(0, 0, 0);
+        triadRenderer.render(triadScene, triadCamera);
+      }
+
+      return { update: updateTriad };
     }
 
     function loadModelToViewer(viewer, url, roofIndex, onReady, onError) {
@@ -352,7 +428,7 @@
     }
 
 
-    window.threeViewer = { createViewer, loadModelToViewer };
+    window.threeViewer = { createViewer, loadModelToViewer, setupTriad };
 
     // ──── Panel Placer Wiring (GLTFLoader available in module scope) ────
     let panelPlacer = null;
