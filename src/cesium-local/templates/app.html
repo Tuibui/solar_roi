@@ -93,9 +93,7 @@
           <button class="ptree-toggle-btn" id="btnTreeToggle" title="Collapse tree">◀</button>
         </div>
         <div class="ptree-body" id="projectTreeBody"></div>
-        <div class="ptree-status-bar">
-          <span class="ptree-status-text" id="ptreeStatusText">Ready</span>
-        </div>
+        <div class="ptree-resize-handle" id="projectTreeResizeHandle" title="Drag to resize tree"></div>
       </div>
 
       <!-- 3D Viewer Column -->
@@ -109,6 +107,8 @@
 
         <!-- Sketch mode confirm/cancel (top-right) -->
         <div class="sketch-confirm-bar hidden" id="sketchConfirmBar">
+          <button class="sketch-btn sketch-btn-undo" id="btnSketchUndo" title="Undo (Ctrl+Z)">↩</button>
+          <button class="sketch-btn sketch-btn-redo" id="btnSketchRedo" title="Redo (Ctrl+Shift+Z)">↪</button>
           <button class="sketch-btn sketch-btn-ok" id="btnSketchFinish" title="Finish sketch">✓</button>
           <button class="sketch-btn sketch-btn-cancel" id="btnSketchCancel" title="Cancel sketch">✗</button>
         </div>
@@ -231,8 +231,10 @@
     import * as THREE from 'three';
     import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
     import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+    import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
     window.THREE = THREE;
+    window.TransformControls = TransformControls;
 
     function createViewer(host, options = {}) {
       const bgColor = options.bgColor || 0xffffff;
@@ -420,10 +422,11 @@
     };
 
     const PANEL_MODELS = {
-      solar_panel:     { url: '/static/models/solar_panel.glb',     label: 'Standard Panel' },
-      solar_panel_72:  { url: '/static/models/solar_panel_72.glb',  label: '72-Cell Panel' },
-      solar_panel_120: { url: '/static/models/solar_panel_120.glb', label: '120-Cell Panel' }
+      solar_panel:     { url: '/static/models/solar_panel.glb',     label: '60-Cell',  cells: 60,  watt: 370 },
+      solar_panel_72:  { url: '/static/models/solar_panel_72.glb',  label: '72-Cell',  cells: 72,  watt: 450 },
+      solar_panel_120: { url: '/static/models/solar_panel_120.glb', label: '120-Cell', cells: 120, watt: 550 }
     };
+    window.PANEL_MODELS = PANEL_MODELS;
 
     async function ensurePanelPlacer() {
       const viewer = window.splitViewerRef;
@@ -461,12 +464,18 @@
         if (btnRedo) btnRedo.disabled = !isSketch;
       };
 
+      // Update tree when panel deleted via 3D interaction
+      panelPlacer.onPanelDeleted = (roofIndex) => {
+        if (window.updateTreePanelsForRoof) window.updateTreePanelsForRoof(roofIndex);
+      };
+
       console.log('[PanelPlacer] Initialized');
       return panelPlacer;
     }
+    window.ensurePanelPlacer = ensurePanelPlacer;
 
     document.addEventListener('DOMContentLoaded', () => {
-      // Select Plane
+      // Select Plane (legacy — kept for direct use)
       document.getElementById('btnSelectPlane')?.addEventListener('click', async () => {
         const pp = await ensurePanelPlacer();
         if (!pp) return;
@@ -477,63 +486,26 @@
         }
       });
 
-      // Install Panel dropdown toggle
-      const btnInstall = document.getElementById('btnInstallPanel');
-      const dropdown = document.getElementById('panelDropdown');
-      if (btnInstall && dropdown) {
-        btnInstall.addEventListener('click', () => {
-          dropdown.classList.toggle('open');
-        });
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-          if (!btnInstall.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.classList.remove('open');
-          }
-        });
-      }
-
-      // Dropdown item selection
-      document.querySelectorAll('.cad-dropdown-item').forEach(item => {
-        item.addEventListener('click', async () => {
-          const key = item.dataset.panel;
-          if (!key) return;
-          dropdown?.classList.remove('open');
-
-          const pp = await ensurePanelPlacer();
-          if (!pp) return;
-
-          // Load model if needed
-          if (!pp.panelModels[key] && PANEL_MODELS[key]) {
-            btnInstall.disabled = true;
-            btnInstall.querySelector('.cad-icon').textContent = '⏳';
-            try {
-              await pp.loadPanelModel(key, PANEL_MODELS[key].url);
-            } finally {
-              btnInstall.disabled = false;
-              btnInstall.querySelector('.cad-icon').textContent = '⊞';
-            }
-          }
-
-          pp.setActiveModel(key);
-          pp.startInstall();
-
-          // Update button label
-          btnInstall.childNodes[1].textContent = ` ${PANEL_MODELS[key]?.label || key} `;
-        });
-      });
-
-      // Undo / Redo
+      // Undo / Redo (both old IDs and new sketch bar buttons)
       document.getElementById('btnPlacerUndo')?.addEventListener('click', () => {
         if (panelPlacer) panelPlacer.undo();
       });
       document.getElementById('btnPlacerRedo')?.addEventListener('click', () => {
         if (panelPlacer) panelPlacer.redo();
       });
+      document.getElementById('btnSketchUndo')?.addEventListener('click', () => {
+        if (panelPlacer) panelPlacer.undo();
+      });
+      document.getElementById('btnSketchRedo')?.addEventListener('click', () => {
+        if (panelPlacer) panelPlacer.redo();
+      });
 
-      // Finish / Cancel sketch
+      // Finish sketch → update tree
       document.getElementById('btnSketchFinish')?.addEventListener('click', () => {
         if (panelPlacer) panelPlacer.finishSketch();
       });
+
+      // Cancel sketch
       document.getElementById('btnSketchCancel')?.addEventListener('click', () => {
         if (panelPlacer) panelPlacer.cancelSketch();
       });

@@ -14,18 +14,11 @@ const ProjectTree = (function () {
   let panelBrowserEl = null;
   let panelBrowserRoofId = null;
 
-  // ─── Demo Panel Catalog ───
+  // ─── Panel Catalog (3 types matching GLB models) ───
   const DEMO_PANELS = [
-    { brand: 'LONGi',          model: 'Hi-MO 6',       watt: 580, price: 185 },
-    { brand: 'JA Solar',       model: 'DeepBlue 4.0',  watt: 550, price: 165 },
-    { brand: 'Trina Solar',    model: 'Vertex S+',      watt: 510, price: 155 },
-    { brand: 'Canadian Solar', model: 'HiHero',         watt: 445, price: 140 },
-    { brand: 'Jinko Solar',    model: 'Tiger Neo',      watt: 585, price: 190 },
-    { brand: 'REC',            model: 'Alpha Pure-R',   watt: 430, price: 210 },
-    { brand: 'SunPower',       model: 'Maxeon 7',       watt: 440, price: 280 },
-    { brand: 'Q CELLS',        model: 'Q.TRON BLK',    watt: 420, price: 175 },
-    { brand: 'Risen Energy',   model: 'Titan S',        watt: 505, price: 148 },
-    { brand: 'Hyundai',        model: 'HiE-S485VG',    watt: 485, price: 195 },
+    { brand: 'Standard', model: '60-Cell',  watt: 370, price: 130, cells: 60,  dims: '1.7 × 1.0 m', eff: 19.8, modelKey: 'solar_panel' },
+    { brand: 'Standard', model: '72-Cell',  watt: 450, price: 170, cells: 72,  dims: '2.0 × 1.0 m', eff: 21.0, modelKey: 'solar_panel_72' },
+    { brand: 'Standard', model: '120-Cell', watt: 550, price: 220, cells: 120, dims: '2.1 × 1.1 m', eff: 22.5, modelKey: 'solar_panel_120' },
   ];
 
   // ─── Default skeleton — Roofs only ───
@@ -40,21 +33,25 @@ const ProjectTree = (function () {
     const roofColors = ['🔴', '🟢', '🔵', '🟡', '🟣', '🩵'];
     const color = roofColors[index % roofColors.length];
     const fmt = (v, unit, dec) => v != null ? v.toFixed(dec) + unit : '—';
+    const area = roof.area_m2 ?? roof.area;
+    const tilt = roof.tilt_deg ?? roof.tilt;
+    const azimuth = roof.azimuth_deg ?? roof.azimuth;
+    const usableArea = roof.usable_area_m2 ?? roof.usable_area ?? roof.panel_area;
 
     return {
-      id: `roof-${index}`, icon: color, label: `Roof_${index + 1}`, open: true, type: 'feature',
+      id: `roof-${index}`, icon: color, label: `Roof_${index + 1}`, open: false, type: 'feature',
       children: [
         {
-          id: `panels-${index}`, icon: '', label: 'Panels', open: false, type: 'folder',
+          id: `panels-${index}`, icon: '', label: 'Panels', open: false, type: 'panels',
           children: []
         },
         {
           id: `props-${index}`, icon: '', label: 'Properties', open: true, type: 'folder',
           children: [
-            { id: `area-${index}`, icon: '', label: 'Area', value: fmt(roof.area_m2, ' m²', 1), type: 'param' },
-            { id: `tilt-${index}`, icon: '', label: 'Tilt', value: fmt(roof.tilt_deg, '°', 1), type: 'param' },
-            { id: `azimuth-${index}`, icon: '', label: 'Azimuth', value: fmt(roof.azimuth_deg, '°', 0), type: 'param' },
-            { id: `usable-${index}`, icon: '', label: 'Usable Area', value: fmt(roof.usable_area_m2, ' m²', 1), type: 'param' }
+            { id: `area-${index}`, icon: '', label: 'Area', value: fmt(area, ' m²', 1), type: 'param' },
+            { id: `tilt-${index}`, icon: '', label: 'Tilt', value: fmt(tilt, '°', 1), type: 'param' },
+            { id: `azimuth-${index}`, icon: '', label: 'Azimuth', value: fmt(azimuth, '°', 0), type: 'param' },
+            { id: `usable-${index}`, icon: '', label: 'Usable Area', value: fmt(usableArea, ' m²', 1), type: 'param' }
           ]
         }
       ]
@@ -65,9 +62,13 @@ const ProjectTree = (function () {
   const CONTEXT_MENUS = {
     root:     [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
     folder:   [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
+    panels:   [{ action: 'edit-roof', label: '✏️ Edit Roof' }],
     feature:  [{ action: 'add-panel', label: '⊞ Add Panel' }],
     param:    [{ action: 'copy-value', label: 'Copy Value' }],
-    data:     [{ action: 'copy-value', label: 'Copy Value' }]
+    data:     [{ action: 'copy-value', label: 'Copy Value' }],
+    panel:    [
+      { action: 'delete-panel', label: '🗑 Delete Panel' }
+    ]
   };
 
   // ─── Render ───
@@ -96,6 +97,7 @@ const ProjectTree = (function () {
       arrow.addEventListener('click', (e) => {
         e.stopPropagation();
         node.open = !node.open;
+        if (!node.open) collapseChildrenRecursive(node);
         render();
       });
     }
@@ -140,7 +142,7 @@ const ProjectTree = (function () {
     // Double click → expand/collapse
     row.addEventListener('dblclick', (e) => {
       e.stopPropagation();
-      if (hasChildren) { node.open = !node.open; render(); }
+      if (hasChildren) { node.open = !node.open; if (!node.open) collapseChildrenRecursive(node); render(); }
     });
 
     // Right click → context menu
@@ -240,9 +242,12 @@ const ProjectTree = (function () {
         if (node.value != null) navigator.clipboard.writeText(String(node.value)).catch(() => {});
         break;
       case 'add-panel':
+        if (onContextActionCallback) onContextActionCallback('add-panel', node);
         showPanelBrowser(node.id);
         break;
       case 'select-3d': case 'hide': case 'show':
+      case 'edit-roof':
+      case 'delete-panel':
         if (onContextActionCallback) onContextActionCallback(action, node);
         break;
     }
@@ -250,6 +255,10 @@ const ProjectTree = (function () {
 
   function setOpenRecursive(node, open) {
     if (node.children) { node.open = open; node.children.forEach(c => setOpenRecursive(c, open)); }
+  }
+
+  function collapseChildrenRecursive(node) {
+    if (node.children) node.children.forEach(c => { c.open = false; collapseChildrenRecursive(c); });
   }
 
   // ─── Status Bar ───
@@ -295,10 +304,10 @@ const ProjectTree = (function () {
       if (selectedId) { const n = findNode(treeData, selectedId); if (n && n.children && !n.open) { n.open = true; render(); } }
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      if (selectedId) { const n = findNode(treeData, selectedId); if (n && n.children && n.open) { n.open = false; render(); } }
+      if (selectedId) { const n = findNode(treeData, selectedId); if (n && n.children && n.open) { n.open = false; collapseChildrenRecursive(n); render(); } }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (selectedId) { const n = findNode(treeData, selectedId); if (n && n.children) { n.open = !n.open; render(); } }
+      if (selectedId) { const n = findNode(treeData, selectedId); if (n && n.children) { n.open = !n.open; if (!n.open) collapseChildrenRecursive(n); render(); } }
     }
   }
 
@@ -328,7 +337,6 @@ const ProjectTree = (function () {
     if (!treeData) return;
     treeData.children = (roofs || []).map((r, i) => createRoofNode(r, i));
     treeData.open = true;
-    if (treeData.children.length > 0) treeData.children[0].open = true;
     render();
   }
 
@@ -337,9 +345,10 @@ const ProjectTree = (function () {
     const panelsNode = findNode(treeData, `panels-${roofIndex}`);
     if (!panelsNode) return;
     panelsNode.children = (panels || []).map((p, i) => ({
-      id: `panel-${roofIndex}-${i}`, icon: '', type: 'data',
+      id: `panel-${roofIndex}-${i}`, icon: '', type: 'panel',
       label: p.label || `Panel_${p.type || '60cell'}_${String(i + 1).padStart(3, '0')}`,
-      value: null
+      value: null,
+      panelName: p.panelName || null
     }));
     panelsNode.open = panelsNode.children.length > 0;
     render();
@@ -355,7 +364,8 @@ const ProjectTree = (function () {
     if (!panelBrowserEl) {
       panelBrowserEl = document.createElement('div');
       panelBrowserEl.className = 'panel-browser';
-      panel.insertBefore(panelBrowserEl, panel.querySelector('.ptree-status-bar'));
+      const insertAnchor = panel.querySelector('.ptree-resize-handle') || panel.querySelector('.ptree-status-bar');
+      panel.insertBefore(panelBrowserEl, insertAnchor || null);
     }
 
     // Hide tree body, show browser
@@ -398,15 +408,15 @@ const ProjectTree = (function () {
       </div>
       <div class="pb-list">
         ${filtered.map((p, i) => `
-          <div class="pb-card" data-idx="${i}" data-brand="${p.brand}" data-model="${p.model}" data-watt="${p.watt}" data-price="${p.price}">
+          <div class="pb-card" data-idx="${i}" data-brand="${p.brand}" data-model="${p.model}" data-watt="${p.watt}" data-price="${p.price}" data-modelkey="${p.modelKey || ''}">
             <div class="pb-card-top">
-              <span class="pb-brand">${p.brand}</span>
+              <span class="pb-brand">${p.brand} ${p.model}</span>
               <span class="pb-price">$${p.price}</span>
             </div>
-            <div class="pb-model">${p.model}</div>
+            <div class="pb-model">${p.cells ? p.cells + ' cells' : ''} ${p.dims ? '· ' + p.dims : ''}</div>
             <div class="pb-card-bottom">
               <span class="pb-watt">${p.watt}W</span>
-              <span class="pb-eff">${(p.watt / 21.5).toFixed(1)}% eff</span>
+              <span class="pb-eff">${p.eff != null ? p.eff + '% eff' : ''}</span>
             </div>
           </div>
         `).join('')}
@@ -415,7 +425,10 @@ const ProjectTree = (function () {
     `;
 
     // Wire back button
-    panelBrowserEl.querySelector('.pb-back-btn').addEventListener('click', hidePanelBrowser);
+    panelBrowserEl.querySelector('.pb-back-btn').addEventListener('click', () => {
+      hidePanelBrowser();
+      if (onContextActionCallback) onContextActionCallback('browser-closed', {});
+    });
 
     // Wire search
     const searchInput = panelBrowserEl.querySelector('.pb-search');
@@ -429,36 +442,21 @@ const ProjectTree = (function () {
     // Wire card clicks
     panelBrowserEl.querySelectorAll('.pb-card').forEach(card => {
       card.addEventListener('click', () => {
+        // Toggle selection — keep browser open
+        panelBrowserEl.querySelectorAll('.pb-card.active').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+
         const brand = card.dataset.brand;
         const model = card.dataset.model;
         const watt = card.dataset.watt;
         const price = card.dataset.price;
-
-        // Add to tree under Panels folder
-        if (panelBrowserRoofId) {
-          const roofIdx = panelBrowserRoofId.replace('roof-', '');
-          const panelsNode = findNode(treeData, `panels-${roofIdx}`);
-          if (panelsNode) {
-            const n = panelsNode.children.length;
-            panelsNode.children.push({
-              id: `panel-${roofIdx}-${n}`, icon: '', type: 'data',
-              label: `${brand} ${model}`,
-              value: `${watt}W · $${price}`
-            });
-            panelsNode.open = true;
-            // Open parent roof too
-            const roofNode = findNode(treeData, panelBrowserRoofId);
-            if (roofNode) roofNode.open = true;
-          }
-        }
-
-        hidePanelBrowser();
-        render();
+        const modelKey = card.dataset.modelkey;
+        const roofId = panelBrowserRoofId;
 
         if (onContextActionCallback) {
           onContextActionCallback('panel-selected', {
-            roofId: panelBrowserRoofId,
-            brand, model, watt: Number(watt), price: Number(price)
+            roofId,
+            brand, model, watt: Number(watt), price: Number(price), modelKey
           });
         }
       });

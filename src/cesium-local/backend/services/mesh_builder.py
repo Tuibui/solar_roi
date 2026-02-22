@@ -498,19 +498,18 @@ def build_glb_from_roofs(roofs, out_path, roof_thickness=0.25,
     if not parts:
         raise RuntimeError("Mesh generation failed")
 
-    model = trimesh.util.concatenate(parts)
-
-    try:
+    # Export as a scene with separate roof meshes so front-end can target each roof
+    scene = trimesh.Scene()
+    for i, part in enumerate(parts):
         try:
-            model.remove_duplicate_faces()
+            part.remove_unreferenced_vertices()
+            part.fix_normals()
         except Exception:
             pass
-        model.remove_unreferenced_vertices()
-        model.fix_normals()
-    except Exception as e:
-        logger.warning("Mesh cleanup issue: %s", str(e))
+        node_name = f"roof_{i}"
+        scene.add_geometry(part, node_name=node_name, geom_name=node_name)
 
-    model.export(out_path)
+    scene.export(out_path)
     _set_glb_double_sided(out_path)
 
     return {

@@ -66,19 +66,207 @@ function setupProjectTree() {
   };
 
   // Context action callback
-  ProjectTree.onContextAction = (action, node) => {
-    console.log('[ProjectTree] Context action:', action, node.id);
+  ProjectTree.onContextAction = (action, data) => {
+    if (action === 'edit-roof') {
+      // Snap camera + enter sketch directly (no panel browser) for editing existing panels
+      const roofIndex = parseInt((data.id || '').replace('panels-', ''), 10);
+      if (!isNaN(roofIndex)) enterEditRoof(roofIndex);
+    }
+    if (action === 'add-panel') {
+      const roofIndex = parseInt((data.id || '').replace('roof-', ''), 10);
+      if (!isNaN(roofIndex)) snapCameraToRoof(roofIndex);
+    }
+    if (action === 'panel-selected') {
+      startPanelPlacement(data);
+    }
+    if (action === 'browser-closed') {
+      const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+      if (pp && pp.state === window.PlacerState?.SKETCH) pp.cancelSketch();
+    }
+    if (action === 'delete-panel') {
+      handleDeletePanel(data);
+    }
   };
 
   // Collapse/expand toggle
   const btnToggle = document.getElementById('btnTreeToggle');
   const panel = document.getElementById('projectTreePanel');
+  const resizeHandle = document.getElementById('projectTreeResizeHandle');
   if (btnToggle && panel) {
+    let lastExpandedWidth = Math.max(200, Math.round(panel.getBoundingClientRect().width) || 250);
+
+    const syncToggleTitle = () => {
+      btnToggle.title = panel.classList.contains('collapsed') ? 'Expand tree' : 'Collapse tree';
+    };
+    syncToggleTitle();
+
     btnToggle.addEventListener('click', () => {
-      panel.classList.toggle('collapsed');
+      const willCollapse = !panel.classList.contains('collapsed');
+      if (willCollapse) {
+        lastExpandedWidth = Math.max(200, Math.round(panel.getBoundingClientRect().width));
+        panel.classList.add('collapsed');
+      } else {
+        panel.classList.remove('collapsed');
+        panel.style.width = `${lastExpandedWidth}px`;
+      }
+      syncToggleTitle();
       setTimeout(() => { if (splitViewer) splitViewer.resize(); }, 250);
     });
+
+    if (resizeHandle) {
+      let startX = 0;
+      let startWidth = 0;
+
+      const onPointerMove = (e) => {
+        const delta = e.clientX - startX;
+        const nextWidth = Math.max(200, Math.min(520, Math.round(startWidth + delta)));
+        panel.style.width = `${nextWidth}px`;
+      };
+
+      const onPointerUp = () => {
+        document.removeEventListener('pointermove', onPointerMove);
+        resizeHandle.classList.remove('dragging');
+        lastExpandedWidth = Math.max(200, Math.round(panel.getBoundingClientRect().width));
+        if (splitViewer) splitViewer.resize();
+      };
+
+      resizeHandle.addEventListener('pointerdown', (e) => {
+        if (panel.classList.contains('collapsed')) return;
+        e.preventDefault();
+        startX = e.clientX;
+        startWidth = panel.getBoundingClientRect().width;
+        resizeHandle.classList.add('dragging');
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp, { once: true });
+      });
+    }
   }
+}
+
+// ============ PANEL PLACEMENT FLOW ============
+async function snapCameraToRoof(roofIndex) {
+  if (!window.ensurePanelPlacer) return;
+  const pp = await window.ensurePanelPlacer();
+  if (pp) pp.snapToRoof(roofIndex);
+}
+
+async function enterEditRoof(roofIndex) {
+  if (!window.ensurePanelPlacer) return;
+  const pp = await window.ensurePanelPlacer();
+  if (!pp) return;
+
+  // Already in sketch for this roof — nothing to do
+  if (pp.state === PlacerState.SKETCH && pp.sketchRoofIndex === roofIndex) return;
+  // In sketch for different roof — clear callbacks + cancel first
+  if (pp.state === PlacerState.SKETCH) {
+    const prevRoof = pp.sketchRoofIndex;
+    pp.onFinish = null;
+    pp.onCancel = null;
+    pp.cancelSketch();
+    if (prevRoof != null) updateTreePanelsForRoof(prevRoof);
+  }
+
+  pp.onFinish = (placed, ri) => updateTreePanelsForRoof(ri);
+  pp.onCancel = (ri) => updateTreePanelsForRoof(ri);
+
+  // Enter sketch (snaps camera) — no ghost, user clicks existing panels to edit
+  pp.enterSketchForRoof(roofIndex);
+}
+
+async function startPanelPlacement(data) {
+  if (!window.ensurePanelPlacer || !window.PANEL_MODELS) {
+    console.warn('[PanelPlacement] ensurePanelPlacer or PANEL_MODELS not ready');
+    return;
+  }
+  const pp = await window.ensurePanelPlacer();
+  if (!pp) { console.warn('[PanelPlacement] PanelPlacer not available'); return; }
+
+  const roofId = data.roofId;
+  if (!roofId) { console.warn('[PanelPlacement] No roofId in data'); return; }
+  const roofIndex = parseInt(roofId.replace('roof-', ''), 10);
+  if (isNaN(roofIndex)) { console.warn('[PanelPlacement] Invalid roofId:', roofId); return; }
+
+  const modelKey = data.modelKey;
+  const modelLabel = `${data.brand} ${data.model}`.trim();
+  const PANEL_MODELS = window.PANEL_MODELS;
+
+  // Load panel model if needed
+  if (modelKey && PANEL_MODELS[modelKey]) {
+    if (!pp.panelModels[modelKey]) {
+      await pp.loadPanelModel(modelKey, PANEL_MODELS[modelKey].url);
+    }
+    pp.setActiveModel(modelKey);
+    pp.activeModelLabel = modelLabel;
+  }
+
+  // Already in sketch for this roof? Just switch model, restart ghost.
+  if (pp.state === PlacerState.SKETCH && pp.sketchRoofIndex === roofIndex) {
+    pp.startInstall();
+    return;
+  }
+
+  // In sketch for different roof — clear callbacks + cancel first
+  if (pp.state === PlacerState.SKETCH) {
+    const prevRoof = pp.sketchRoofIndex;
+    pp.onFinish = null;
+    pp.onCancel = null;
+    pp.cancelSketch();
+    if (prevRoof != null) updateTreePanelsForRoof(prevRoof);
+  }
+
+  // Wire finish/cancel callbacks — close browser + update tree
+  pp.onFinish = (placed, sketchRoofIndex) => {
+    updateTreePanelsForRoof(sketchRoofIndex);
+    if (window.ProjectTree) window.ProjectTree.hidePanelBrowser();
+  };
+  pp.onCancel = (sketchRoofIndex) => {
+    updateTreePanelsForRoof(sketchRoofIndex);
+    if (window.ProjectTree) window.ProjectTree.hidePanelBrowser();
+  };
+
+  // Enter sketch mode for this roof (auto-face)
+  const ok = pp.enterSketchForRoof(roofIndex);
+  if (!ok) {
+    console.warn('[PanelPlacement] enterSketchForRoof failed for roof', roofIndex);
+    return;
+  }
+
+  // Delay ghost start so camera animation starts first
+  setTimeout(() => {
+    if (pp.state === PlacerState.SKETCH) {
+      pp.startInstall();
+    }
+  }, 100);
+}
+
+function updateTreePanelsForRoof(roofIndex) {
+  const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+  if (!pp || !window.ProjectTree) return;
+
+  const metas = pp.getPanelsForRoof(roofIndex);
+  // Number panels per model type
+  const counts = {};
+  const panelEntries = metas.map(m => {
+    const key = m.modelKey || 'panel';
+    counts[key] = (counts[key] || 0) + 1;
+    return { label: `${m.modelLabel}_${counts[key]}`, type: key, panelName: m.panelName };
+  });
+
+  ProjectTree.updatePanels(roofIndex, panelEntries);
+}
+window.updateTreePanelsForRoof = updateTreePanelsForRoof;
+
+function handleDeletePanel(node) {
+  const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+  if (!pp || !node.panelName) return;
+  const roofIndex = pp.deleteConfirmedPanel(node.panelName);
+  if (roofIndex != null) updateTreePanelsForRoof(roofIndex);
+}
+
+function handleRotatePanel(node, angleDeg) {
+  const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+  if (!pp || !node.panelName) return;
+  pp.rotateConfirmedPanel(node.panelName, angleDeg);
 }
 
 // ============ SPLIT-VIEW HANDLERS ============

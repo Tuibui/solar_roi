@@ -34,7 +34,7 @@
 .project-tree-panel {
   width: 250px;
   min-width: 200px;
-  max-width: 320px;
+  max-width: 520px;
   background: #d4d4d4;
   border-right: 1px solid #b0b0b0;
   display: flex;
@@ -43,11 +43,33 @@
   flex-shrink: 0;
   transition: width 0.2s ease, min-width 0.2s ease;
   font-family: -apple-system, 'Segoe UI', 'Noto Sans JP', sans-serif;
+  position: relative;
 }
 
 .project-tree-panel.collapsed {
   width: 32px !important;
   min-width: 32px !important;
+}
+
+.ptree-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 4;
+  touch-action: none;
+}
+
+.ptree-resize-handle:hover,
+.ptree-resize-handle.dragging {
+  background: rgba(0, 96, 192, 0.2);
+}
+
+.project-tree-panel.collapsed .ptree-resize-handle {
+  display: none;
 }
 
 /* Header */
@@ -572,6 +594,12 @@
   box-shadow: 0 1px 6px rgba(0, 120, 212, 0.15);
 }
 
+.pb-card.active {
+  border-color: #0060c0;
+  background: #e0edff;
+  box-shadow: 0 0 0 2px #0060c0;
+}
+
 .pb-card-top {
   display: flex;
   justify-content: space-between;
@@ -627,12 +655,43 @@
   top: 8px;
   right: 8px;
   display: flex;
+  align-items: center;
   gap: 6px;
   z-index: 10;
 }
 
 .sketch-confirm-bar.hidden {
   display: none;
+}
+
+.sketch-panel-selector {
+  display: flex;
+  gap: 3px;
+  margin-right: 6px;
+}
+
+.sketch-panel-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid #bbb;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  white-space: nowrap;
+}
+
+.sketch-panel-btn.active {
+  background: #0060c0;
+  color: #fff;
+  border-color: #0060c0;
+}
+
+.sketch-panel-btn:hover:not(.active) {
+  background: #fff;
+  border-color: #888;
 }
 
 .sketch-btn {
@@ -666,6 +725,20 @@
 
 .sketch-btn-cancel:hover {
   background: #b91c1c;
+}
+
+.sketch-btn-undo,
+.sketch-btn-redo {
+  background: rgba(255,255,255,0.9);
+  color: #333;
+  border: 1px solid #bbb;
+  font-size: 16px;
+}
+
+.sketch-btn-undo:hover,
+.sketch-btn-redo:hover {
+  background: #eee;
+  border-color: #888;
 }
 
 /* Sketch mode badge (bottom-center) */
