@@ -1,31 +1,31 @@
 # Solar ROI Calculator - Project State
 
-> **Last Updated:** 2026-02-21 (Session 8)
-> **Session Summary:** Added SolidWorks-style FeatureManager project tree (left sidebar), panel browser catalog, XYZ triad. Grey theme, roofs-only tree, right-click "Add Panel" workflow.
+> **Last Updated:** 2026-02-22 (Session 9)
+> **Session Summary:** Full panel placement workflow with 3D editing (right-click context menus, ghost rotation, TransformControls move gizmo), tree restructure (Project → ROOF / INVERTER / BATTERY), equipment browser catalogs.
 
 ---
 
 ## 1. ARCHITECTURE OVERVIEW
 
 ### Tech Stack
-- **Frontend:** CesiumJS (3D map), Three.js (3D models), vanilla JS
+- **Frontend:** CesiumJS (3D map), Three.js 0.161.0 (3D models + TransformControls), vanilla JS
 - **Backend:** Flask, SQLAlchemy, SQLite
 - **3D Pipeline:** User draws on Cesium → Backend generates GLB → Three.js displays
 
 ### Key Directories
 ```
 /templates/          # HTML pages
-  - app.html        # Main map + split view
+  - app.html        # Main map + split view (imports THREE, OrbitControls, GLTFLoader, TransformControls)
   - calculate.html  # Results page with charts
   - login.html      # Auth
 /static/js/app/     # Frontend JS
   - draw.js         # Roof drawing + undo/redo (draws only on 3D tiles)
-  - main.js         # UI controllers + project tree wiring
+  - main.js         # UI controllers + project tree wiring + panel placement callbacks
   - map.js          # Cesium init + Google tiles + OSM buildings
   - search.js       # Address search (fixed suggestions bug)
   - wizard.js       # State management
-  - project-tree.js # SolidWorks FeatureManager tree + panel browser (NEW Session 8)
-  - panel-placer.js # SolidWorks-style panel placement (REWRITTEN Session 7)
+  - project-tree.js # SolidWorks FeatureManager tree + panel/equipment browsers
+  - panel-placer.js # Panel placement state machine + 3D editing (ghost rotate, move gizmo, context menus)
   - shading-engine.js    # Shading ray cast engine (offscreen Cesium)
   - shading-controller.js # Monthly shading orchestrator
   - shading-visualizer.js # Heatmap visualization
@@ -34,11 +34,11 @@
   - base.css        # Base variables and resets
   - app.css         # App-specific styles (analyze button, cursor)
   - wizard.css      # Wizard UI + imports split-view.css
-  - split-view.css  # Split view layout + tree panel + panel browser styles
+  - split-view.css  # Split view layout + tree panel + browser styles + sketch bar
 /static/models/     # 3D model assets
-  - solar_panel.glb     # Standard panel GLB
-  - solar_panel_72.glb  # 72-Cell panel GLB
-  - solar_panel_120.glb # 120-Cell panel GLB
+  - solar_panel.glb     # 60-Cell panel GLB (370W)
+  - solar_panel_72.glb  # 72-Cell panel GLB (450W)
+  - solar_panel_120.glb # 120-Cell panel GLB (550W)
 /backend/           # Flask API
   - services/mesh_builder.py  # GLB model generation (no panel mesh)
 ```
@@ -49,50 +49,57 @@
 
 ### Split View Layout (app.html)
 ```
-┌─────────────┬────────────────────────┬──────────────────────┐
-│ MY HOUSE [◀]│                        │ Project Details  [◀] │
-│─────────────│   [3D ROOF MODEL]      │──────────────────────│
-│ ▼ Roofs (3) │   (base facing up)     │ Appliances           │
-│  🔴 Roof_1  │                        │ Monthly Electric Bill│
-│   ▼ Panels  │   [XYZ Triad]          │ Electricity Price    │
-│   ▼ Props   │   (bottom-left)        │ Grid Export Price    │
-│     Area    │                  [✓][✗]│ Save Project         │
-│     Tilt    │                        │                      │
-│     Azimuth │    [SKETCH MODE]       │                      │
-│     Usable  │                        │                      │
-│  🟢 Roof_2  │   [Edit Roof]          │                      │
-│   ...       │                        │                      │
-│─────────────│                        │                      │
-│ Ready       │                        │                      │
-└─────────────┴────────────────────────┴──────────────────────┘
+┌──────────────┬────────────────────────┬──────────────────────┐
+│ Project   [◀]│                        │ Project Details  [◀] │
+│──────────────│   [3D ROOF MODEL]      │──────────────────────│
+│ ▼ ROOF (4)   │   (base facing up)     │ Appliances           │
+│  🔴 Roof_1   │                        │ Monthly Electric Bill│
+│   ▶ Panels   │   [XYZ Triad]          │ Electricity Price    │
+│   ▼ Props    │   (bottom-left)        │ Grid Export Price    │
+│     Area 45m²│                        │ Save Project         │
+│     Tilt 25° │              [↩][↪][✓][✗]                    │
+│  🟢 Roof_2   │               SKETCH BAR                     │
+│   ...        │                        │                      │
+│ ⚡ INVERTER   │                        │                      │
+│ 🔋 BATTERY   │                        │                      │
+│──────────────│                        │                      │
+│ [drag resize]│                        │                      │
+└──────────────┴────────────────────────┴──────────────────────┘
   ↑ tree panel    ↑ 3D viewer              ↑ form (400px)
-  (250px)          (flex: 1)               (collapsible)
+  (200-520px)      (flex: 1)               (collapsible)
 ```
 
-### Right-Click "Add Panel" Flow
+### Panel Placement Workflow
 ```
-Right-click Roof_1 → context menu: [⊞ Add Panel]
-   ↓
-┌─────────────┐
-│ ← Back      │
-│ Add Panel — │
-│ Roof_1      │
-│─────────────│
-│ [Search...] │
-│─────────────│
-│ ┌─────────┐ │
-│ │ LONGi   │ │  ← panel cards
-│ │ Hi-MO 6 │ │     brand, model
-│ │ 580W $185│ │     watt, price
-│ └─────────┘ │
-│ ┌─────────┐ │
-│ │ JA Solar│ │
-│ │ DeepBlue│ │
-│ │ 550W $165│ │
-│ └─────────┘ │
-│   ...       │
-└─────────────┘
-Click a card → adds to Panels folder → returns to tree
+1. Right-click Roof_1 → [⊞ Add Panel] → Panel Browser opens
+2. Search & click panel card (stays open, card toggles active)
+3. Ghost panel follows mouse on 3D roof face
+4. Right-click ghost → [↻ Rotate +90°] [↺ Rotate −90°] (before placing)
+5. Click to place → ghost respawns for next placement
+6. Right-click placed panel → [↻ Rotate +90°] [↺ Rotate −90°] [✥ Move] [🗑 Delete]
+7. "Move" → TransformControls XYZ gizmo (constrained to roof plane)
+8. Click ✓ to finish or ✗ to cancel → tree updates panel count
+```
+
+### Equipment Browser (Inverter / Battery)
+```
+Right-click INVERTER → [➕ Add] → Equipment Browser opens
+┌──────────────┐
+│ ← Back       │
+│ Add INVERTER │
+│──────────────│
+│ [Search...]  │
+│──────────────│
+│ ┌──────────┐ │
+│ │ SMA      │ │  ← equipment cards
+│ │ Sunny Boy│ │     brand, model
+│ │ 5kW $1200│ │     power, price
+│ └──────────┘ │
+│   ...        │
+└──────────────┘
+Click card → adds to INVERTER tree folder
+Right-click item in tree → [🗑 Delete]
+Same UX for BATTERY folder
 ```
 
 ### Map Page Layout (Before Analyze)
@@ -121,6 +128,18 @@ Click a card → adds to Panels folder → returns to tree
 model.rotation.x = +Math.PI / 2;
 ```
 
+### GLB Roof Structure
+```
+gltf.scene → world (Group) → roof_0, roof_1, roof_2, roof_3
+```
+- `_cacheRoofMeshes()` uses `traverse()` to find ALL descendant meshes
+- Filters out `_isSolarPanel`, `face-highlight`, `model-axes`
+- Sorts by `roof_N` name pattern for stable indexing
+
+### Panel Identification
+- All panel descendants get `child.userData._isSolarPanel = true`
+- Prevents panel meshes from being collected as roof meshes
+
 ### Height Scale Factor
 - **Value:** `0.0712` (for roof info table display)
 - **Usage:** `const height = (rawHeight * 0.0712).toFixed(2);`
@@ -132,283 +151,227 @@ const picked = viewer.scene.pick(e.position);
 if (!picked) return;
 ```
 
-### Polygon Classification (draw.js)
-```javascript
-// Drape polygon on 3D tiles (no outline warning)
-polygon: {
-  hierarchy: positions.slice(),
-  material: roofColor.cesium.withAlpha(0.4),
-  classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
-}
-```
-
 ### GLB Model - No Panel Mesh (mesh_builder.py)
 ```python
 # Panel mesh excluded from 3D model (was causing black plate)
-# Panel data still calculated and stored in stats
 model = trimesh.util.concatenate(parts)
 ```
-
-### GLB Transform Metadata (mesh_builder.py)
-- `stats.mesh_transform` now includes:
-  - `origin_ecef`
-  - `rotation` (3x3)
 
 ### Shading Ray Casting (main.js) — FIXED Session 6
 - Casts against **Google 3D photorealistic tiles** (complete coverage)
 - **Excludes OSM buildings** (incomplete, was causing 0 results)
 - Ray origin offset **0.5m upward** (geodetic surface normal) to avoid self-intersection
 - Distance threshold **> 2.0m** to ignore own building hits
-- Sample times: `08:00, 10:00, 12:00, 14:00, 16:00`
-- Spacing default: `0.6m`
-- Downsample cap: 300 points per roof
-- Debug logs: `[Shading] 12:00 → X/Y points shaded`
-
-### Ray Casting — Key Fix (Session 6)
-```javascript
-// pickFromRay 2nd param is objectsToExclude (NOT objectsToQuery!)
-// WRONG: viewer.scene.pickFromRay(ray, [osmTileset]); ← excluded target!
-// CORRECT: exclude Google tiles OR OSM, cast against the other
-const excludeList = osmTileset ? [osmTileset] : [];
-const result = viewer.scene.pickFromRay(ray, excludeList);
-```
+- `pickFromRay` 2nd param = `objectsToExclude` (NOT objectsToQuery!)
 
 ---
 
 ## 4. FEATURES IMPLEMENTED
 
-### A. Unified Toolbar Row (UPDATED Session 3)
-- **All controls in one row:** Search input + Search + Detect | Draw + Undo + Redo + Reset
-- **Uniform height:** All elements 36px tall
-- **White buttons:** Search and Detect have white background (not blue/green)
-- **Toolbar divider:** 1px vertical separator between search and draw tools
-- **Fixed width:** Search box uses `fit-content`, search input 220px fixed
-- **No flex:** `flex-wrap: nowrap` prevents layout shifts
-
-### B. Split View
-- **File:** `static/css/split-view.css`
-- **Left Panel:** Project tree + 3D model viewer (flex: 1, expands to fill)
-- **Right Panel:** Project Details form (400px, min: 280px, max: 400px)
-- **Collapse:** Chevron button (◀) collapses right panel to 40px
-- **Form inputs:** All full width with `.split-input-row` for price+currency
-- **Responsive:** Mobile stacks vertically
-
-### C. Project Tree — SolidWorks FeatureManager (NEW Session 8)
+### A. Project Tree — SolidWorks FeatureManager (Sessions 8-9)
 - **File:** `static/js/app/project-tree.js` — IIFE module, `window.ProjectTree`
 - **Theme:** Light grey (#d4d4d4/#e8e8e8), dark text, 14px fonts
-- **Header:** "My House" with collapse toggle (◀)
 - **Tree structure:**
   ```
-  ▼ My House (badge: roof count)
-    🔴 Roof_1 (expanded by default)
-      ▼ Panels (added via panel browser)
-      ▼ Properties
-        Area       45.2 m²
-        Tilt       25.5°
-        Azimuth    180°
-        Usable Area 38.5 m²
-    🟢 Roof_2
-      ...
+  ▼ Project
+    ▼ ROOF (badge: count)
+      🔴 Roof_1 (collapsed by default)
+        ▶ Panels
+        ▼ Properties
+          Area       45.2 m²
+          Tilt       25.5°
+          Azimuth    180°
+          Usable Area 38.5 m²
+      🟢 Roof_2 ...
+    ⚡ INVERTER (badge: count)
+      ⚡ SMA Sunny Boy 5.0
+    🔋 BATTERY (badge: count)
+      🔋 Tesla Powerwall 2
   ```
+- **Node types:** `root`, `roof-group`, `equipment-group`, `feature`, `panels`, `panel`, `folder`, `param`, `equipment-item`
+- **Context menus per type:**
+  - `roof-group` → Expand All / Collapse All
+  - `feature` (roof) → ⊞ Add Panel
+  - `panels` → ✏️ Edit Roof
+  - `panel` → 🗑 Delete Panel
+  - `equipment-group` → ➕ Add / Expand All / Collapse All
+  - `equipment-item` → 🗑 Delete
 - **Selection:** Blue highlight (#0060c0) with white text
-- **Right-click roof:** Context menu shows only "⊞ Add Panel"
-- **Panel browser:** Replaces tree body with searchable panel catalog
-  - 10 demo panels: LONGi, JA Solar, Trina Solar, Canadian Solar, Jinko Solar, REC, SunPower, Q CELLS, Risen Energy, Hyundai
-  - Cards show: brand, model, watt, price, efficiency
-  - Click card → adds panel to roof's Panels folder, returns to tree
-  - Search filters by brand, model, or watt
-  - "← Back" button returns to tree without adding
+- **Collapse propagation:** Collapsing parent collapses all children recursively
+- **Resize handle:** Drag bottom edge to resize (200px–520px)
 - **Keyboard nav:** Arrow keys + Enter for expand/collapse
-- **Status bar:** Blue (#007acc) bottom bar with breadcrumb path
-- **Guide lines:** Vertical indent lines for tree hierarchy
-- **Public API:** `init`, `render`, `updateRoofs`, `updatePanels`, `selectNode`, `showPanelBrowser`, `hidePanelBrowser`
+- **Panel browser:** Search catalog (3 GLB-matched panels), toggle selection, stays open
+- **Equipment browser:** Search catalog (10 inverters, 10 batteries), click to add to tree
+- **Public API:** `init`, `render`, `updateRoofs`, `updatePanels`, `selectNode`, `showPanelBrowser`, `hidePanelBrowser`, `showEquipmentBrowser`, `hideEquipmentBrowser`
 
-### D. XYZ Triad — Orientation Indicator (NEW Session 8)
+### B. Panel Placement & 3D Editing (Sessions 7-9)
+- **File:** `static/js/app/panel-placer.js` — State machine: IDLE → SELECT_PLANE → SKETCH
+- **Panel models:** 3 GLB files (60-cell, 72-cell, 120-cell)
+- **Workflow:**
+  1. Right-click roof → "Add Panel" → panel browser → select model → ghost follows mouse
+  2. Right-click ghost → rotate ±90° before placing
+  3. Click to place → ghost respawns for next panel
+  4. Right-click placed panel → context menu: Rotate +90°, Rotate −90°, Move, Delete
+  5. "Move" → Three.js TransformControls gizmo (XYZ arrows, Y hidden, constrained to roof plane)
+  6. ✓ finish / ✗ cancel → confirmed panels persist, tree updates
+- **Cross-roof prevention:** Panels only editable on their assigned roof
+- **Panel positioning:** Projects onto roof surface plane, 0.005 offset along normal
+- **Camera:** Snaps to roof face normal, dynamic distance `max(8, faceRadius * 3)`
+- **Sketch controls:** Orbit disabled (pan + zoom only), undo/redo (Ctrl+Z/Ctrl+Shift+Z)
+- **Key bindings:** R = rotate, Delete = delete, Escape = deselect/cancel
+- **Edit Roof:** Right-click "Panels" → "✏️ Edit Roof" enters sketch without opening browser
+
+### C. Equipment Catalogs (Session 9)
+- **Inverters (10 demo):** SMA, Fronius, Enphase, Huawei, SolarEdge, GoodWe
+  - Fields: brand, model, kW, phase, price, efficiency, type (String/Micro/Optimizer/Hybrid)
+- **Batteries (10 demo):** Tesla, BYD, Enphase, LG Energy, Pylontech, SolarEdge, Huawei, Alpha ESS
+  - Fields: brand, model, kWh, kW, price, cycles, chemistry (LFP/NMC), warranty
+
+### D. Split View & Layout
+- **Left Panel:** Project tree (resizable 200-520px)
+- **Center:** 3D viewer (flex: 1) with XYZ triad (bottom-left 80×80px)
+- **Right Panel:** Project Details form (400px, collapsible)
+- **Sketch bar:** Undo / Redo / ✓ Finish / ✗ Cancel (top-right of 3D viewer)
+
+### E. XYZ Triad — Orientation Indicator (Session 8)
 - Small 80×80px Three.js viewport in bottom-left of 3D viewer
 - Red (X), Green (Y), Blue (Z) axes with letter labels
-- Syncs rotation with main camera via `addAnimHook`
-- Transparent background, non-interactive (`pointer-events: none`)
+- Syncs rotation with main camera
 
-### E. Roof Info Table (Top Left of 3D Viewer)
-- **Columns:** Roof #, Tilt (°), Azimuth (°), Height (m), Area (m²)
-- **Colors:** Each roof has different color indicator (🔴🟢🔵🟡🟣🩵)
+### F. Shading Visualization - Scatter Points (Session 5)
+- `THREE.Points` per roof with green→red gradient (low→high shading)
+- Object name: `roof-scatter-<index>`
 
-### F. Address Search
-- **Suggestions** close immediately after selection
-- **Detect location** no longer shows "Location detected! Accuracy: Xm" message
-
-### G. Drawing Improvements (Session 3)
-- **Only draws on 3D tiles** - clicks on empty terrain/sky are ignored
-- **Colored polygons** draped on roof tiles via `ClassificationType.CESIUM_3D_TILE`
-- **No outline warning** - removed `outline: true` from polygon entities
-
-### H. 3D Model Clean (Session 3)
-- **Removed black panel plate** from GLB model (`mesh_builder.py`)
-- Panel data (width, height, area) still calculated and stored in stats
-- Only colored roof meshes rendered in 3D viewer
-
-### I. Shading Visualization - Scatter Points (Session 5)
-- Shading scatter is now a single `THREE.Points` per roof (scene-level)
-- Green → Red gradient (low → high shading)
-- Each roof uses a unique object name: `roof-scatter-<index>`
-- Rendered after ray casting; optional timeout fallback draws base scatter
-
-### J. SolidWorks-Style Panel Placement (REWRITTEN Session 7)
-- **File:** `static/js/app/panel-placer.js` — State machine: IDLE → SELECT_PLANE → SKETCH
-- **Panel models:** `static/models/solar_panel.glb`, `solar_panel_72.glb`, `solar_panel_120.glb`
-- **Note:** Tab bar removed in Session 8 — panel placement now triggered via tree context menu
-- **Workflow:**
-  1. Right-click roof in tree → "Add Panel" → select from catalog
-  2. Or programmatically via PanelPlacer for advanced sketch mode
-- **Face detection:** Finds all coplanar triangles (dot product > 0.85) to form full face
-- **Lazy-loaded:** PanelPlacer created on first use
+### G. Map & Drawing (Sessions 1-3)
+- Unified toolbar row: Search + Detect | Draw + Undo + Redo + Reset (all 36px, white)
+- Only draws on 3D tiles (not empty terrain)
+- Colored polygons via `ClassificationType.CESIUM_3D_TILE`
+- No panel mesh in GLB model (removed black plate)
 
 ---
 
-## 5. KEY CODE SNIPPETS
+## 5. KEY CODE PATTERNS
 
-### Project Tree Init (main.js)
+### Context Action Wiring (main.js)
 ```javascript
-function setupProjectTree() {
-  const treeBody = document.getElementById('projectTreeBody');
-  if (!treeBody || !window.ProjectTree) return;
-  ProjectTree.init(treeBody);
-  ProjectTree.onSelect = (id, node) => { /* highlight in 3D */ };
-  ProjectTree.onContextAction = (action, node) => { /* handle actions */ };
-}
+ProjectTree.onContextAction = (action, data) => {
+  'add-panel'      → snapCameraToRoof(roofIndex), opens panel browser
+  'panel-selected' → startPanelPlacement(data) — loads GLB, enters sketch
+  'edit-roof'      → enterEditRoof(roofIndex) — sketch without browser
+  'browser-closed' → cancelSketch if active
+  'delete-panel'   → handleDeletePanel(data)
+};
 ```
 
-### XYZ Triad Setup (main.js + app.html)
+### Panel Placer Lifecycle
 ```javascript
-// In initSplitViewer():
-if (window.threeViewer.setupTriad) {
-  const triad = window.threeViewer.setupTriad(splitViewer);
-  if (triad && splitViewer.addAnimHook) splitViewer.addAnimHook(triad.update);
-}
+ensurePanelPlacer()           // Lazy init (created once)
+  → panelPlacer.setModel(key) // Load GLB panel model
+  → panelPlacer.enterSketchForRoof(roofIndex, viewer) // Snap camera, cache meshes
+  → panelPlacer.startInstall() // Begin ghost placement
+  → panelPlacer.finishSketch() // Confirm → sessionPanels → confirmedPanels
+  → panelPlacer.cancelSketch() // Revert → remove sessionPanels
 ```
 
-### Ray Casting - Correct Usage (main.js)
+### Critical Bug Pattern (SOLVED)
 ```javascript
-async function castRay(viewer, osmTileset, pointEcef, sunDirection) {
-  const up = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(pointEcef, new Cesium.Cartesian3());
-  const upOffset = Cesium.Cartesian3.multiplyByScalar(up, 0.5, new Cesium.Cartesian3());
-  const origin = Cesium.Cartesian3.add(pointEcef, upOffset, new Cesium.Cartesian3());
-  const ray = new Cesium.Ray(origin, sunDirection);
-  const excludeList = osmTileset ? [osmTileset] : [];
-  const result = viewer.scene.pickFromRay(ray, excludeList);
-  if (!result || !result.object) return false;
-  return result.distance > 2.0;
-}
+// hidePanelBrowser() sets panelBrowserRoofId = null
+// Must save roofId BEFORE calling hidePanelBrowser()
+const roofId = panelBrowserRoofId;  // ← save first
+hidePanelBrowser();                  // ← then hide
+startPlacement(roofId);              // ← use saved value
 ```
 
-### Split View Toggle (main.js)
+### Callback Clearing Before Sketch Cancel
 ```javascript
-btnCollapseRight.addEventListener('click', () => {
-  splitRight.classList.toggle('collapsed');
-  setTimeout(() => { if (splitViewer) splitViewer.resize(); }, 300);
-});
+// When switching roofs, clear callbacks BEFORE cancelSketch()
+// to prevent old onCancel from nuking browser state
+panelPlacer.onFinish = null;
+panelPlacer.onCancel = null;
+panelPlacer.cancelSketch();  // safe — no callbacks fire
 ```
 
 ---
 
 ## 6. FILES MODIFIED BY SESSION
 
-### Session 8 — Project Tree + Panel Browser + UI Refinements
+### Session 9 — Panel Editing + Equipment Folders + Tree Restructure
+- `project-tree.js` — Renamed root to "ROOF", added INVERTER/BATTERY groups with demo catalogs, equipment browser, delete-equipment, roof-group/equipment-group node types
+- `panel-placer.js` — Ghost rotation (_ghostRotationDeg, right-click ghost menu), TransformControls move gizmo (_enableMoveGizmo/_disableMoveGizmo/_snapPanelToRoof), 3D right-click context menu for placed panels (rotate/move/delete), _raycastConfirmedPanels filters by roof, cross-roof prevention, panel surface projection
+- `main.js` — Tree resize handle, enterEditRoof(), startPanelPlacement with callback clearing, updateTreePanelsForRoof (global), handleDeletePanel
+- `app.html` — TransformControls import, sketch bar (undo/redo/✓/✗), removed panel-edit-bar toolbar and old button wiring
+- `split-view.css` — Resize handle, .pb-card.active toggle, removed .panel-edit-bar CSS
 
-#### NEW Files
-- `static/js/app/project-tree.js` — SolidWorks FeatureManager tree + panel browser
-
-#### HTML (`templates/app.html`)
-- Added `.project-tree-panel` in `.split-left` (before 3D viewer column)
-- Added `.viewport-triad` div inside `.split-viewer-wrap`
-- Removed `.cad-toolbar` / `.cad-tab-bar` (Select Plane / Install Panel buttons)
-- Added `setupTriad()` function in module script
-- Added `addAnimHook` to createViewer return
-
-#### CSS (`static/css/split-view.css`)
-- Added project tree styles: `.project-tree-panel`, `.ptree-*` (header, body, row, arrow, icon, label, value, badge, children, status bar)
-- Light grey theme (#d4d4d4 bg, #333 text, 14px fonts)
-- Selection: blue #0060c0 with white text
-- Context menu: `.ptree-ctx-menu`, `.ptree-ctx-item`
-- Panel browser: `.panel-browser`, `.pb-header`, `.pb-search`, `.pb-card`, `.pb-brand`, `.pb-model`, `.pb-watt`, `.pb-price`
-- XYZ triad: `.viewport-triad` (80×80px absolute bottom-left)
-- Removed old dark theme styles (#252526), filter input styles
-
-#### JS (`static/js/app/main.js`)
-- Added `setupProjectTree()` — initializes tree, wires selection/context callbacks
-- Added XYZ triad setup in `initSplitViewer()`
-- Removed filter input wiring
-- `ProjectTree.updateRoofs()` called after roof analysis
+### Session 8 — Project Tree + Panel Browser
+- `project-tree.js` — NEW: SolidWorks FeatureManager tree + panel browser
+- `app.html` — Tree panel HTML, triad div, setupTriad(), addAnimHook
+- `split-view.css` — Tree styles, panel browser styles, triad
+- `main.js` — setupProjectTree(), XYZ triad init
 
 ### Session 7 — SolidWorks Panel Placement
-- `static/js/app/panel-placer.js` — Complete rewrite (state machine)
-- `templates/app.html` — CAD toolbar, sketch confirm, module script wiring
-- `static/css/split-view.css` — CAD toolbar styles, sketch mode styles
+- `panel-placer.js` — Complete rewrite (state machine)
+- `app.html` — CAD toolbar, sketch confirm, module script wiring
 
 ### Session 6 — Ray Casting Fix
-- `static/js/app/main.js` — Fixed ray casting against Google tiles
-- `static/js/app/map.js` — `getGoogleTiles()` getter
-- `static/js/app/shading-engine.js` — Fixed ray exclusion list
+- `main.js` — Fixed ray casting against Google tiles
+- `shading-engine.js` — Fixed ray exclusion list
 
 ---
 
 ## 7. KNOWN ISSUES / TODO
 
 ### High Priority
-1. **Panel browser uses demo data** — need real panel database (brand, model, watt, price)
-2. **Height scale factor** - Currently 0.0712, needs verification with real measurements
-3. **Save/Load boundaries** - Drawn boundaries lost on page refresh
+1. **Equipment catalogs use demo data** — need real inverter/battery databases
+2. **Panel catalog uses demo data** — need real panel database (brand, model, watt, price)
+3. **Height scale factor** - Currently 0.0712, needs verification
+4. **Save/Load boundaries** - Drawn boundaries lost on page refresh
 
 ### Medium Priority
-1. **Connect panel browser to panel placer** — selecting panel should trigger 3D placement
-2. **Panel placement refinement** - Snap-to-grid, panel count/capacity display
-3. **Mobile responsiveness** - Split view + tree panel needs mobile testing
-4. **Roof detection** - Improve automatic roof detection from Google 3D tiles
+1. **Snap-to-grid** for panel placement
+2. **Panel count/capacity display** per roof (total Watts, area coverage %)
+3. **Mobile responsiveness** - Split view + tree panel needs testing
+4. **Roof auto-detection** - Improve from Google 3D tiles
+5. **Inverter/battery sizing** - Auto-recommend based on panel capacity
 
 ### Low Priority
 1. **Dark mode toggle**
 2. **Export results to PDF**
-3. **Multiple roof selection** - Allow selecting multiple roofs for calculations
+3. **Multiple roof selection** for batch calculations
 
 ---
 
 ## 8. DEBUGGING TIPS
 
 ### Check Project Tree
-1. Header shows "My House" with collapse toggle
-2. Each roof expanded by default showing Properties (Area, Tilt, Azimuth, Usable Area)
-3. Right-click roof → only "⊞ Add Panel" in context menu
-4. Click "Add Panel" → panel browser replaces tree body
-5. Search filters panel cards; click card → adds to Panels folder
-6. "← Back" returns to tree view
+1. Root shows "Project" with ROOF, INVERTER, BATTERY children
+2. Roofs collapsed by default, properties show values (Area, Tilt, etc.)
+3. Right-click roof → "⊞ Add Panel" → panel browser
+4. Right-click Panels → "✏️ Edit Roof" → sketch mode
+5. Right-click INVERTER/BATTERY → "➕ Add" → equipment browser
+6. Drag bottom of tree panel → resize (200–520px range)
 
-### Check XYZ Triad
-1. Small axes indicator in bottom-left of 3D viewer
-2. Rotates with camera orientation
-3. Red=X, Green=Y, Blue=Z with letter labels
+### Check Panel Placement
+1. Select panel in browser → ghost follows mouse on roof
+2. Right-click ghost → rotate menu appears
+3. Click to place → panel sits flush on roof
+4. Right-click placed panel → rotate/move/delete menu
+5. "Move" → XYZ gizmo appears, drag constrained to roof plane
+6. Can only edit panels on current roof (cross-roof blocked)
+7. ✓ to confirm, ✗ to cancel (reverts session panels)
 
 ### Check 3D Model
-1. No black plate on roof (panel mesh removed)
+1. No black plate on roof (panel mesh removed from GLB)
 2. Roof base parallel to ground, facing upward
-3. Colored faces visible (red, green, blue etc.)
+3. Console: `[PanelPlacer] Cached roof meshes: N [0] roof_0 ...`
 
-### Check Drawing
-1. Click on empty terrain → nothing happens (draw guard)
-2. Click on 3D building → yellow point appears
-3. Close polygon → colored overlay draped on tiles
-4. No "outlines unsupported" warning in console
-
-### Check Split View
-1. Tree panel (250px) on far left with grey background
-2. 3D viewer fills remaining space
-3. Right panel is 400px wide, collapsible
-4. Tree collapse toggle (◀) hides tree to 32px
-5. **Shading visualization**: scatter points on roof (green=low, red=high)
+### Check Equipment Browser
+1. Click card → item added to tree folder
+2. Right-click item → "🗑 Delete" removes it
+3. Search filters by brand, model, kW/kWh
 
 ### Check Ray Casting (Session 6)
-1. Console should show `[Shading] 12:00 → X/Y points shaded` with non-zero X
-2. If all 0: check that Google tiles are loaded, OSM is in exclude list
-3. `pickFromRay` 2nd param = `objectsToExclude` (NOT objectsToQuery!)
+1. Console: `[Shading] 12:00 → X/Y points shaded` (non-zero X)
+2. `pickFromRay(ray, [osmTileset])` — 2nd param EXCLUDES
 
 ---
 
@@ -417,30 +380,31 @@ btnCollapseRight.addEventListener('click', () => {
 1. **Roof faces UPWARD** (base parallel to ground)
 2. **Scale factor 0.0712** for height display
 3. **Split view:** Tree left, 3D center, Form right (400px), collapsible
-4. **Tree panel:** Light grey theme, 14px fonts, "My House" header
-5. **Roof right-click:** Only "Add Panel" (no other context actions)
-6. **Roofs expanded by default** showing Properties (Area, Tilt, Azimuth, Usable Area)
-7. **No filter/search** in tree header
-8. **No Select Plane / Install Panel tab bar** — panel adding via tree context menu
-9. **Crosshair cursor** on map for drawing
-10. **White buttons** for Search and Detect (not blue/green)
-11. **No black panel plate** on 3D model
-12. **Draw only on 3D tiles** (not empty terrain)
-13. **No "Location detected" message** after geolocation
-14. **Fixed toolbar row** - no flex, no free space
-15. **Shading scatter** - points on roof surface (green=low, red=high)
-16. **Only roof color emojis** in tree (🔴🟢🔵🟡🟣🩵) — no other emojis
+4. **Tree panel:** Light grey theme, 14px fonts, resizable (200-520px)
+5. **Root label:** "Project" → children: ROOF, INVERTER, BATTERY
+6. **Roofs collapsed by default** with property values shown
+7. **Right-click roof:** "⊞ Add Panel" / Right-click Panels: "✏️ Edit Roof"
+8. **Panel browser:** Stays open (toggle selection), 3 GLB-matched panel types
+9. **Ghost panel:** Right-click to rotate before placing
+10. **Placed panel:** Right-click → context menu (rotate ±90°, move gizmo, delete)
+11. **No panel editing outside sketch mode** (must be in add-panel or edit-roof)
+12. **Cross-roof prevention:** Cannot edit panels on other roofs
+13. **No Select Plane / Install Panel tab bar** — via tree context menu only
+14. **Crosshair cursor** on map for drawing
+15. **White buttons** for Search and Detect
+16. **No black panel plate** on 3D model
+17. **Draw only on 3D tiles** (not empty terrain)
 
 ---
 
 ## 10. NEXT STEPS (Suggested)
 
-1. Connect panel browser selection to actual 3D panel placement
-2. Build real panel database (replace demo data)
-3. Validate ray casting results with real shaded buildings
-4. Panel count + capacity display per roof
-5. Add save/load for drawn boundaries
-6. Improve height calculation accuracy
+1. Build real panel/inverter/battery database (replace demo catalogs)
+2. Auto-size inverter based on total panel capacity
+3. Panel count + capacity display per roof (Watts, coverage %)
+4. Snap-to-grid for panel placement
+5. Save/load project state (boundaries + equipment + panels)
+6. Validate ray casting results with real shaded buildings
 7. Mobile responsive testing
 
 ---
@@ -452,15 +416,15 @@ btnCollapseRight.addEventListener('click', () => {
 
 **If something is broken, check:**
 1. Tree panel: `project-tree.js` loaded before `main.js`, `ProjectTree.init()` called
-2. Tree theme: light grey (#d4d4d4), 14px fonts, dark text (#333)
-3. Panel browser: right-click roof → "Add Panel" → catalog with demo data
-4. XYZ triad: `setupTriad()` in module script, `addAnimHook` in createViewer
-5. Draw guard: `viewer.scene.pick(e.position)` must return truthy
-6. 3D model: `model.rotation.x = +Math.PI / 2` (no Y flip)
-7. Panel mesh: `trimesh.util.concatenate(parts)` — no `panel_parts`
-8. Split view CSS: `split-view.css` imported via `wizard.css`
-9. Ray casting: `pickFromRay(ray, [osmTileset])` — 2nd param EXCLUDES
-10. Panel placer: needs `window.splitViewerRef` set in `initSplitViewer()`
+2. Tree structure: `Project → ROOF (roof-group) → Roof_N (feature) → Panels / Properties`
+3. Panel browser: right-click roof → "Add Panel" → 3 panel types
+4. Equipment browser: right-click INVERTER/BATTERY → "Add" → demo catalogs
+5. Panel placer: `window.ensurePanelPlacer()` lazy init, needs `window.splitViewerRef`
+6. TransformControls: imported in app.html module, `window.TransformControls` set
+7. Ghost rotation: `_ghostRotationDeg` resets on `_cancelGhost()`
+8. GLB mesh discovery: `traverse()` + `roof_N` name sort (not direct children)
+9. 3D model: `model.rotation.x = +Math.PI / 2` (no Y flip)
+10. Ray casting: `pickFromRay(ray, [osmTileset])` — 2nd param EXCLUDES
 
 **To continue work:**
 > "Based on PROJECT_STATE.md, I want to [feature]. Current issue: [problem]"
