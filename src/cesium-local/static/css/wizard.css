@@ -28,7 +28,7 @@
 .map-mode {
   display: none;
   width: 100%;
-  height: calc(100vh - 108px);
+  height: calc(100vh - 144px);
   margin: 0;
   padding: 0;
 }

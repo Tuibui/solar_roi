@@ -3,11 +3,36 @@
  * Handles 3D model viewer + single-form layout, event binding, and data flow
  */
 
+// ============ UI STATE MODEL (single source of truth) ============
+const UIState = {
+  activeTopTab: '',        // earth | add-panel | project-detail | inverter | battery | save | ''
+  leftDockMode: 'tree',   // tree | project_detail | inverter | battery
+  workspaceMode: 'empty', // empty | earth_mode | model_ready | sketch_mode
+  isSketchActive: false
+};
+
 let cesiumMap = null;
 let mapMode = null;
 let splitView = null;
 let splitViewer = null;  // Three.js viewer instance
 const MODE_KEY = "solar_ui_mode";
+window.UIState = UIState;
+const DEMO_INVERTERS = [
+  { brand: 'SMA', model: 'Sunny Boy 5.0', kw: 5.0, phase: 1, price: 1200 },
+  { brand: 'SMA', model: 'Sunny Tripower 10', kw: 10.0, phase: 3, price: 2500 },
+  { brand: 'Fronius', model: 'Primo 6.0', kw: 6.0, phase: 1, price: 1350 },
+  { brand: 'Fronius', model: 'Symo 15.0', kw: 15.0, phase: 3, price: 3200 },
+  { brand: 'Enphase', model: 'IQ8+', kw: 0.3, phase: 1, price: 180 },
+  { brand: 'Huawei', model: 'SUN2000-8KTL', kw: 8.0, phase: 3, price: 1800 },
+];
+const DEMO_BATTERIES = [
+  { brand: 'Tesla', model: 'Powerwall 2', kwh: 13.5, kw: 5.0, price: 8500 },
+  { brand: 'Tesla', model: 'Powerwall 3', kwh: 13.5, kw: 11.5, price: 9200 },
+  { brand: 'BYD', model: 'HVS 5.1', kwh: 5.1, kw: 5.1, price: 3400 },
+  { brand: 'BYD', model: 'HVM 11.0', kwh: 11.04, kw: 5.1, price: 6500 },
+  { brand: 'Enphase', model: 'IQ Battery 5P', kwh: 5.0, kw: 3.84, price: 5500 },
+  { brand: 'LG Energy', model: 'RESU16H Prime', kwh: 16.0, kw: 7.0, price: 9800 },
+];
 
 // ============ INITIALIZATION ============
 window.addEventListener("DOMContentLoaded", async () => {
@@ -23,6 +48,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   setupWizardToolbar();
   setupSplitViewHandlers();
   setupProjectTree();
+  setupCommandBar();
 
   mapMode = document.getElementById('mapMode');
   splitView = document.getElementById('splitView');
@@ -30,7 +56,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Initialize roof count from boundaries
   updateRoofCount();
 
-  showMapMode();
+  // Boot into workspace (not map)
+  showWorkspaceEmpty();
 });
 
 // ============ WIZARD TOOLBAR SETUP ============
@@ -46,6 +73,169 @@ function setupWizardToolbar() {
   if (btnRedo) btnRedo.addEventListener('click', () => redoDrawPoint());
   if (btnAnalyze) btnAnalyze.addEventListener('click', () => onAnalyzeRoof());
   if (btnReset) btnReset.addEventListener('click', () => onResetRoof());
+}
+
+// ============ COMMAND BAR SETUP ============
+function setupCommandBar() {
+  document.querySelectorAll('#commandBar .command-bar-tab').forEach(btn => {
+    btn.addEventListener('click', () => handleTabClick(btn.dataset.tab));
+  });
+}
+
+function handleTabClick(tab) {
+  // Guard: prevent unsafe tab switches during sketch/panel placement
+  if (UIState.isSketchActive && tab !== 'add-panel') {
+    const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+    if (pp && pp.state === window.PlacerState?.SKETCH) {
+      if (!confirm('Panel placement is active. Cancel and switch tabs?')) return;
+      pp.onFinish = null;
+      pp.onCancel = null;
+      pp.cancelSketch();
+      UIState.isSketchActive = false;
+    }
+  }
+
+  switch (tab) {
+    case 'earth':
+      enterEarthMode();
+      break;
+    case 'add-panel':
+      if (UIState.workspaceMode === 'empty') {
+        alert('Please analyze a roof first using the EARTH tab.');
+        return;
+      }
+      exitEarthMode();
+      switchLeftDock('tree');
+      setActiveTab('add-panel');
+      break;
+    case 'project-detail':
+      exitEarthMode();
+      switchLeftDock('project_detail');
+      setActiveTab('project-detail');
+      break;
+    case 'inverter':
+      exitEarthMode();
+      switchLeftDock('inverter');
+      setActiveTab('inverter');
+      break;
+    case 'battery':
+      exitEarthMode();
+      switchLeftDock('battery');
+      setActiveTab('battery');
+      break;
+    case 'save':
+      saveFromSplitView();
+      setActiveTab('save');
+      setTimeout(() => setActiveTab(UIState.activeTopTab === 'save' ? '' : UIState.activeTopTab), 2000);
+      break;
+  }
+}
+
+function setActiveTab(tab) {
+  UIState.activeTopTab = tab;
+  document.querySelectorAll('#commandBar .command-bar-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+}
+
+// ============ LEFT DOCK SWITCHING ============
+function switchLeftDock(mode) {
+  const modes = ['tree', 'project_detail', 'inverter', 'battery'];
+  if (!modes.includes(mode)) return;
+  UIState.leftDockMode = mode;
+
+  // Clean up any open panel/equipment browsers
+  if (window.ProjectTree) {
+    ProjectTree.hidePanelBrowser();
+  }
+  // Hide dynamically created browsers
+  document.querySelectorAll('.project-tree-panel > .panel-browser').forEach(el => {
+    el.style.display = 'none';
+  });
+
+  const treeBody = document.getElementById('projectTreeBody');
+  const dockPD = document.getElementById('dockProjectDetail');
+  const dockInv = document.getElementById('dockInverter');
+  const dockBat = document.getElementById('dockBattery');
+
+  // Hide everything
+  if (treeBody) treeBody.style.display = 'none';
+  [dockPD, dockInv, dockBat].forEach(el => { if (el) el.classList.remove('active'); });
+
+  // Show target
+  if (mode === 'tree') {
+    if (treeBody) treeBody.style.display = '';
+  } else {
+    const target = { project_detail: dockPD, inverter: dockInv, battery: dockBat }[mode];
+    if (target) target.classList.add('active');
+  }
+
+  // Update dock header
+  const titles = { tree: 'Project', project_detail: 'Project Detail', inverter: 'Inverter', battery: 'Battery' };
+  const header = document.getElementById('dockHeaderTitle');
+  if (header) header.textContent = titles[mode] || 'Project';
+
+  // Refresh lists when switching to dock modes
+  if (mode === 'inverter') { renderInverterOptions(); renderInverterList(); }
+  if (mode === 'battery') { renderBatteryOptions(); renderBatteryList(); }
+  if (mode === 'project_detail') { populateSplitForm(); }
+
+  // Resize 3D viewer after layout change
+  setTimeout(() => { if (splitViewer) splitViewer.resize(); }, 100);
+}
+
+// ============ EARTH MODE ============
+function enterEarthMode() {
+  UIState.workspaceMode = 'earth_mode';
+  setActiveTab('earth');
+  if (splitView) splitView.classList.add('hidden');
+  if (mapMode) mapMode.classList.add('active');
+  renderMapMode();
+}
+
+function exitEarthMode() {
+  if (UIState.workspaceMode === 'earth_mode' || (mapMode && mapMode.classList.contains('active'))) {
+    if (mapMode) mapMode.classList.remove('active');
+    if (splitView) splitView.classList.remove('hidden');
+    setTimeout(() => { if (splitViewer) splitViewer.resize(); }, 100);
+  }
+}
+
+// ============ WORKSPACE BOOT (empty initial state) ============
+function showWorkspaceEmpty() {
+  UIState.workspaceMode = 'empty';
+  sessionStorage.setItem(MODE_KEY, 'split');
+
+  if (mapMode) mapMode.classList.remove('active');
+  if (splitView) splitView.classList.remove('hidden');
+
+  switchLeftDock('tree');
+  setActiveTab('');
+
+  // Create Three.js viewer (empty scene, no model)
+  initSplitViewerEmpty();
+}
+
+function initSplitViewerEmpty() {
+  const host = document.getElementById('splitModelHost');
+  if (!host) return;
+
+  if (!splitViewer && window.threeViewer) {
+    splitViewer = window.threeViewer.createViewer(host, {
+      bgColor: 0xffffff,
+      gridColor: 0xcccccc
+    });
+    window.splitViewerRef = splitViewer;
+
+    if (window.threeViewer.setupTriad) {
+      const triad = window.threeViewer.setupTriad(splitViewer);
+      if (triad && splitViewer.addAnimHook) {
+        splitViewer.addAnimHook(triad.update);
+      }
+    }
+  }
+
+  setTimeout(() => { if (splitViewer) splitViewer.resize(); }, 100);
 }
 
 // ============ PROJECT TREE SETUP ============
@@ -150,10 +340,20 @@ async function snapCameraToRoof(roofIndex) {
   if (pp) pp.snapToRoof(roofIndex);
 }
 
+function getRoofAreaM2(roofIndex) {
+  const roof = (wizard && typeof wizard.getRoof === 'function') ? wizard.getRoof(roofIndex) : null;
+  if (!roof) return null;
+  const area = roof.area_m2 ?? roof.area;
+  const n = Number(area);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 async function enterEditRoof(roofIndex) {
   if (!window.ensurePanelPlacer) return;
   const pp = await window.ensurePanelPlacer();
   if (!pp) return;
+  const areaM2 = getRoofAreaM2(roofIndex);
+  if (areaM2) pp.setRoofArea(roofIndex, areaM2);
 
   // Already in sketch for this roof — nothing to do
   if (pp.state === PlacerState.SKETCH && pp.sketchRoofIndex === roofIndex) return;
@@ -174,8 +374,8 @@ async function enterEditRoof(roofIndex) {
 }
 
 async function startPanelPlacement(data) {
-  if (!window.ensurePanelPlacer || !window.PANEL_MODELS) {
-    console.warn('[PanelPlacement] ensurePanelPlacer or PANEL_MODELS not ready');
+  if (!window.ensurePanelPlacer) {
+    console.warn('[PanelPlacement] ensurePanelPlacer not ready');
     return;
   }
   const pp = await window.ensurePanelPlacer();
@@ -186,17 +386,20 @@ async function startPanelPlacement(data) {
   const roofIndex = parseInt(roofId.replace('roof-', ''), 10);
   if (isNaN(roofIndex)) { console.warn('[PanelPlacement] Invalid roofId:', roofId); return; }
 
-  const modelKey = data.modelKey;
+  const panelId = data.panelId;
+  const panelSpec = data.panelSpec || null;
   const modelLabel = `${data.brand} ${data.model}`.trim();
-  const PANEL_MODELS = window.PANEL_MODELS;
+  const areaM2 = getRoofAreaM2(roofIndex);
+  if (areaM2) pp.setRoofArea(roofIndex, areaM2);
 
-  // Load panel model if needed
-  if (modelKey && PANEL_MODELS[modelKey]) {
-    if (!pp.panelModels[modelKey]) {
-      await pp.loadPanelModel(modelKey, PANEL_MODELS[modelKey].url);
-    }
-    pp.setActiveModel(modelKey);
+  // Register (or update) procedural panel type from CSV metadata
+  if (panelId && panelSpec) {
+    pp.registerPanelType(panelId, panelSpec);
+    pp.setActiveModel(panelId);
     pp.activeModelLabel = modelLabel;
+  } else {
+    console.warn('[PanelPlacement] Missing panelId or panelSpec');
+    return;
   }
 
   // Already in sketch for this roof? Just switch model, restart ghost.
@@ -297,28 +500,18 @@ function setupSplitViewHandlers() {
     btnDetectLocation.addEventListener('click', detectUserLocation);
   }
 
-  // Edit Roof button
-  const btnEditRoof = document.getElementById('btnEditRoof');
-  if (btnEditRoof) {
-    btnEditRoof.addEventListener('click', () => showMapMode());
-  }
-
-  // Collapse/Expand right panel
-  const btnCollapseRight = document.getElementById('btnCollapseRight');
-  const splitRight = document.getElementById('splitRight');
-  if (btnCollapseRight && splitRight) {
-    btnCollapseRight.addEventListener('click', () => {
-      splitRight.classList.toggle('collapsed');
-      setTimeout(() => {
-        if (splitViewer) splitViewer.resize();
-      }, 300);
-    });
-  }
-
   // Appliance handlers
   const btnAddAppliance = document.getElementById('btnAddAppliance');
   if (btnAddAppliance) {
     btnAddAppliance.addEventListener('click', addApplianceFromWizard);
+  }
+  const btnAddInverter = document.getElementById('btnAddInverter');
+  if (btnAddInverter) {
+    btnAddInverter.addEventListener('click', addInverterFromDetails);
+  }
+  const btnAddBattery = document.getElementById('btnAddBattery');
+  if (btnAddBattery) {
+    btnAddBattery.addEventListener('click', addBatteryFromDetails);
   }
 
 
@@ -359,24 +552,11 @@ function setupSplitViewHandlers() {
       wizard.setGridExportPrice(e.target.value);
     });
   }
-
-  // Save button
-  const btnSave = document.getElementById('btnSplitSave');
-  if (btnSave) {
-    btnSave.addEventListener('click', () => saveFromSplitView());
-  }
 }
 
 // ============ MODE SWITCHING ============
 function showMapMode() {
-  sessionStorage.setItem(MODE_KEY, "map");
-  if (splitView) {
-    splitView.classList.add('hidden');
-  }
-  if (mapMode) {
-    mapMode.classList.add('active');
-  }
-  renderMapMode();
+  enterEarthMode();
 }
 
 function showSplitView() {
@@ -387,6 +567,10 @@ function showSplitView() {
   if (splitView) {
     splitView.classList.remove('hidden');
   }
+
+  UIState.workspaceMode = 'model_ready';
+  switchLeftDock('tree');
+  setActiveTab('');
 
   // Populate form from wizard session data
   populateSplitForm();
@@ -500,6 +684,11 @@ function populateSplitForm() {
 
   // Appliances
   renderAppliancesList();
+  ensureEquipmentListsState();
+  renderInverterOptions();
+  renderBatteryOptions();
+  renderInverterList();
+  renderBatteryList();
 
   // Monthly bill
   const monthlyInput = document.getElementById('wizardMonthlyKwh');
@@ -1462,6 +1651,120 @@ function renderAppliancesList() {
 function removeApplianceFromWizard(index) {
   wizard.removeAppliance(index);
   renderAppliancesList();
+}
+
+// ============ INVERTER / BATTERY FUNCTIONS ============
+function ensureEquipmentListsState() {
+  if (!wizard || !wizard.sessionData || !wizard.sessionData.step2) return;
+  const step2 = wizard.sessionData.step2;
+  if (!Array.isArray(step2.q9_inverters)) step2.q9_inverters = [];
+  if (!Array.isArray(step2.q10_batteries)) step2.q10_batteries = [];
+}
+
+function renderInverterOptions() {
+  const select = document.getElementById('splitInverterSelect');
+  if (!select) return;
+  select.innerHTML = '<option value="">-- Select Inverter --</option>' +
+    DEMO_INVERTERS.map((inv, i) =>
+      `<option value="${i}">${inv.brand} ${inv.model} (${inv.kw} kW)</option>`
+    ).join('');
+}
+
+function renderBatteryOptions() {
+  const select = document.getElementById('splitBatterySelect');
+  if (!select) return;
+  select.innerHTML = '<option value="">-- Select Battery --</option>' +
+    DEMO_BATTERIES.map((bat, i) =>
+      `<option value="${i}">${bat.brand} ${bat.model} (${bat.kwh} kWh)</option>`
+    ).join('');
+}
+
+function addInverterFromDetails() {
+  ensureEquipmentListsState();
+  const select = document.getElementById('splitInverterSelect');
+  if (!select || !select.value) return;
+  const idx = Number(select.value);
+  if (!Number.isInteger(idx) || !DEMO_INVERTERS[idx]) return;
+  wizard.sessionData.step2.q9_inverters.push({ ...DEMO_INVERTERS[idx] });
+  wizard.saveSessionData();
+  select.value = '';
+  renderInverterList();
+}
+
+function addBatteryFromDetails() {
+  ensureEquipmentListsState();
+  const select = document.getElementById('splitBatterySelect');
+  if (!select || !select.value) return;
+  const idx = Number(select.value);
+  if (!Number.isInteger(idx) || !DEMO_BATTERIES[idx]) return;
+  wizard.sessionData.step2.q10_batteries.push({ ...DEMO_BATTERIES[idx] });
+  wizard.saveSessionData();
+  select.value = '';
+  renderBatteryList();
+}
+
+function renderInverterList() {
+  ensureEquipmentListsState();
+  const list = document.getElementById('splitInverterList');
+  if (!list) return;
+  const inverters = wizard.sessionData.step2.q9_inverters;
+  if (!inverters.length) {
+    list.innerHTML = '<div class="form-hint">No inverter added.</div>';
+    return;
+  }
+  list.innerHTML = inverters.map((inv, idx) => `
+    <div class="appliance-item">
+      <div class="appliance-item-info">
+        <div class="appliance-item-name">${inv.brand} ${inv.model}</div>
+        <div class="appliance-item-details">${inv.kw} kW · ${inv.phase} phase · $${inv.price}</div>
+      </div>
+      <button class="appliance-remove" data-index="${idx}" data-type="inverter">Remove</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('.appliance-remove[data-type="inverter"]').forEach((btn) => {
+    btn.addEventListener('click', () => removeInverterFromDetails(Number(btn.dataset.index)));
+  });
+}
+
+function renderBatteryList() {
+  ensureEquipmentListsState();
+  const list = document.getElementById('splitBatteryList');
+  if (!list) return;
+  const batteries = wizard.sessionData.step2.q10_batteries;
+  if (!batteries.length) {
+    list.innerHTML = '<div class="form-hint">No battery added.</div>';
+    return;
+  }
+  list.innerHTML = batteries.map((bat, idx) => `
+    <div class="appliance-item">
+      <div class="appliance-item-info">
+        <div class="appliance-item-name">${bat.brand} ${bat.model}</div>
+        <div class="appliance-item-details">${bat.kwh} kWh · ${bat.kw} kW · $${bat.price}</div>
+      </div>
+      <button class="appliance-remove" data-index="${idx}" data-type="battery">Remove</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('.appliance-remove[data-type="battery"]').forEach((btn) => {
+    btn.addEventListener('click', () => removeBatteryFromDetails(Number(btn.dataset.index)));
+  });
+}
+
+function removeInverterFromDetails(index) {
+  ensureEquipmentListsState();
+  const list = wizard.sessionData.step2.q9_inverters;
+  if (index < 0 || index >= list.length) return;
+  list.splice(index, 1);
+  wizard.saveSessionData();
+  renderInverterList();
+}
+
+function removeBatteryFromDetails(index) {
+  ensureEquipmentListsState();
+  const list = wizard.sessionData.step2.q10_batteries;
+  if (index < 0 || index >= list.length) return;
+  list.splice(index, 1);
+  wizard.saveSessionData();
+  renderBatteryList();
 }
 
 // ============ UTILITIES ============

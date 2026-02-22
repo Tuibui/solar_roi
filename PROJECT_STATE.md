@@ -1,7 +1,7 @@
 # Solar ROI Calculator - Project State
 
-> **Last Updated:** 2026-02-22 (Session 9)
-> **Session Summary:** Full panel placement workflow with 3D editing (right-click context menus, ghost rotation, TransformControls move gizmo), tree restructure (Project → ROOF / INVERTER / BATTERY), equipment browser catalogs.
+> **Last Updated:** 2026-02-22 (Session 10)
+> **Session Summary:** Tab-driven workspace transformation. App boots into split workspace (not map). New command bar: EARTH, Add Panel, Project Detail, Inverter, Battery, Save Project. Left dock switches between tree/project-detail/inverter/battery. Removed right panel (forms relocated to left dock). Removed equipment browser from tree (inverter/battery now in dedicated dock tabs). Centralized UI state model.
 
 ---
 
@@ -45,28 +45,54 @@
 
 ---
 
-## 2. CURRENT LAYOUT (After Analyze)
+## 2. CURRENT LAYOUT
 
-### Split View Layout (app.html)
+### Initial Landing (After Login)
 ```
-┌──────────────┬────────────────────────┬──────────────────────┐
-│ Project   [◀]│                        │ Project Details  [◀] │
-│──────────────│   [3D ROOF MODEL]      │──────────────────────│
-│ ▼ ROOF (4)   │   (base facing up)     │ Appliances           │
-│  🔴 Roof_1   │                        │ Monthly Electric Bill│
-│   ▶ Panels   │   [XYZ Triad]          │ Electricity Price    │
-│   ▼ Props    │   (bottom-left)        │ Grid Export Price    │
-│     Area 45m²│                        │ Save Project         │
-│     Tilt 25° │              [↩][↪][✓][✗]                    │
-│  🟢 Roof_2   │               SKETCH BAR                     │
-│   ...        │                        │                      │
-│ ⚡ INVERTER   │                        │                      │
-│ 🔋 BATTERY   │                        │                      │
-│──────────────│                        │                      │
-│ [drag resize]│                        │                      │
-└──────────────┴────────────────────────┴──────────────────────┘
-  ↑ tree panel    ↑ 3D viewer              ↑ form (400px)
-  (200-520px)      (flex: 1)               (collapsible)
+┌──────────────────────────────────────────────────────────────┐
+│  🌍 EARTH │ ⊞ Add Panel │ 📋 Project Detail │ ⚡ Inverter  │
+│  🔋 Battery │ 💾 Save Project                [COMMAND BAR]  │
+├──────────────┬───────────────────────────────────────────────┤
+│ Project      │                                               │
+│──────────────│         (Empty 3D Viewer)                     │
+│ (empty tree) │         "Open EARTH tab to start"             │
+│              │                                               │
+│              │         [XYZ Triad]                            │
+│              │         (bottom-left)                          │
+│              │                                               │
+│              │                                               │
+│──────────────│                                               │
+│ [drag resize]│                                               │
+└──────────────┴───────────────────────────────────────────────┘
+  ↑ left dock     ↑ 3D viewer (flex: 1)
+  (200-520px)
+```
+
+### Left Dock Modes (one active at a time)
+```
+Mode: tree           → Project tree (roof/panel nodes)
+Mode: project_detail → Appliance, Bill, Tariff, Export, Project Name forms
+Mode: inverter       → Select dropdown + installed list (add/remove)
+Mode: battery        → Select dropdown + installed list (add/remove)
+```
+
+### After EARTH → Analyze
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [🌍 EARTH] (active) │ ⊞ Add Panel │ 📋 │ ⚡ │ 🔋 │ 💾    │
+├──────────────┬───────────────────────────────────────────────┤
+│ Project      │                                               │
+│──────────────│   [3D ROOF MODEL]                             │
+│ ▼ ROOF (4)   │   (base facing up)                           │
+│  🔴 Roof_1   │                                              │
+│   ▶ Panels   │   [XYZ Triad]          [↩][↪][✓][✗]         │
+│   ▼ Props    │                         SKETCH BAR            │
+│     Area 45m²│                                               │
+│  🟢 Roof_2   │                                              │
+│   ...        │                                               │
+│──────────────│                                               │
+│ [drag resize]│                                               │
+└──────────────┴───────────────────────────────────────────────┘
 ```
 
 ### Panel Placement Workflow
@@ -81,25 +107,12 @@
 8. Click ✓ to finish or ✗ to cancel → tree updates panel count
 ```
 
-### Equipment Browser (Inverter / Battery)
+### Equipment Catalogs — Now in Left Dock Tabs
 ```
-Right-click INVERTER → [➕ Add] → Equipment Browser opens
-┌──────────────┐
-│ ← Back       │
-│ Add INVERTER │
-│──────────────│
-│ [Search...]  │
-│──────────────│
-│ ┌──────────┐ │
-│ │ SMA      │ │  ← equipment cards
-│ │ Sunny Boy│ │     brand, model
-│ │ 5kW $1200│ │     power, price
-│ └──────────┘ │
-│   ...        │
-└──────────────┘
-Click card → adds to INVERTER tree folder
-Right-click item in tree → [🗑 Delete]
-Same UX for BATTERY folder
+Inverter tab → left dock shows: [Select dropdown ▾] [Add] + installed list
+Battery tab  → left dock shows: [Select dropdown ▾] [Add] + installed list
+Click "Add" → adds selected item to session data + updates list
+Click "×" on list item → removes from session data + updates list
 ```
 
 ### Map Page Layout (Before Analyze)
@@ -168,10 +181,21 @@ model = trimesh.util.concatenate(parts)
 
 ## 4. FEATURES IMPLEMENTED
 
-### A. Project Tree — SolidWorks FeatureManager (Sessions 8-9)
+### A. Command Tab Bar & UI State Model (Session 10)
+- **File:** `main.js` — `UIState` object (single source of truth)
+- **State keys:**
+  - `activeTopTab`: earth | add-panel | project-detail | inverter | battery | save | ''
+  - `leftDockMode`: tree | project_detail | inverter | battery
+  - `workspaceMode`: empty | earth_mode | model_ready | sketch_mode
+  - `isSketchActive`: boolean
+- **Tabs:** EARTH, Add Panel, Project Detail, Inverter, Battery, Save Project
+- **Transition guards:** Sketch-active check before unsafe tab switches
+- **Boot:** Opens split workspace immediately (not map)
+
+### B. Project Tree — SolidWorks FeatureManager (Sessions 8-10)
 - **File:** `static/js/app/project-tree.js` — IIFE module, `window.ProjectTree`
 - **Theme:** Light grey (#d4d4d4/#e8e8e8), dark text, 14px fonts
-- **Tree structure:**
+- **Tree structure (Session 10 — roof/panel focused):**
   ```
   ▼ Project
     ▼ ROOF (badge: count)
@@ -183,26 +207,15 @@ model = trimesh.util.concatenate(parts)
           Azimuth    180°
           Usable Area 38.5 m²
       🟢 Roof_2 ...
-    ⚡ INVERTER (badge: count)
-      ⚡ SMA Sunny Boy 5.0
-    🔋 BATTERY (badge: count)
-      🔋 Tesla Powerwall 2
   ```
-- **Node types:** `root`, `roof-group`, `equipment-group`, `feature`, `panels`, `panel`, `folder`, `param`, `equipment-item`
+- **Node types:** `root`, `roof-group`, `feature`, `panels`, `panel`, `folder`, `param`, `data`
 - **Context menus per type:**
   - `roof-group` → Expand All / Collapse All
   - `feature` (roof) → ⊞ Add Panel
   - `panels` → ✏️ Edit Roof
   - `panel` → 🗑 Delete Panel
-  - `equipment-group` → ➕ Add / Expand All / Collapse All
-  - `equipment-item` → 🗑 Delete
-- **Selection:** Blue highlight (#0060c0) with white text
-- **Collapse propagation:** Collapsing parent collapses all children recursively
-- **Resize handle:** Drag bottom edge to resize (200px–520px)
-- **Keyboard nav:** Arrow keys + Enter for expand/collapse
-- **Panel browser:** Search catalog (3 GLB-matched panels), toggle selection, stays open
-- **Equipment browser:** Search catalog (10 inverters, 10 batteries), click to add to tree
-- **Public API:** `init`, `render`, `updateRoofs`, `updatePanels`, `selectNode`, `showPanelBrowser`, `hidePanelBrowser`, `showEquipmentBrowser`, `hideEquipmentBrowser`
+- **REMOVED in Session 10:** equipment-group, equipment-item node types; INVERTER/BATTERY tree groups; equipment browser; DEMO_INVERTERS/DEMO_BATTERIES arrays (in tree module)
+- **Public API:** `init`, `render`, `updateRoofs`, `updatePanels`, `selectNode`, `showPanelBrowser`, `hidePanelBrowser`
 
 ### B. Panel Placement & 3D Editing (Sessions 7-9)
 - **File:** `static/js/app/panel-placer.js` — State machine: IDLE → SELECT_PLANE → SKETCH
@@ -221,17 +234,19 @@ model = trimesh.util.concatenate(parts)
 - **Key bindings:** R = rotate, Delete = delete, Escape = deselect/cancel
 - **Edit Roof:** Right-click "Panels" → "✏️ Edit Roof" enters sketch without opening browser
 
-### C. Equipment Catalogs (Session 9)
+### C. Equipment Catalogs — Left Dock (Sessions 9-10)
 - **Inverters (10 demo):** SMA, Fronius, Enphase, Huawei, SolarEdge, GoodWe
   - Fields: brand, model, kW, phase, price, efficiency, type (String/Micro/Optimizer/Hybrid)
 - **Batteries (10 demo):** Tesla, BYD, Enphase, LG Energy, Pylontech, SolarEdge, Huawei, Alpha ESS
   - Fields: brand, model, kWh, kW, price, cycles, chemistry (LFP/NMC), warranty
+- **Session 10:** Moved from tree equipment browser to dedicated left dock tabs with select dropdown + add/remove list UI
 
-### D. Split View & Layout
-- **Left Panel:** Project tree (resizable 200-520px)
+### D. Split View & Left Dock (Session 10)
+- **Left Dock:** Single panel, 4 content modes: tree, project_detail, inverter, battery
 - **Center:** 3D viewer (flex: 1) with XYZ triad (bottom-left 80×80px)
-- **Right Panel:** Project Details form (400px, collapsible)
+- **Right Panel:** REMOVED (content relocated to left dock)
 - **Sketch bar:** Undo / Redo / ✓ Finish / ✗ Cancel (top-right of 3D viewer)
+- **Command bar:** 36px height, dark (#1a2332) background, above split view
 
 ### E. XYZ Triad — Orientation Indicator (Session 8)
 - Small 80×80px Three.js viewport in bottom-left of 3D viewer
@@ -295,6 +310,13 @@ panelPlacer.cancelSketch();  // safe — no callbacks fire
 
 ## 6. FILES MODIFIED BY SESSION
 
+### Session 10 — Tab-Driven Workspace Transformation
+- `app.html` — Added command bar (6 tabs), changed boot to split-view visible / map hidden, restructured left dock with 3 dock-content containers (project-detail, inverter, battery forms), hidden right panel, UIState sync in panelPlacer.onStateChange
+- `main.js` — Added UIState model, setupCommandBar(), handleTabClick(), setActiveTab(), switchLeftDock(), enterEarthMode(), exitEarthMode(), showWorkspaceEmpty(), initSplitViewerEmpty(); modified boot to showWorkspaceEmpty(); modified showMapMode→enterEarthMode delegation; removed Edit Roof toolbar handler, right panel collapse handler, legacy save button handler
+- `project-tree.js` — Removed DEMO_INVERTERS, DEMO_BATTERIES arrays; removed equipment-group/equipment-item from CONTEXT_MENUS; removed add-equipment/delete-equipment from handleContextAction; removed showEquipmentBrowser/hideEquipmentBrowser/renderEquipmentBrowser/addEquipmentItem/deleteEquipmentItem; removed equipment-group from badge check; cleaned public API exports
+- `split-view.css` — Height calc 108→144px, command bar styles (.command-bar, .command-bar-tab, .save-tab), dock content styles (.dock-content, .dock-form-body)
+- `wizard.css` — Height calc 108→144px for .map-mode
+
 ### Session 9 — Panel Editing + Equipment Folders + Tree Restructure
 - `project-tree.js` — Renamed root to "ROOF", added INVERTER/BATTERY groups with demo catalogs, equipment browser, delete-equipment, roof-group/equipment-group node types
 - `panel-placer.js` — Ghost rotation (_ghostRotationDeg, right-click ghost menu), TransformControls move gizmo (_enableMoveGizmo/_disableMoveGizmo/_snapPanelToRoof), 3D right-click context menu for placed panels (rotate/move/delete), _raycastConfirmedPanels filters by roof, cross-roof prevention, panel surface projection
@@ -343,12 +365,20 @@ panelPlacer.cancelSketch();  // safe — no callbacks fire
 ## 8. DEBUGGING TIPS
 
 ### Check Project Tree
-1. Root shows "Project" with ROOF, INVERTER, BATTERY children
+1. Root shows "Project" with ROOF group only
 2. Roofs collapsed by default, properties show values (Area, Tilt, etc.)
 3. Right-click roof → "⊞ Add Panel" → panel browser
 4. Right-click Panels → "✏️ Edit Roof" → sketch mode
-5. Right-click INVERTER/BATTERY → "➕ Add" → equipment browser
-6. Drag bottom of tree panel → resize (200–520px range)
+5. Drag bottom of tree panel → resize (200–520px range)
+
+### Check Command Bar & Dock
+1. EARTH → enters map mode, after analyze → returns to workspace with model
+2. Add Panel → opens panel browser on selected roof
+3. Project Detail → left dock shows appliance/bill/tariff/export forms
+4. Inverter → left dock shows select dropdown + installed list
+5. Battery → left dock shows select dropdown + installed list
+6. Save Project → triggers save flow
+7. Switching tabs clears previous dock mode cleanly
 
 ### Check Panel Placement
 1. Select panel in browser → ghost follows mouse on roof
@@ -364,10 +394,10 @@ panelPlacer.cancelSketch();  // safe — no callbacks fire
 2. Roof base parallel to ground, facing upward
 3. Console: `[PanelPlacer] Cached roof meshes: N [0] roof_0 ...`
 
-### Check Equipment Browser
-1. Click card → item added to tree folder
-2. Right-click item → "🗑 Delete" removes it
-3. Search filters by brand, model, kW/kWh
+### Check Equipment (Left Dock)
+1. Inverter tab → select from dropdown → click Add → appears in list
+2. Battery tab → select from dropdown → click Add → appears in list
+3. Click × on list item → removes from session data
 
 ### Check Ray Casting (Session 6)
 1. Console: `[Shading] 12:00 → X/Y points shaded` (non-zero X)
@@ -379,9 +409,9 @@ panelPlacer.cancelSketch();  // safe — no callbacks fire
 
 1. **Roof faces UPWARD** (base parallel to ground)
 2. **Scale factor 0.0712** for height display
-3. **Split view:** Tree left, 3D center, Form right (400px), collapsible
-4. **Tree panel:** Light grey theme, 14px fonts, resizable (200-520px)
-5. **Root label:** "Project" → children: ROOF, INVERTER, BATTERY
+3. **Split view:** Left dock + 3D center (no right panel)
+4. **Left dock:** Resizable 200-520px, switches between tree/project_detail/inverter/battery
+5. **Root label:** "Project" → children: ROOF only (inverter/battery in dock tabs)
 6. **Roofs collapsed by default** with property values shown
 7. **Right-click roof:** "⊞ Add Panel" / Right-click Panels: "✏️ Edit Roof"
 8. **Panel browser:** Stays open (toggle selection), 3 GLB-matched panel types
@@ -418,13 +448,15 @@ panelPlacer.cancelSketch();  // safe — no callbacks fire
 1. Tree panel: `project-tree.js` loaded before `main.js`, `ProjectTree.init()` called
 2. Tree structure: `Project → ROOF (roof-group) → Roof_N (feature) → Panels / Properties`
 3. Panel browser: right-click roof → "Add Panel" → 3 panel types
-4. Equipment browser: right-click INVERTER/BATTERY → "Add" → demo catalogs
-5. Panel placer: `window.ensurePanelPlacer()` lazy init, needs `window.splitViewerRef`
-6. TransformControls: imported in app.html module, `window.TransformControls` set
-7. Ghost rotation: `_ghostRotationDeg` resets on `_cancelGhost()`
-8. GLB mesh discovery: `traverse()` + `roof_N` name sort (not direct children)
-9. 3D model: `model.rotation.x = +Math.PI / 2` (no Y flip)
-10. Ray casting: `pickFromRay(ray, [osmTileset])` — 2nd param EXCLUDES
+4. Command bar: `setupCommandBar()` called in boot sequence, tabs use `data-tab` attributes
+5. Left dock: `switchLeftDock(mode)` hides tree body + shows dock content via `.active` class
+6. Panel placer: `window.ensurePanelPlacer()` lazy init, needs `window.splitViewerRef`
+7. TransformControls: imported in app.html module, `window.TransformControls` set
+8. Ghost rotation: `_ghostRotationDeg` resets on `_cancelGhost()`
+9. GLB mesh discovery: `traverse()` + `roof_N` name sort (not direct children)
+10. 3D model: `model.rotation.x = +Math.PI / 2` (no Y flip)
+11. Ray casting: `pickFromRay(ray, [osmTileset])` — 2nd param EXCLUDES
+12. UIState: `window.UIState` accessible for debugging state transitions
 
 **To continue work:**
 > "Based on PROJECT_STATE.md, I want to [feature]. Current issue: [problem]"

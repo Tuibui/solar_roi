@@ -6,8 +6,13 @@
 .split-view {
   display: flex;
   flex-direction: row;
-  height: calc(100vh - 108px);
+  height: calc(100vh - 144px);
   width: 100%;
+  background: #cfd3d6;
+  background-image:
+    linear-gradient(rgba(20, 36, 46, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 36, 46, 0.07) 1px, transparent 1px);
+  background-size: 14px 14px;
 }
 
 .split-view.hidden {
@@ -23,11 +28,12 @@
 .split-left {
   flex: 1;
   min-width: 0;
-  background: #ffffff;
+  background: #e4e6e8;
   display: flex;
   flex-direction: row;
   position: relative;
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px #a0a6aa, inset 0 0 0 2px #d7dbde;
 }
 
 /* ── Project Tree Panel (SolidWorks FeatureManager) ── */
@@ -42,8 +48,9 @@
   overflow: hidden;
   flex-shrink: 0;
   transition: width 0.2s ease, min-width 0.2s ease;
-  font-family: -apple-system, 'Segoe UI', 'Noto Sans JP', sans-serif;
+  font-family: var(--font-family);
   position: relative;
+  box-shadow: inset -1px 0 0 #9aa0a4;
 }
 
 .project-tree-panel.collapsed {
@@ -78,7 +85,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 8px;
-  background: #c0c0c0;
+  background: linear-gradient(180deg, #c7c7c7, #b8b8b8);
   border-bottom: 1px solid #a0a0a0;
   flex-shrink: 0;
 }
@@ -157,6 +164,7 @@
   user-select: none;
   border: 1px solid transparent;
   transition: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .ptree-row:hover {
@@ -165,9 +173,9 @@
 
 /* SELECTED — SolidWorks blue highlight */
 .ptree-row.selected {
-  background: #0060c0;
+  background: #00508f;
   color: #ffffff;
-  border-color: #0078d4;
+  border-color: #79a5cc;
 }
 
 .ptree-row.selected .ptree-label { color: #ffffff; }
@@ -219,7 +227,7 @@
   font-size: 13px;
   margin-left: auto;
   padding-left: 8px;
-  font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+  font-family: var(--font-family);
   flex-shrink: 0;
 }
 
@@ -262,7 +270,7 @@
   border-radius: 4px;
   padding: 4px 0;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  font-family: -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-family);
 }
 
 .ptree-ctx-item {
@@ -312,7 +320,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
-  font-family: -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-family);
 }
 
 /* 3D viewer column (sits next to tree) */
@@ -503,7 +511,7 @@
   flex-direction: column;
   flex: 1;
   overflow: hidden;
-  background: #e8e8e8;
+  background: #e0e2e4;
 }
 
 .pb-header {
@@ -511,7 +519,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: #c0c0c0;
+  background: linear-gradient(180deg, #c7c7c7, #b9b9b9);
   border-bottom: 1px solid #a0a0a0;
   flex-shrink: 0;
 }
@@ -580,13 +588,14 @@
 .pb-list::-webkit-scrollbar-thumb { background: #b0b0b0; border-radius: 3px; }
 
 .pb-card {
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  background: #f8f9fa;
+  border: 1px solid #b3b8bc;
+  border-radius: 2px;
   padding: 10px 12px;
   margin-bottom: 6px;
   cursor: pointer;
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
+  box-shadow: inset 0 0 0 1px #ffffff;
 }
 
 .pb-card:hover {
@@ -595,9 +604,9 @@
 }
 
 .pb-card.active {
-  border-color: #0060c0;
-  background: #e0edff;
-  box-shadow: 0 0 0 2px #0060c0;
+  border-color: #1e5f8d;
+  background: #dbe7ef;
+  box-shadow: 0 0 0 1px #1e5f8d;
 }
 
 .pb-card-top {
@@ -787,14 +796,15 @@
 .split-right {
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
-  border-left: 1px solid var(--border-light);
+  background: #d4d4d4;
+  border-left: 1px solid #b0b0b0;
   overflow: hidden;
   width: 400px;
   min-width: 280px;
   max-width: 400px;
   transition: width 0.25s ease, min-width 0.25s ease;
   position: relative;
+  box-shadow: inset 1px 0 0 #a0a0a0, inset 0 0 0 1px #b9b9b9;
 }
 
 .split-right.collapsed {
@@ -806,13 +816,15 @@
   padding: var(--sp-3) var(--sp-4) var(--sp-3) 44px;
   font-size: var(--text-lg);
   font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-light);
+  color: #333333;
+  border-bottom: 1px solid #a0a0a0;
   display: flex;
   justify-content: center;
   align-items: center;
   flex-shrink: 0;
-  background: var(--bg-card);
+  background: linear-gradient(180deg, #c7c7c7, #b8b8b8);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .split-right.collapsed .split-header {
@@ -829,12 +841,12 @@
   top: 12px;
   width: 28px;
   height: 28px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
+  background: #d4d4d4;
+  border: 1px solid #a0a0a0;
   border-radius: var(--radius-sm);
   cursor: pointer;
   padding: 0;
-  color: var(--text-muted);
+  color: #666666;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -844,9 +856,9 @@
 }
 
 .split-collapse-btn:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border-color: var(--accent);
+  background: #c8c8c8;
+  color: #222222;
+  border-color: #888888;
 }
 
 .split-collapse-btn svg {
@@ -864,6 +876,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+  background: #e8e8e8;
+  font-variant-numeric: tabular-nums;
 }
 
 .split-right.collapsed .split-form-body {
@@ -875,12 +889,38 @@
 }
 
 .split-form-body::-webkit-scrollbar-track {
-  background: var(--bg-surface);
+  background: #e8e8e8;
 }
 
 .split-form-body::-webkit-scrollbar-thumb {
-  background: var(--border-medium);
+  background: #b0b0b0;
   border-radius: 2px;
+}
+
+/* Match right panel form tone to project tree panel */
+.split-right .form-section {
+  background: #f0f0f0;
+  border: 1px solid #b0b0b0;
+  border-left: 3px solid #909090;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px #ffffff;
+}
+
+.split-right .form-section-title {
+  color: #333333;
+}
+
+.split-right .form-group input,
+.split-right .form-group select {
+  background: #ffffff;
+  border-color: #b0b0b0;
+  color: #333333;
+  border-radius: 2px;
+}
+
+.split-right .appliance-item {
+  background: #ffffff;
+  border-color: #b0b0b0;
 }
 
 /* Split form inputs - all same width */
@@ -904,6 +944,133 @@
 .split-input-row .export-currency-label {
   flex: 0 0 80px;
   width: 80px !important;
+}
+
+/* ── Command Bar (top tab strip) ── */
+.command-bar {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to bottom, #e0e0e0, #d0d0d0);
+  border-bottom: 1px solid #b0b0b0;
+  padding: 0 8px;
+  height: 36px;
+  gap: 2px;
+  flex-shrink: 0;
+  z-index: 10;
+  font-family: var(--font-family);
+}
+
+.command-bar-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 14px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  cursor: pointer;
+  border-radius: 3px 3px 0 0;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.command-bar-tab:hover {
+  background: rgba(0,0,0,0.06);
+  color: #222;
+}
+
+.command-bar-tab.active {
+  background: #fff;
+  color: #00508f;
+  border-color: #b0b0b0;
+  border-bottom: 1px solid #fff;
+  margin-bottom: -1px;
+}
+
+.command-bar-tab .tab-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.command-bar-tab.save-tab {
+  margin-left: auto;
+}
+
+/* ── Dock Content (left panel content modes) ── */
+.dock-content {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  background: #e8e8e8;
+}
+
+.dock-content.active {
+  display: flex;
+}
+
+.dock-content::-webkit-scrollbar { width: 6px; }
+.dock-content::-webkit-scrollbar-track { background: #e8e8e8; }
+.dock-content::-webkit-scrollbar-thumb { background: #b0b0b0; border-radius: 3px; }
+
+.dock-form-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dock-form-body .form-section {
+  background: #f0f0f0;
+  border: 1px solid #b0b0b0;
+  border-left: 3px solid #909090;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px #ffffff;
+}
+
+.dock-form-body .form-section-title {
+  color: #333;
+}
+
+.dock-form-body .form-group input,
+.dock-form-body .form-group select {
+  background: #fff;
+  border-color: #b0b0b0;
+  color: #333;
+  border-radius: 2px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dock-form-body .appliance-item {
+  background: #fff;
+  border-color: #b0b0b0;
+}
+
+.dock-form-body .split-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dock-form-body .split-input-row input { flex: 1; }
+.dock-form-body .split-input-row select,
+.dock-form-body .split-input-row .export-currency-label {
+  flex: 0 0 70px;
+  width: 70px !important;
+}
+
+.project-tree-panel.collapsed .dock-content {
+  display: none;
 }
 
 /* Mobile: Stack vertically */

@@ -46,8 +46,18 @@
     <span id="wizardOverlayMsg">Generating...</span>
   </div>
 
-  <!-- Map Mode -->
-  <div id="mapMode" class="map-mode active">
+  <!-- Command Tab Bar -->
+  <div id="commandBar" class="command-bar">
+    <button class="command-bar-tab" data-tab="earth"><span class="tab-icon">🌍</span> EARTH</button>
+    <button class="command-bar-tab" data-tab="add-panel"><span class="tab-icon">⊞</span> Add Panel</button>
+    <button class="command-bar-tab" data-tab="project-detail"><span class="tab-icon">📋</span> Project Detail</button>
+    <button class="command-bar-tab" data-tab="inverter"><span class="tab-icon">⚡</span> Inverter</button>
+    <button class="command-bar-tab" data-tab="battery"><span class="tab-icon">🔋</span> Battery</button>
+    <button class="command-bar-tab save-tab" data-tab="save"><span class="tab-icon">💾</span> Save Project</button>
+  </div>
+
+  <!-- Map Mode (hidden by default, shown via EARTH tab) -->
+  <div id="mapMode" class="map-mode">
     <div class="map-stage">
       <div id="wizardCesiumContainer"></div>
 
@@ -82,17 +92,130 @@
     </div>
   </div>
 
-  <!-- Split View (Model + Form) -->
-  <div class="split-view hidden" id="splitView">
+  <!-- Split View (Model + Form) — default workspace -->
+  <div class="split-view" id="splitView">
     <div class="split-left">
 
       <!-- Project Tree Panel (SolidWorks FeatureManager) -->
       <div class="project-tree-panel" id="projectTreePanel">
         <div class="ptree-header">
-          <span class="ptree-header-title">My House</span>
+          <span class="ptree-header-title" id="dockHeaderTitle">Project</span>
           <button class="ptree-toggle-btn" id="btnTreeToggle" title="Collapse tree">◀</button>
         </div>
         <div class="ptree-body" id="projectTreeBody"></div>
+
+        <!-- Dock: Project Detail (replaces tree when active) -->
+        <div class="dock-content" id="dockProjectDetail">
+          <div class="dock-form-body">
+            <div class="form-section">
+              <h3 class="form-section-title">Appliances</h3>
+              <div class="form-group">
+                <label for="wizardPresetAppliance">Add Preset Appliance</label>
+                <div style="display: flex; gap: 6px;">
+                  <select id="wizardPresetAppliance" style="flex: 1;">
+                    <option value="">-- Select --</option>
+                    <option value="led|10">LED Light (10W)</option>
+                    <option value="fan|75">Ceiling Fan (75W)</option>
+                    <option value="fridge|150">Refrigerator (150W)</option>
+                    <option value="tv|120">TV (120W)</option>
+                    <option value="laptop|65">Laptop (65W)</option>
+                    <option value="desktop|250">Desktop PC (250W)</option>
+                    <option value="ac|900">AC 9000BTU (900W)</option>
+                    <option value="washing|500">Washing Machine (500W)</option>
+                    <option value="microwave|1000">Microwave (1000W)</option>
+                    <option value="pump|750">Water Pump (750W)</option>
+                    <option value="custom">+ Custom...</option>
+                  </select>
+                  <button class="btn-small" style="padding: 6px 12px; background: #1a5276; color: white; border: none;" id="btnAddAppliance" type="button">+</button>
+                </div>
+              </div>
+              <div id="wizardAppliancesList" class="appliances-list"></div>
+            </div>
+            <div class="form-section">
+              <h3 class="form-section-title">Monthly Electric Bill</h3>
+              <div class="form-group">
+                <label for="wizardMonthlyKwh">Monthly Usage (kWh/month)</label>
+                <input type="number" id="wizardMonthlyKwh" step="1" placeholder="e.g., 500">
+              </div>
+            </div>
+            <div class="form-section">
+              <h3 class="form-section-title">Electricity Price</h3>
+              <div class="form-group">
+                <label for="wizardTariff">Price per kWh</label>
+                <div class="split-input-row">
+                  <input type="number" id="wizardTariff" step="0.01" min="0" value="4.5" placeholder="4.5">
+                  <select id="wizardCurrency" aria-label="Tariff currency">
+                    <option value="THB">THB</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="JPY">JPY</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="form-section">
+              <h3 class="form-section-title">Grid Export Price</h3>
+              <div class="form-group">
+                <label for="splitExportPrice">Export price per kWh</label>
+                <div class="split-input-row">
+                  <input type="number" id="splitExportPrice" step="0.01" min="0" placeholder="2.2">
+                  <span class="export-currency-label" id="exportCurrencyLabel">THB</span>
+                </div>
+                <p class="form-hint">Price your utility pays for exported solar energy.</p>
+              </div>
+            </div>
+            <div class="form-section">
+              <h3 class="form-section-title">Project Name</h3>
+              <div class="form-group">
+                <input type="text" id="splitProjectName" placeholder="My Solar Project">
+              </div>
+              <div id="splitSaveMsg" style="display:none;" class="success-message"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dock: Inverter (replaces tree when active) -->
+        <div class="dock-content" id="dockInverter">
+          <div class="dock-form-body">
+            <div class="form-section">
+              <h3 class="form-section-title">Add Inverter</h3>
+              <div class="form-group">
+                <div style="display: flex; gap: 6px;">
+                  <select id="splitInverterSelect" style="flex: 1;">
+                    <option value="">-- Select Inverter --</option>
+                  </select>
+                  <button class="btn-small" style="padding: 6px 12px; background: #1a5276; color: white; border: none;" id="btnAddInverter" type="button">Add</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-section">
+              <h3 class="form-section-title">Installed Inverters</h3>
+              <div id="splitInverterList" class="appliances-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dock: Battery (replaces tree when active) -->
+        <div class="dock-content" id="dockBattery">
+          <div class="dock-form-body">
+            <div class="form-section">
+              <h3 class="form-section-title">Add Battery</h3>
+              <div class="form-group">
+                <div style="display: flex; gap: 6px;">
+                  <select id="splitBatterySelect" style="flex: 1;">
+                    <option value="">-- Select Battery --</option>
+                  </select>
+                  <button class="btn-small" style="padding: 6px 12px; background: #1a5276; color: white; border: none;" id="btnAddBattery" type="button">Add</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-section">
+              <h3 class="form-section-title">Installed Batteries</h3>
+              <div id="splitBatteryList" class="appliances-list"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="ptree-resize-handle" id="projectTreeResizeHandle" title="Drag to resize tree"></div>
       </div>
 
@@ -116,100 +239,10 @@
         <!-- Sketch mode indicator -->
         <div class="sketch-mode-badge hidden" id="sketchModeBadge">SKETCH MODE</div>
       </div>
-      <div class="split-viewer-toolbar">
-        <button class="btn-small" id="btnEditRoof" type="button">Edit Roof</button>
-      </div>
       </div><!-- /.split-viewer-col -->
     </div>
-    <div class="split-right" id="splitRight">
-      <button class="split-collapse-btn" id="btnCollapseRight" title="Collapse/Expand">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-      </button>
-      <header class="split-header">
-        <span>Project Details</span>
-      </header>
-      <div class="split-form-body" id="splitFormBody">
-
-        <!-- Section 1: Appliances -->
-        <div class="form-section">
-          <h3 class="form-section-title">Appliances</h3>
-          <div class="form-group">
-            <label for="wizardPresetAppliance">Add Preset Appliance</label>
-            <div style="display: flex; gap: 8px;">
-              <select id="wizardPresetAppliance" style="flex: 1;">
-                <option value="">-- Select Appliance --</option>
-                <option value="led|10">LED Light (10W)</option>
-                <option value="fan|75">Ceiling Fan (75W)</option>
-                <option value="fridge|150">Refrigerator (150W)</option>
-                <option value="tv|120">TV (120W)</option>
-                <option value="laptop|65">Laptop (65W)</option>
-                <option value="desktop|250">Desktop PC (250W)</option>
-                <option value="ac|900">Air Conditioner 9000BTU (900W)</option>
-                <option value="washing|500">Washing Machine (500W)</option>
-                <option value="microwave|1000">Microwave (1000W)</option>
-                <option value="pump|750">Water Pump (750W)</option>
-                <option value="custom">+ Custom Appliance...</option>
-              </select>
-              <button class="btn-small" style="padding: 8px 16px; background: #1a5276; color: white; border: none;" id="btnAddAppliance" type="button">+ Add</button>
-            </div>
-          </div>
-          <div id="wizardAppliancesList" class="appliances-list"></div>
-        </div>
-
-        <!-- Section 2: Monthly Electric Bill -->
-        <div class="form-section">
-          <h3 class="form-section-title">Monthly Electric Bill</h3>
-          <div class="form-group">
-            <label for="wizardMonthlyKwh">Monthly Energy Usage (kWh/month)</label>
-            <input type="number" id="wizardMonthlyKwh" step="1" placeholder="e.g., 500">
-          </div>
-        </div>
-
-        <!-- Section 3: Electricity Price -->
-        <div class="form-section">
-          <h3 class="form-section-title">Electricity Price</h3>
-          <div class="form-group">
-            <label for="wizardTariff">Price per kWh</label>
-            <div class="split-input-row">
-              <input type="number" id="wizardTariff" step="0.01" min="0" value="4.5" placeholder="4.5">
-              <select id="wizardCurrency" aria-label="Tariff currency">
-                <option value="THB">THB</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="JPY">JPY</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section 4: Grid Export Price -->
-        <div class="form-section">
-          <h3 class="form-section-title">Grid Export Price (Feed-in Tariff)</h3>
-          <div class="form-group">
-            <label for="splitExportPrice">Export price per kWh</label>
-            <div class="split-input-row">
-              <input type="number" id="splitExportPrice" step="0.01" min="0" placeholder="2.2">
-              <span class="export-currency-label" id="exportCurrencyLabel">THB</span>
-            </div>
-            <p class="form-hint">Price your utility pays for exported solar energy.</p>
-          </div>
-        </div>
-
-        <!-- Project Name + Save -->
-        <div class="form-section">
-          <h3 class="form-section-title">Save Project</h3>
-          <div class="form-group">
-            <label for="splitProjectName">Project Name</label>
-            <input type="text" id="splitProjectName" placeholder="My Solar Project">
-          </div>
-          <div id="splitSaveMsg" style="display:none;" class="success-message"></div>
-          <button class="split-save-btn" id="btnSplitSave" type="button">Save Project</button>
-        </div>
-
-      </div>
-    </div>
+    <!-- Right panel hidden (content relocated to left dock + command bar) -->
+    <div class="split-right" id="splitRight" style="display:none;"></div>
   </div>
 
   
@@ -411,7 +444,7 @@
 
     window.threeViewer = { createViewer, loadModelToViewer, setupTriad };
 
-    // ──── Panel Placer Wiring (GLTFLoader available in module scope) ────
+    // ──── Panel Placer Wiring ────
     let panelPlacer = null;
     window.getPanelPlacer = () => panelPlacer;
     window.resetPanelPlacer = () => {
@@ -421,32 +454,26 @@
       }
     };
 
-    const PANEL_MODELS = {
-      solar_panel:     { url: '/static/models/solar_panel.glb',     label: '60-Cell',  cells: 60,  watt: 370 },
-      solar_panel_72:  { url: '/static/models/solar_panel_72.glb',  label: '72-Cell',  cells: 72,  watt: 450 },
-      solar_panel_120: { url: '/static/models/solar_panel_120.glb', label: '120-Cell', cells: 120, watt: 550 }
-    };
-    window.PANEL_MODELS = PANEL_MODELS;
-
     async function ensurePanelPlacer() {
       const viewer = window.splitViewerRef;
       if (!viewer || !window.PanelPlacer) return null;
       if (panelPlacer) return panelPlacer;
 
       panelPlacer = new PanelPlacer(viewer);
-      panelPlacer.setLoaderClass(GLTFLoader);
-
-      // Pre-load first model
-      const firstKey = Object.keys(PANEL_MODELS)[0];
-      await panelPlacer.loadPanelModel(firstKey, PANEL_MODELS[firstKey].url);
-      panelPlacer.setActiveModel(firstKey);
 
       panelPlacer.init();
 
-      // State change handler — update UI
+      // State change handler — update UI + UIState
       panelPlacer.onStateChange = (state) => {
         const isSketch = state === PlacerState.SKETCH;
         const isSelecting = state === PlacerState.SELECT_PLANE;
+
+        // Sync UIState
+        if (window.UIState) {
+          window.UIState.isSketchActive = isSketch;
+          if (isSketch) window.UIState.workspaceMode = 'sketch_mode';
+          else if (window.UIState.workspaceMode === 'sketch_mode') window.UIState.workspaceMode = 'model_ready';
+        }
 
         // Show/hide sketch UI
         document.getElementById('sketchConfirmBar')?.classList.toggle('hidden', !isSketch);

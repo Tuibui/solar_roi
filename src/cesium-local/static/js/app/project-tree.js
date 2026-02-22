@@ -13,41 +13,119 @@ const ProjectTree = (function () {
   let onContextActionCallback = null;
   let panelBrowserEl = null;
   let panelBrowserRoofId = null;
+  let panelCatalog = [];
+  let panelCatalogLoadPromise = null;
 
-  // ─── Panel Catalog (3 types matching GLB models) ───
-  const DEMO_PANELS = [
-    { brand: 'Standard', model: '60-Cell',  watt: 370, price: 130, cells: 60,  dims: '1.7 × 1.0 m', eff: 19.8, modelKey: 'solar_panel' },
-    { brand: 'Standard', model: '72-Cell',  watt: 450, price: 170, cells: 72,  dims: '2.0 × 1.0 m', eff: 21.0, modelKey: 'solar_panel_72' },
-    { brand: 'Standard', model: '120-Cell', watt: 550, price: 220, cells: 120, dims: '2.1 × 1.1 m', eff: 22.5, modelKey: 'solar_panel_120' },
-  ];
+  // ─── Panel Catalog (CSV-driven demo data) ───
+  const PANEL_CSV_URL = '/static/models/demo_panel.csv';
+  const DEFAULT_PANEL_THICKNESS_M = 0.03;
+  const DEFAULT_PANEL_WIDTH_M = 1.134;
+  const DEFAULT_PANEL_LENGTH_M = 1.722;
 
-  // ─── Inverter Catalog (demo) ───
-  const DEMO_INVERTERS = [
-    { brand: 'SMA',        model: 'Sunny Boy 5.0',     kw: 5.0,  phase: 1, price: 1200, eff: 97.2, type: 'String' },
-    { brand: 'SMA',        model: 'Sunny Tripower 10', kw: 10.0, phase: 3, price: 2500, eff: 98.0, type: 'String' },
-    { brand: 'Fronius',    model: 'Primo 6.0',         kw: 6.0,  phase: 1, price: 1350, eff: 97.6, type: 'String' },
-    { brand: 'Fronius',    model: 'Symo 15.0',         kw: 15.0, phase: 3, price: 3200, eff: 98.1, type: 'String' },
-    { brand: 'Enphase',    model: 'IQ8+',              kw: 0.3,  phase: 1, price: 180,  eff: 97.5, type: 'Micro' },
-    { brand: 'Enphase',    model: 'IQ8M',              kw: 0.33, phase: 1, price: 210,  eff: 97.5, type: 'Micro' },
-    { brand: 'Huawei',     model: 'SUN2000-8KTL',      kw: 8.0,  phase: 3, price: 1800, eff: 98.6, type: 'String' },
-    { brand: 'SolarEdge',  model: 'SE7600H',           kw: 7.6,  phase: 1, price: 1650, eff: 99.0, type: 'Optimizer' },
-    { brand: 'GoodWe',     model: 'GW5000-MS',         kw: 5.0,  phase: 1, price: 950,  eff: 97.8, type: 'Hybrid' },
-    { brand: 'GoodWe',     model: 'GW10K-ET',          kw: 10.0, phase: 3, price: 2200, eff: 98.2, type: 'Hybrid' },
-  ];
+  function slugify(text) {
+    return String(text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'panel';
+  }
 
-  // ─── Battery Catalog (demo) ───
-  const DEMO_BATTERIES = [
-    { brand: 'Tesla',       model: 'Powerwall 2',       kwh: 13.5,  kw: 5.0,  price: 8500,  cycles: 5000, chemistry: 'NMC',  warranty: '10 yr' },
-    { brand: 'Tesla',       model: 'Powerwall 3',       kwh: 13.5,  kw: 11.5, price: 9200,  cycles: 5000, chemistry: 'LFP',  warranty: '10 yr' },
-    { brand: 'BYD',         model: 'HVS 5.1',           kwh: 5.1,   kw: 5.1,  price: 3400,  cycles: 6000, chemistry: 'LFP',  warranty: '10 yr' },
-    { brand: 'BYD',         model: 'HVM 11.0',          kwh: 11.04, kw: 5.1,  price: 6500,  cycles: 6000, chemistry: 'LFP',  warranty: '10 yr' },
-    { brand: 'Enphase',     model: 'IQ Battery 5P',     kwh: 5.0,   kw: 3.84, price: 5500,  cycles: 4000, chemistry: 'LFP',  warranty: '10 yr' },
-    { brand: 'LG Energy',   model: 'RESU16H Prime',     kwh: 16.0,  kw: 7.0,  price: 9800,  cycles: 6000, chemistry: 'NMC',  warranty: '10 yr' },
-    { brand: 'Pylontech',   model: 'Force H2',          kwh: 7.1,   kw: 3.5,  price: 3200,  cycles: 6000, chemistry: 'LFP',  warranty: '10 yr' },
-    { brand: 'SolarEdge',   model: 'Home Battery 10',   kwh: 9.7,   kw: 5.0,  price: 7200,  cycles: 4000, chemistry: 'LFP',  warranty: '10 yr' },
-    { brand: 'Huawei',      model: 'LUNA2000-10',       kwh: 10.0,  kw: 5.0,  price: 5800,  cycles: 6000, chemistry: 'LFP',  warranty: '10 yr' },
-    { brand: 'Alpha ESS',   model: 'SMILE-B3-Plus',     kwh: 8.2,   kw: 3.0,  price: 4200,  cycles: 6000, chemistry: 'LFP',  warranty: '10 yr' },
-  ];
+  function parseNumber(text) {
+    if (text == null) return null;
+    const cleaned = String(text).replace(/[^\d.]+/g, '');
+    if (!cleaned) return null;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function parsePanelSizeMm(text) {
+    if (!text) return null;
+    const cleaned = String(text).replace(/[^0-9.xX]/g, '');
+    const m = cleaned.match(/(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)/i);
+    if (!m) return null;
+    const lengthMm = Number(m[1]);
+    const widthMm = Number(m[2]);
+    const thicknessMm = Number(m[3]);
+    if (!Number.isFinite(lengthMm) || !Number.isFinite(widthMm) || !Number.isFinite(thicknessMm)) return null;
+    return {
+      lengthM: lengthMm / 1000,
+      widthM: widthMm / 1000,
+      thicknessM: thicknessMm / 1000
+    };
+  }
+
+  function parseSimpleCsv(text) {
+    const lines = String(text || '')
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+    if (lines.length < 2) return [];
+
+    const header = lines[0].split(',').map(h => h.trim());
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim());
+      const row = {};
+      for (let j = 0; j < header.length; j++) row[header[j]] = cols[j] || '';
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function normalizePanelRow(row) {
+    const brand = row['Brand'] || 'Unknown';
+    const model = row['Model'] || 'Panel';
+    const dims = parsePanelSizeMm(row['Solar panel size (mm)']) || {
+      lengthM: DEFAULT_PANEL_LENGTH_M,
+      widthM: DEFAULT_PANEL_WIDTH_M,
+      thicknessM: DEFAULT_PANEL_THICKNESS_M
+    };
+
+    const watt = parseNumber(row['Solar panel wattage (W)']) || 0;
+    const eff = parseNumber(row['Solar panel efficiency']);
+    const price = parseNumber(row['Cost (¥)']) || 0;
+    const type = row['Solar panel type'] || '';
+    const panelId = slugify(`${brand}-${model}-${watt || 'w'}`);
+
+    return {
+      panelId,
+      brand,
+      model,
+      type,
+      watt,
+      eff,
+      price,
+      lengthM: dims.lengthM,
+      widthM: dims.widthM,
+      thicknessM: dims.thicknessM
+    };
+  }
+
+  async function ensurePanelCatalogLoaded() {
+    if (panelCatalog.length > 0) return panelCatalog;
+    if (panelCatalogLoadPromise) return panelCatalogLoadPromise;
+
+    panelCatalogLoadPromise = fetch(PANEL_CSV_URL)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then(text => {
+        const rows = parseSimpleCsv(text);
+        panelCatalog = rows.map(normalizePanelRow).filter(p => p.panelId);
+        panelCatalog.sort((a, b) => (b.watt || 0) - (a.watt || 0));
+        return panelCatalog;
+      })
+      .catch((err) => {
+        console.error('[ProjectTree] Failed loading panel CSV:', err);
+        panelCatalog = [];
+        return panelCatalog;
+      })
+      .finally(() => {
+        panelCatalogLoadPromise = null;
+      });
+
+    return panelCatalogLoadPromise;
+  }
 
   // ─── Default skeleton ───
   function getDefaultTree() {
@@ -55,8 +133,6 @@ const ProjectTree = (function () {
       id: 'project', icon: '', label: 'Project', open: true, type: 'root',
       children: [
         { id: 'roofs', icon: '', label: 'ROOF', open: true, type: 'roof-group', children: [] },
-        { id: 'inverters', icon: '⚡', label: 'INVERTER', open: false, type: 'equipment-group', children: [] },
-        { id: 'batteries', icon: '🔋', label: 'BATTERY', open: false, type: 'equipment-group', children: [] },
       ]
     };
   }
@@ -94,14 +170,12 @@ const ProjectTree = (function () {
   const CONTEXT_MENUS = {
     root:              [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
     'roof-group':      [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
-    'equipment-group': [{ action: 'add-equipment', label: '➕ Add' }, { sep: true }, { action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
     folder:   [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
-    panels:   [{ action: 'edit-roof', label: '✏️ Edit Roof' }],
-    feature:  [{ action: 'add-panel', label: '⊞ Add Panel' }],
+    panels:   [{ action: 'edit-roof', label: 'Edit Roof' }],
+    feature:  [{ action: 'add-panel', label: 'Add Panel' }],
     param:    [{ action: 'copy-value', label: 'Copy Value' }],
     data:     [{ action: 'copy-value', label: 'Copy Value' }],
-    panel:    [{ action: 'delete-panel', label: '🗑 Delete Panel' }],
-    'equipment-item': [{ action: 'delete-equipment', label: '🗑 Delete' }]
+    panel:    [{ action: 'delete-panel', label: 'Delete Panel' }]
   };
 
   // ─── Render ───
@@ -159,7 +233,7 @@ const ProjectTree = (function () {
     }
 
     // Count badge
-    if (hasChildren && (node.type === 'root' || node.type === 'roof-group' || node.type === 'equipment-group')) {
+    if (hasChildren && (node.type === 'root' || node.type === 'roof-group')) {
       const badge = document.createElement('span');
       badge.className = 'ptree-badge';
       badge.textContent = node.children.length;
@@ -278,12 +352,6 @@ const ProjectTree = (function () {
         if (onContextActionCallback) onContextActionCallback('add-panel', node);
         showPanelBrowser(node.id);
         break;
-      case 'add-equipment':
-        showEquipmentBrowser(node.id);
-        break;
-      case 'delete-equipment':
-        deleteEquipmentItem(node);
-        break;
       case 'select-3d': case 'hide': case 'show':
       case 'edit-roof':
       case 'delete-panel':
@@ -398,7 +466,6 @@ const ProjectTree = (function () {
   // ─── Panel Browser ───
   function showPanelBrowser(roofId) {
     panelBrowserRoofId = roofId;
-    hideEquipmentBrowser();
     const panel = treeRoot?.closest('.project-tree-panel');
     if (!panel) return;
 
@@ -414,7 +481,12 @@ const ProjectTree = (function () {
     if (treeRoot) treeRoot.style.display = 'none';
     panelBrowserEl.style.display = 'flex';
 
-    renderPanelBrowser('');
+    renderPanelBrowser('', true);
+    ensurePanelCatalogLoaded().then(() => {
+      if (panelBrowserEl && panelBrowserEl.style.display !== 'none') {
+        renderPanelBrowser('');
+      }
+    });
     updateStatusBar(null);
     const bar = document.getElementById('ptreeStatusText');
     if (bar) {
@@ -430,11 +502,15 @@ const ProjectTree = (function () {
     updateStatusBar(selectedId);
   }
 
-  function renderPanelBrowser(filterText) {
+  function renderPanelBrowser(filterText, loading) {
     if (!panelBrowserEl) return;
     const ft = (filterText || '').toLowerCase();
-    const filtered = DEMO_PANELS.filter(p =>
-      !ft || p.brand.toLowerCase().includes(ft) || p.model.toLowerCase().includes(ft) || String(p.watt).includes(ft)
+    const catalog = panelCatalog || [];
+    const filtered = catalog.filter(p =>
+      !ft ||
+      p.brand.toLowerCase().includes(ft) ||
+      p.model.toLowerCase().includes(ft) ||
+      String(p.watt || '').includes(ft)
     );
 
     const roofNode = panelBrowserRoofId ? findNode(treeData, panelBrowserRoofId) : null;
@@ -449,20 +525,33 @@ const ProjectTree = (function () {
         <input type="text" class="pb-search" placeholder="Search brand, model, watt..." value="${filterText || ''}" autocomplete="off" spellcheck="false">
       </div>
       <div class="pb-list">
-        ${filtered.map((p, i) => `
-          <div class="pb-card" data-idx="${i}" data-brand="${p.brand}" data-model="${p.model}" data-watt="${p.watt}" data-price="${p.price}" data-modelkey="${p.modelKey || ''}">
+        ${loading ? '<div class="pb-empty">Loading panel catalog...</div>' : ''}
+        ${!loading ? filtered.map((p, i) => `
+          <div class="pb-card"
+               data-idx="${i}"
+               data-panelid="${p.panelId}"
+               data-brand="${p.brand}"
+               data-model="${p.model}"
+               data-type="${p.type || ''}"
+               data-watt="${p.watt || 0}"
+               data-price="${p.price || 0}"
+               data-eff="${p.eff != null ? p.eff : ''}"
+               data-lengthm="${p.lengthM}"
+               data-widthm="${p.widthM}"
+               data-thicknessm="${p.thicknessM}">
             <div class="pb-card-top">
               <span class="pb-brand">${p.brand} ${p.model}</span>
-              <span class="pb-price">$${p.price}</span>
+              <span class="pb-price">¥${(p.price || 0).toLocaleString()}</span>
             </div>
-            <div class="pb-model">${p.cells ? p.cells + ' cells' : ''} ${p.dims ? '· ' + p.dims : ''}</div>
+            <div class="pb-model">${p.type || ''} · ${p.lengthM.toFixed(3)} × ${p.widthM.toFixed(3)} m</div>
             <div class="pb-card-bottom">
-              <span class="pb-watt">${p.watt}W</span>
+              <span class="pb-watt">${p.watt || 0}W</span>
               <span class="pb-eff">${p.eff != null ? p.eff + '% eff' : ''}</span>
             </div>
           </div>
-        `).join('')}
-        ${filtered.length === 0 ? '<div class="pb-empty">No panels found</div>' : ''}
+        `).join('') : ''}
+        ${!loading && catalog.length === 0 ? '<div class="pb-empty">No panel data loaded</div>' : ''}
+        ${!loading && catalog.length > 0 && filtered.length === 0 ? '<div class="pb-empty">No panels found</div>' : ''}
       </div>
     `;
 
@@ -490,173 +579,40 @@ const ProjectTree = (function () {
 
         const brand = card.dataset.brand;
         const model = card.dataset.model;
-        const watt = card.dataset.watt;
-        const price = card.dataset.price;
-        const modelKey = card.dataset.modelkey;
+        const panelId = card.dataset.panelid;
+        const watt = Number(card.dataset.watt || 0);
+        const price = Number(card.dataset.price || 0);
+        const eff = card.dataset.eff === '' ? null : Number(card.dataset.eff);
+        const lengthM = Number(card.dataset.lengthm || 0);
+        const widthM = Number(card.dataset.widthm || 0);
+        const thicknessM = Number(card.dataset.thicknessm || DEFAULT_PANEL_THICKNESS_M);
+        const panelType = card.dataset.type || '';
         const roofId = panelBrowserRoofId;
 
         if (onContextActionCallback) {
           onContextActionCallback('panel-selected', {
             roofId,
-            brand, model, watt: Number(watt), price: Number(price), modelKey
+            panelId,
+            brand,
+            model,
+            watt,
+            price,
+            panelSpec: {
+              panelId,
+              brand,
+              model,
+              type: panelType,
+              watt,
+              price,
+              eff: Number.isFinite(eff) ? eff : null,
+              lengthM,
+              widthM,
+              thicknessM
+            }
           });
         }
       });
     });
-  }
-
-  // ─── Equipment Browser (Inverter / Battery) ───
-  let equipBrowserEl = null;
-  let equipBrowserGroupId = null;
-
-  function showEquipmentBrowser(groupId) {
-    equipBrowserGroupId = groupId;
-    hidePanelBrowser();
-    const panel = treeRoot?.closest('.project-tree-panel');
-    if (!panel) return;
-
-    if (!equipBrowserEl) {
-      equipBrowserEl = document.createElement('div');
-      equipBrowserEl.className = 'panel-browser';
-      const insertAnchor = panel.querySelector('.ptree-resize-handle') || panel.querySelector('.ptree-status-bar');
-      panel.insertBefore(equipBrowserEl, insertAnchor || null);
-    }
-
-    if (treeRoot) treeRoot.style.display = 'none';
-    if (panelBrowserEl) panelBrowserEl.style.display = 'none';
-    equipBrowserEl.style.display = 'flex';
-
-    renderEquipmentBrowser('');
-  }
-
-  function hideEquipmentBrowser() {
-    if (equipBrowserEl) equipBrowserEl.style.display = 'none';
-    if (treeRoot) treeRoot.style.display = '';
-    equipBrowserGroupId = null;
-    updateStatusBar(selectedId);
-  }
-
-  function renderEquipmentBrowser(filterText) {
-    if (!equipBrowserEl || !equipBrowserGroupId) return;
-    const isInverter = equipBrowserGroupId === 'inverters';
-    const catalog = isInverter ? DEMO_INVERTERS : DEMO_BATTERIES;
-    const title = isInverter ? 'INVERTER' : 'BATTERY';
-    const ft = (filterText || '').toLowerCase();
-
-    const filtered = catalog.filter(item =>
-      !ft || item.brand.toLowerCase().includes(ft) || item.model.toLowerCase().includes(ft) ||
-      (item.kw && String(item.kw).includes(ft)) || (item.kwh && String(item.kwh).includes(ft))
-    );
-
-    let cardsHtml;
-    if (isInverter) {
-      cardsHtml = filtered.map((p, i) => `
-        <div class="pb-card" data-idx="${i}" data-brand="${p.brand}" data-model="${p.model}">
-          <div class="pb-card-top">
-            <span class="pb-brand">${p.brand} ${p.model}</span>
-            <span class="pb-price">$${p.price}</span>
-          </div>
-          <div class="pb-model">${p.type} · ${p.phase}Φ</div>
-          <div class="pb-card-bottom">
-            <span class="pb-watt">${p.kw} kW</span>
-            <span class="pb-eff">${p.eff}% eff</span>
-          </div>
-        </div>
-      `).join('');
-    } else {
-      cardsHtml = filtered.map((p, i) => `
-        <div class="pb-card" data-idx="${i}" data-brand="${p.brand}" data-model="${p.model}">
-          <div class="pb-card-top">
-            <span class="pb-brand">${p.brand} ${p.model}</span>
-            <span class="pb-price">$${p.price.toLocaleString()}</span>
-          </div>
-          <div class="pb-model">${p.chemistry} · ${p.warranty}</div>
-          <div class="pb-card-bottom">
-            <span class="pb-watt">${p.kwh} kWh</span>
-            <span class="pb-eff">${p.kw} kW</span>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    const searchPlaceholder = isInverter
-      ? 'Search brand, model, kW...'
-      : 'Search brand, model, kWh...';
-
-    equipBrowserEl.innerHTML = `
-      <div class="pb-header">
-        <button class="pb-back-btn" title="Back to tree">← Back</button>
-        <span class="pb-title">Add ${title}</span>
-      </div>
-      <div class="pb-search-wrap">
-        <input type="text" class="pb-search" placeholder="${searchPlaceholder}" value="${filterText || ''}" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="pb-list">
-        ${cardsHtml}
-        ${filtered.length === 0 ? `<div class="pb-empty">No ${title.toLowerCase()}s found</div>` : ''}
-      </div>
-    `;
-
-    // Wire back
-    equipBrowserEl.querySelector('.pb-back-btn').addEventListener('click', () => {
-      hideEquipmentBrowser();
-    });
-
-    // Wire search
-    const searchInput = equipBrowserEl.querySelector('.pb-search');
-    let debounce = null;
-    searchInput.addEventListener('input', () => {
-      clearTimeout(debounce);
-      debounce = setTimeout(() => renderEquipmentBrowser(searchInput.value), 150);
-    });
-    searchInput.focus();
-
-    // Wire card click → add item to tree
-    equipBrowserEl.querySelectorAll('.pb-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const brand = card.dataset.brand;
-        const model = card.dataset.model;
-        addEquipmentItem(equipBrowserGroupId, brand, model);
-        // Brief highlight
-        card.classList.add('active');
-        setTimeout(() => card.classList.remove('active'), 400);
-      });
-    });
-  }
-
-  function addEquipmentItem(groupId, brand, model) {
-    if (!treeData) return;
-    const groupNode = findNode(treeData, groupId);
-    if (!groupNode) return;
-    const count = groupNode.children.length;
-    const prefix = groupId === 'inverters' ? 'inv' : 'bat';
-    const label = `${brand} ${model}`;
-
-    // Check for duplicate model — increment counter
-    const existing = groupNode.children.filter(c => c._baseLabel === label);
-    const suffix = existing.length > 0 ? ` (${existing.length + 1})` : '';
-
-    groupNode.children.push({
-      id: `${prefix}-${count}`, icon: groupId === 'inverters' ? '⚡' : '🔋',
-      label: label + suffix, type: 'equipment-item',
-      _baseLabel: label
-    });
-    groupNode.open = true;
-    render();
-  }
-
-  function deleteEquipmentItem(node) {
-    if (!treeData) return;
-    // Find parent group
-    for (const group of treeData.children) {
-      if (!group.children) continue;
-      const idx = group.children.indexOf(node);
-      if (idx >= 0) {
-        group.children.splice(idx, 1);
-        render();
-        return;
-      }
-    }
   }
 
   function getSelected() { return selectedId; }
@@ -666,7 +622,6 @@ const ProjectTree = (function () {
     updateRoofs, updatePanels,
     getSelected, selectNode,
     showPanelBrowser, hidePanelBrowser,
-    showEquipmentBrowser, hideEquipmentBrowser,
     set onSelect(fn) { onSelectCallback = fn; },
     set onContextAction(fn) { onContextActionCallback = fn; },
     findNode: (id) => treeData ? findNode(treeData, id) : null,
