@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Solar ROI Calculator - Calculate</title>
   <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/app.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script type="importmap">
     {
@@ -15,38 +16,45 @@
     }
   </script>
   <style>
+    body {
+      /* Inherit grid pattern from base.css; layer a subtle gradient on top */
+      background-color: var(--bg-surface);
+    }
+
     .calc-container {
-      max-width: 980px;
-      margin: var(--sp-3) auto;
-      padding: var(--sp-4) var(--sp-5);
-      background: var(--bg-card);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-lg);
-      box-shadow: 0 12px 24px rgba(15, 39, 53, 0.08);
+      max-width: 1200px;
+      margin: 18px auto 32px;
+      padding: 0 var(--sp-5) var(--sp-5);
     }
 
     .calc-header {
+      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
+      border: 1px solid #aab2b8;
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: inset 0 1px 0 #ffffff, 0 10px 20px rgba(15, 39, 53, 0.12);
       margin-bottom: var(--sp-4);
-      padding-bottom: var(--sp-3);
-      border-bottom: 1px solid var(--border-light);
     }
 
     .calc-header h2 {
-      font-size: var(--text-lg);
-      font-weight: 600;
-      color: var(--text-primary);
-      margin: 0 0 var(--sp-1) 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: #1f272d;
+      margin: 0 0 6px 0;
+      letter-spacing: 0.04em;
     }
 
     .calc-header p {
-      font-size: var(--text-sm);
-      color: var(--text-muted);
-      margin: 0;
+      font-size: 14px;
+      color: #5f6971;
+      margin: 0 0 10px 0;
     }
+
+    .calc-steps { display: none; }
 
     .calc-layout {
       display: grid;
-      grid-template-columns: 260px 1fr;
+      grid-template-columns: 300px 1fr;
       gap: var(--sp-4);
       align-items: start;
     }
@@ -55,55 +63,61 @@
       display: flex;
       flex-direction: column;
       gap: var(--sp-3);
-      border-right: 1px solid var(--border-light);
-      padding-right: var(--sp-3);
+      padding: var(--sp-3);
+      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
+      border: 1px solid #aab2b8;
+      border-radius: var(--radius-md);
+      box-shadow: inset 0 1px 0 #ffffff;
       min-height: 520px;
     }
 
     .project-panel-title {
-      font-size: var(--text-md);
-      font-weight: 600;
-      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 700;
+      color: #1f272d;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
 
     .project-list {
       display: flex;
       flex-direction: column;
       gap: var(--sp-2);
-      max-height: 420px;
+      max-height: 440px;
       overflow-y: auto;
       padding-right: 4px;
     }
 
     .dataset-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-light);
+      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
+      border: 1px solid #aab2b8;
       border-radius: var(--radius-sm);
       padding: var(--sp-2) var(--sp-3);
       cursor: pointer;
       transition: all 0.1s ease;
+      box-shadow: inset 0 1px 0 #ffffff;
     }
 
     .dataset-card:hover {
-      border-color: var(--accent);
+      border-color: #1c4f6e;
     }
 
     .dataset-card.selected {
-      border-color: var(--accent);
-      background: var(--accent-subtle);
+      border-color: #1c4f6e;
+      background: linear-gradient(180deg, #e7eef4 0%, #d1d9e1 100%);
       border-width: 2px;
       padding: calc(var(--sp-3) - 1px);
     }
 
     .dataset-name {
-      font-size: var(--text-md);
+      font-size: 16px;
       font-weight: 600;
       color: var(--text-primary);
       margin-bottom: var(--sp-2);
     }
 
     .dataset-meta {
-      font-size: var(--text-xs);
+      font-size: 12px;
       color: var(--text-muted);
       display: flex;
       flex-direction: column;
@@ -158,9 +172,9 @@
     }
 
     .action-bar button {
-      padding: var(--sp-2) var(--sp-4);
+      padding: 10px 16px;
       border-radius: var(--radius-sm);
-      font-size: var(--text-sm);
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       border: 1px solid transparent;
@@ -212,26 +226,30 @@
     }
 
     .model-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-light);
+      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
+      border: 1px solid #aab2b8;
       border-radius: var(--radius-md);
       padding: var(--sp-3);
+      box-shadow: inset 0 1px 0 #ffffff, 0 8px 18px rgba(15, 39, 53, 0.08);
     }
 
     .model-card-title {
-      font-size: var(--text-md);
-      font-weight: 600;
-      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 700;
+      color: #1f272d;
       margin-bottom: var(--sp-2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .model-viewer-wrap {
       position: relative;
-      height: 360px;
-      background: var(--bg-surface);
+      height: 420px;
+      background: #e8ecef;
       border-radius: var(--radius-md);
-      border: 1px dashed var(--border-medium);
+      border: 1px solid #9aa1a6;
       overflow: hidden;
+      box-shadow: inset 0 1px 0 #ffffff;
     }
 
     #threeModelHost,
@@ -288,7 +306,7 @@
     }
 
     .chart-title {
-      font-size: var(--text-md);
+      font-size: 15px;
       font-weight: 600;
       color: var(--text-primary);
       margin: 0;
@@ -302,7 +320,7 @@
     }
 
     .chart-controls label {
-      font-size: var(--text-sm);
+      font-size: 13px;
       color: var(--text-muted);
     }
 
@@ -358,7 +376,7 @@
     }
 
     .btn-update-chart {
-      padding: var(--sp-2) var(--sp-3);
+      padding: 10px 14px;
       background: var(--accent);
       color: #fff;
       border: none;
@@ -391,9 +409,11 @@
       position: relative;
       height: 320px;
       width: 100%;
-      background: var(--bg-surface);
+      background: #e8ecef;
       border-radius: var(--radius-md);
       padding: var(--sp-3);
+      border: 1px solid #9aa1a6;
+      box-shadow: inset 0 1px 0 #ffffff;
     }
 
     .chart-loading {
@@ -428,14 +448,14 @@
     }
 
     .summary-stat-value {
-      font-size: var(--text-lg);
+      font-size: 18px;
       font-weight: 700;
       color: var(--accent);
       font-family: var(--font-mono);
     }
 
     .summary-stat-label {
-      font-size: var(--text-xs);
+      font-size: 12px;
       color: var(--text-muted);
       margin-top: 2px;
     }
@@ -450,10 +470,10 @@
     .sizing-section {
       margin-top: var(--sp-4);
       padding: var(--sp-4);
-      background: var(--bg-card);
-      border: 1px solid var(--border-light);
+      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
+      border: 1px solid #aab2b8;
       border-radius: var(--radius-md);
-      box-shadow: 0 10px 20px rgba(15, 39, 53, 0.06);
+      box-shadow: inset 0 1px 0 #ffffff, 0 10px 20px rgba(15, 39, 53, 0.08);
       display: none;
     }
 
@@ -499,91 +519,278 @@
       font-size: var(--text-xs);
     }
 
-    /* Roof Info Table Overlay */
-    .roof-info-table {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid var(--border-light);
+    /* Report Section */
+    .report-section {
+      margin-top: var(--sp-5);
+      padding: var(--sp-4);
+      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
+      border: 1px solid #aab2b8;
       border-radius: var(--radius-md);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      padding: 12px;
-      min-width: 200px;
-      max-width: 280px;
-      z-index: 10;
-      font-size: var(--text-xs);
+      box-shadow: inset 0 1px 0 #ffffff, 0 10px 20px rgba(15, 39, 53, 0.08);
+      display: none;
     }
 
-    .roof-info-table table {
-      width: 100%;
-      border-collapse: collapse;
+    .report-section.visible {
+      display: block;
     }
 
-    .roof-info-table th {
-      text-align: left;
-      padding: 6px 8px;
-      background: var(--bg-ink);
-      color: var(--text-inverse);
-      font-weight: 600;
-      font-size: var(--text-xs);
-      border-bottom: 2px solid var(--border-light);
-    }
-
-    .roof-info-table th:first-child {
-      border-radius: var(--radius-sm) 0 0 0;
-    }
-
-    .roof-info-table th:last-child {
-      border-radius: 0 var(--radius-sm) 0 0;
-    }
-
-    .roof-info-table td {
-      padding: 8px;
+    .report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--sp-2);
       border-bottom: 1px solid var(--border-light);
+      padding-bottom: var(--sp-2);
+      margin-bottom: var(--sp-3);
+    }
+
+    .report-title {
+      font-size: var(--text-md);
+      font-weight: 700;
       color: var(--text-primary);
+    }
+
+    .report-subtitle {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    .report-actions {
+      display: flex;
+      gap: var(--sp-2);
+      align-items: center;
+    }
+
+    .btn-report {
+      padding: 6px 12px;
+      font-size: var(--text-xs);
+      font-weight: 700;
+      color: #f6f8fa;
+      background: linear-gradient(180deg, #2b5875 0%, #1f3f57 100%);
+      border: 1px solid #1f3f57;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-report:hover {
+      background: linear-gradient(180deg, #306484 0%, #244860 100%);
+    }
+
+    .report-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: var(--sp-2);
+      margin-bottom: var(--sp-3);
+    }
+
+    .report-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: var(--sp-2) var(--sp-3);
+    }
+
+    .report-card-value {
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--accent);
       font-family: var(--font-mono);
     }
 
-    .roof-info-table tr:last-child td {
-      border-bottom: none;
+    .report-card-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-top: 2px;
     }
 
-    .roof-info-table tr:hover td {
-      background: var(--accent-subtle);
+    .report-image-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-3);
     }
 
-    .roof-color-indicator {
-      display: inline-block;
-      width: 12px;
+    .report-image-card {
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      padding: var(--sp-2);
+    }
+
+    .report-image-title {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: var(--sp-2);
+    }
+
+    .report-image-card img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      background: #e1e5e9;
+      border: 1px solid var(--border-light);
+    }
+
+    .report-image-empty {
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      background: #eef1f4;
+      border: 1px dashed var(--border-medium);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+    }
+
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--text-sm);
+      margin-bottom: var(--sp-3);
+    }
+
+    .report-table th,
+    .report-table td {
+      text-align: left;
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .report-table th {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .report-charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: var(--sp-3);
+    }
+
+    .report-chart-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: var(--sp-2);
+      height: 280px;
+    }
+
+    .report-chart-title {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: var(--sp-2);
+    }
+
+    .report-gauge {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+      gap: var(--sp-2);
+    }
+
+    .gauge-bar {
       height: 12px;
-      border-radius: 50%;
-      margin-right: 6px;
-      vertical-align: middle;
-      border: 1px solid rgba(0, 0, 0, 0.2);
+      background: #e1e5e9;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border-light);
     }
+
+    .gauge-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1c4f6e 0%, #3b82a0 100%);
+      width: 0%;
+      transition: width 0.2s ease;
+    }
+
+    .gauge-value {
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+
+    .gauge-note {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    .report-assumptions {
+      margin-top: var(--sp-3);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+      .top-strip,
+      .sub-strip,
+      .project-panel,
+      .chart-section,
+      .sizing-section,
+      .model-card,
+      .action-bar,
+      .report-actions {
+        display: none !important;
+      }
+      .calc-container {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+      }
+      .calc-layout {
+        grid-template-columns: 1fr;
+      }
+      .report-section {
+        display: block !important;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+      }
+      .report-image-card img {
+        height: 180px;
+      }
+    }
+
   </style>
 </head>
 <body>
 
   <div class="top-strip">
-    <img src="/static/images/kosen_logo.png" alt="Kosen">
-    <img src="/static/images/cesium_logo.png" alt="Cesium">
+    <div class="top-strip-left">
+      <img src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="SUNSCOPE">
+    </div>
+    <div class="top-strip-right">
+      <img src="/static/images/kosen_logo.png" alt="Kosen">
+      <img src="/static/images/cesium_logo.png" alt="Cesium">
+    </div>
   </div>
 
   <div class="sub-strip">
     <div class="sub-strip-left">
-      <div class="sub-strip-title">Solar ROI Calculator</div>
-      <a href="/app">User information</a>
-      <a href="/calculate" class="active">Calculation</a>
+      <div class="sub-strip-title">SUNSCOPE</div>
+      <a href="/app">Workspace</a>
+      <a href="/calculate" class="active">Analysis</a>
     </div>
     <a href="#" id="logoutLink" class="sub-strip-logout">Logout</a>
   </div>
 
   <div class="calc-container">
     <div class="calc-header">
-      <h2>Calculation</h2>
-      <p>Select a project on the left to preview the roof model and chart.</p>
+      <h2>Analysis Workspace</h2>
+      <p>Select a project and click “Estimate System” to generate the report below.</p>
     </div>
 
     <div class="calc-layout">
@@ -591,7 +798,7 @@
         <div class="project-panel-title">Projects</div>
         <div id="datasetsContainer" class="loading project-list">Loading projects...</div>
         <div class="action-bar" id="actionBar" style="display: none;">
-          <button class="btn-calc" id="btnCalc" disabled>Show Irradiation</button>
+          <button class="btn-calc" id="btnEstimate" disabled>Estimate System</button>
           <button class="btn-del" id="btnDel" disabled>Delete</button>
           <span class="selected-info" id="selectedInfo">No selection</span>
         </div>
@@ -623,43 +830,11 @@
             </div>
           </div>
         </div>
-        <div class="model-card" id="solarModelCard" style="display:none;">
-          <div class="model-card-title">Roof + Solar Panels</div>
-          <div class="model-viewer-wrap">
-            <div id="threeModelHostSolar"></div>
-            <div class="model-placeholder" id="modelPlaceholderSolar">Calculate system size to preview panels.</div>
-            <div class="model-loading hidden" id="modelLoadingSolar">Loading roof model...</div>
-            <!-- Roof Info Table Overlay -->
-            <div id="roofInfoTableSolar" class="roof-info-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Roof</th>
-                    <th>Tilt (°)</th>
-                    <th>Azimuth (°)</th>
-                    <th>Height (m)</th>
-                    <th>Area (m²)</th>
-                  </tr>
-                </thead>
-                <tbody id="roofInfoTableBodySolar">
-                  <!-- Populated by JS -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Irradiation Chart Section -->
+        <!-- Irradiation + Sizing (hidden until estimate) -->
         <div class="chart-section" id="chartSection">
           <div class="chart-header">
             <h3 class="chart-title">Monthly Solar Irradiation <span class="data-source-badge">PVGIS</span></h3>
           </div>
-          <div class="chart-controls">
-            <label>Select roofs:</label>
-            <button class="btn-update-chart" id="btnUpdateChart">Update Chart</button>
-            <button class="btn-update-chart" id="btnSize" disabled>Calculate System Size</button>
-          </div>
-          <div class="roof-checkbox-list" id="roofCheckboxList"></div>
           <div class="chart-container">
             <canvas id="irradiationChart"></canvas>
             <div class="chart-loading" id="chartLoading">Loading irradiation data from PVGIS...</div>
@@ -676,6 +851,63 @@
           <div class="sizing-breakdown" id="sizingBreakdown"></div>
           <div class="sizing-breakdown" id="sizingInstalled"></div>
           <div class="sizing-note" id="sizingNote"></div>
+        </section>
+
+        <section class="report-section" id="reportSection">
+          <div class="report-header">
+            <div>
+              <div class="report-title">ROI Report (No Shading)</div>
+              <div class="report-subtitle" id="reportSubtitle">Select a project and calculate sizing to generate the report.</div>
+            </div>
+            <div class="report-actions">
+              <button class="btn-report" id="btnExportPdf" type="button">Export PDF</button>
+            </div>
+          </div>
+
+          <div class="report-grid" id="reportSummary"></div>
+
+          <div class="report-image-row">
+            <div class="report-image-card">
+              <div class="report-image-title">Roof Capture</div>
+              <div class="report-image-empty" id="roofImageEmpty">No roof image available</div>
+              <img id="roofImage" alt="Roof capture" style="display:none;">
+            </div>
+            <div class="report-image-card">
+              <div class="report-image-title">3D Model Capture</div>
+              <div class="report-image-empty" id="modelImageEmpty">No model image available</div>
+              <img id="modelImage" alt="Model capture" style="display:none;">
+            </div>
+          </div>
+
+          <div class="model-card-title" style="margin-top: var(--sp-2);">Bill of Materials</div>
+          <table class="report-table" id="bomTable"></table>
+
+          <div class="report-charts">
+            <div class="report-chart-card">
+              <div class="report-chart-title">Monthly Energy Balance</div>
+              <canvas id="energyChart"></canvas>
+            </div>
+            <div class="report-chart-card">
+              <div class="report-chart-title">Cumulative Cashflow</div>
+              <canvas id="cashflowChart"></canvas>
+            </div>
+            <div class="report-chart-card">
+              <div class="report-chart-title">Monthly Bill Comparison</div>
+              <canvas id="billChart"></canvas>
+            </div>
+            <div class="report-chart-card">
+              <div class="report-chart-title">Self‑Consumption Ratio</div>
+              <div class="report-gauge">
+                <div class="gauge-value" id="selfGaugeValue">0%</div>
+                <div class="gauge-bar">
+                  <div class="gauge-fill" id="selfGaugeFill"></div>
+                </div>
+                <div class="gauge-note" id="selfGaugeNote">PV used onsite vs total PV generation</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="report-assumptions" id="reportAssumptions"></div>
         </section>
       </main>
     </div>
@@ -704,21 +936,34 @@
       };
       const DEFAULT_CHART_COLOR = [26, 82, 118];
 
+      // Static exchange rates (base: USD)
+      const FX_RATES_TO_USD = { USD: 1, EUR: 0.92, JPY: 150, THB: 35.5 };
+      window.CurrencyUtil = {
+        convert(val, from, to) {
+          const v = Number(val) || 0;
+          if (from === to || !from || !to) return v;
+          const fromRate = FX_RATES_TO_USD[from];
+          const toRate = FX_RATES_TO_USD[to];
+          if (!fromRate || !toRate) return v;
+          return v / fromRate * toRate;
+        }
+      };
+
       let selectedId = null;
       let datasets = [];
       let currentProject = null;
       let irradiationChart = null;
-      let selectedRoofIndices = new Set(); // Track selected roof indices
+      let energyChart = null;
+      let cashflowChart = null;
+      let billChart = null;
+      let selectedRoofIndices = new Set(); // kept for color mix (all roofs)
       let currentModelUrl = null;
+      let lastIrradiationData = null;
+      let panelPricePerWattJPY = null;
 
       const modelHost = document.getElementById("threeModelHost");
       const modelPlaceholder = document.getElementById("modelPlaceholder");
       const modelLoading = document.getElementById("modelLoading");
-      const modelHostSolar = document.getElementById("threeModelHostSolar");
-      const modelPlaceholderSolar = document.getElementById("modelPlaceholderSolar");
-      const modelLoadingSolar = document.getElementById("modelLoadingSolar");
-      const solarModelCard = document.getElementById("solarModelCard");
-      const btnSize = document.getElementById("btnSize");
       const sizingSection = document.getElementById("sizingSection");
       const sizingLoading = document.getElementById("sizingLoading");
       const sizingError = document.getElementById("sizingError");
@@ -726,12 +971,23 @@
       const sizingBreakdown = document.getElementById("sizingBreakdown");
       const sizingInstalled = document.getElementById("sizingInstalled");
       const sizingNote = document.getElementById("sizingNote");
+      const reportSection = document.getElementById("reportSection");
+      const reportSummary = document.getElementById("reportSummary");
+      const reportSubtitle = document.getElementById("reportSubtitle");
+      const roofImage = document.getElementById("roofImage");
+      const roofImageEmpty = document.getElementById("roofImageEmpty");
+      const modelImage = document.getElementById("modelImage");
+      const modelImageEmpty = document.getElementById("modelImageEmpty");
+      const bomTable = document.getElementById("bomTable");
+      const reportAssumptions = document.getElementById("reportAssumptions");
+      const btnExportPdf = document.getElementById("btnExportPdf");
+      const selfGaugeValue = document.getElementById("selfGaugeValue");
+      const selfGaugeFill = document.getElementById("selfGaugeFill");
+      const selfGaugeNote = document.getElementById("selfGaugeNote");
 
       let baseViewer = null;
-      let solarViewer = null;
       let modelLoadToken = 0;
       let sizingData = null;
-      let solarModelUrl = null;
       function createViewer(host) {
         if (!host) return null;
         const scene = new THREE.Scene();
@@ -970,164 +1226,6 @@
         return placements;
       }
 
-      function renderSolarFromPolygons() {
-        if (!solarViewer || !currentProject || !sizingData) return;
-        clearViewer(solarViewer);
-        console.info("[Solar] render start", {
-          roofs: (currentProject.roofs || []).length,
-          hasSizing: !!sizingData
-        });
-
-        const roofs = currentProject.roofs || [];
-        if (!roofs.length) return;
-        const firstPoly = roofs.find(r => (r.polygon || []).length >= 3);
-        const ref = firstPoly?.polygon?.[0];
-        if (!ref) {
-          if (modelPlaceholderSolar) {
-            modelPlaceholderSolar.textContent = "No roof boundary found for this project.";
-            modelPlaceholderSolar.classList.remove("hidden");
-          }
-          return;
-        }
-        const lat0 = Array.isArray(ref) ? ref[0] : ref.lat;
-        const lon0 = Array.isArray(ref) ? ref[1] : ref.lon;
-        if (!Number.isFinite(lat0) || !Number.isFinite(lon0)) {
-          if (modelPlaceholderSolar) {
-            modelPlaceholderSolar.textContent = "Invalid roof boundary coordinates.";
-            modelPlaceholderSolar.classList.remove("hidden");
-          }
-          return;
-        }
-        console.info("[Solar] ref lat/lon", lat0, lon0);
-
-        const perRoofSizing = new Map();
-        (sizingData.per_roof || []).forEach(r => perRoofSizing.set(r.index, r));
-
-        const group = new THREE.Group();
-        roofs.forEach(roof => {
-          const poly = roof.polygon || [];
-          if (poly.length < 3) return;
-          console.info("[Solar] roof poly", roof.index, poly.length);
-          const ptsEnu = poly.map(p => {
-            const lat = Array.isArray(p) ? p[0] : p.lat;
-            const lon = Array.isArray(p) ? p[1] : p.lon;
-            const height = Array.isArray(p) ? (p[2] || 0) : (p.height || 0);
-            const ecef = latlonToEcef(lat, lon, height);
-            const enu = ecefToEnu(ecef, lat0, lon0);
-            // Map ENU (E,N,U) to Three (X,Y,Z) where Y is up
-            return new THREE.Vector3(enu.x, enu.z, enu.y);
-          });
-          const color = ROOF_COLOR_MAP[roof.color_name] || DEFAULT_CHART_COLOR;
-          const colorHex = (color[0] << 16) + (color[1] << 8) + color[2];
-          const built = buildRoofMesh(ptsEnu, colorHex, 0.3);
-          group.add(built.mesh);
-
-          const sizing = perRoofSizing.get(roof.index)?.sizing;
-          console.info("[Solar] roof sizing", roof.index, sizing);
-          if (!sizing || !sizing.fits_on_roof || !(sizing.panel_count > 0)) return;
-          const panelW = (sizing.panel_dimensions || {}).width_m || 1.134;
-          const panelH = (sizing.panel_dimensions || {}).height_m || 1.762;
-          const placements = placePanelsInPolygon(built.pts2d, sizing.panel_count, panelW, panelH);
-          console.info("[Solar] placements", roof.index, placements.length);
-          if (!placements.length) return;
-
-          const panelT = 0.4;
-          const geom = new THREE.BoxGeometry(panelW, panelH, panelT);
-          const mat = new THREE.MeshStandardMaterial({
-            color: 0x0a0a0a,
-            roughness: 0.25,
-            metalness: 0.25,
-            emissive: 0x050505,
-            clearcoat: 0.35,
-            clearcoatRoughness: 0.25
-          });
-          const inst = new THREE.InstancedMesh(geom, mat, placements.length);
-          placements.forEach((p2, idx) => {
-            const pos = built.centroid.clone()
-              .add(built.u.clone().multiplyScalar(p2.x))
-              .add(built.v.clone().multiplyScalar(p2.y))
-              .add(built.normal.clone().multiplyScalar(panelT / 2 + 0.02));
-            const tangent = built.u.clone();
-            const bitangent = built.v.clone();
-            const m = new THREE.Matrix4().makeBasis(tangent, bitangent, built.normal);
-            m.setPosition(pos);
-            inst.setMatrixAt(idx, m);
-          });
-          inst.instanceMatrix.needsUpdate = true;
-          group.add(inst);
-        });
-
-        // Lay roof flat: rotate +90° around X axis (facing DOWNWARD - user confirmed)
-        group.rotation.x = Math.PI / 2;
-        // Align to grid: ensure roof edge is colinear with grid line
-        const yaw = getPrincipalYaw(group);
-        const snapAngle = Math.round(yaw / (Math.PI / 2)) * (Math.PI / 2);
-        // Consistent downward orientation: always add PI to flip upside down
-        group.rotation.z = snapAngle - yaw + Math.PI;
-
-        solarViewer.scene.add(group);
-        solarViewer.root = group;
-        const box = new THREE.Box3().setFromObject(group);
-        const size = new THREE.Vector3();
-        const center = new THREE.Vector3();
-        box.getSize(size);
-        box.getCenter(center);
-        group.position.sub(center);
-
-        // 3D model: auto-scale for visual (decoration)
-        const autoScale = 5 / (Math.max(size.x, size.y, size.z) || 1);
-        group.scale.setScalar(autoScale);
-        
-        const box2 = new THREE.Box3().setFromObject(group);
-        if (Number.isFinite(box2.min.y)) {
-          group.position.y -= box2.min.y;
-        }
-        // Y offset: scale proportionally to 3D model size (not table data)
-        const visualHeight = size.y * autoScale;
-        group.position.y += visualHeight * 0.3; // 30% of model height
-        
-        const scaledSize = new THREE.Vector3(size.x, size.y, size.z).multiplyScalar(autoScale);
-        const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
-        const distance = maxDim * 1.6 || 10;
-        solarViewer.camera.position.set(distance, distance, distance);
-        solarViewer.camera.lookAt(0, 0, 0);
-        solarViewer.controls.target.set(0, 0, 0);
-        solarViewer.controls.update();
-        console.info("[Solar] render done", { size, maxDim });
-        
-        // Populate roof info table for solar view
-        populateRoofInfoTableSolar();
-      }
-
-      // Populate roof info table for solar panel view
-      function populateRoofInfoTableSolar() {
-        const tbody = document.getElementById('roofInfoTableBodySolar');
-        if (!tbody || !currentProject || !currentProject.roofs) return;
-        
-        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-        
-        const rows = currentProject.roofs.map((roof, index) => {
-          const color = colors[index % colors.length];
-          const tilt = roof.tilt != null ? roof.tilt.toFixed(1) : '-';
-          const azimuth = roof.azimuth != null ? roof.azimuth.toFixed(1) : '-';
-          // Scale: real Euclidean 2.821m, data shows ~4.46m, factor = 0.632
-          const rawHeight = roof.polygon && roof.polygon[0] ? ((Array.isArray(roof.polygon[0]) ? roof.polygon[0][2] : roof.polygon[0].height) || 0) : 0;
-          const height = (rawHeight * 0.632).toFixed(2);
-          const area = roof.area != null ? roof.area.toFixed(2) : '-';
-          return `
-            <tr>
-              <td><span class="roof-color-indicator" style="background-color: ${color};"></span>#${index + 1}</td>
-              <td>${tilt}</td>
-              <td>${azimuth}</td>
-              <td>${height}</td>
-              <td>${area}</td>
-            </tr>
-          `;
-        }).join('');
-        
-        tbody.innerHTML = rows;
-      }
-
       function clearViewer(viewer) {
         if (!viewer || !viewer.scene) return;
         if (viewer.root) {
@@ -1158,19 +1256,13 @@
 
       function clearCurrentModel() {
         clearViewer(baseViewer);
-        clearViewer(solarViewer);
         if (currentModelUrl) {
           URL.revokeObjectURL(currentModelUrl);
           currentModelUrl = null;
         }
-        if (solarModelUrl) {
-          URL.revokeObjectURL(solarModelUrl);
-          solarModelUrl = null;
-        }
       }
 
       baseViewer = createViewer(modelHost);
-      solarViewer = null;
 
       function getUser() {
         try {
@@ -1190,9 +1282,58 @@
         return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
       }
 
+      function getProjectCurrency() {
+        return currentProject?.tariff?.currency || currentProject?.tariff_currency || "THB";
+      }
+
+      function formatCurrency(val, currency) {
+        const safe = Number.isFinite(val) ? val : 0;
+        const decimals = currency === "JPY" ? 0 : 2;
+        const symbolMap = { USD: "$", EUR: "€", JPY: "¥", THB: "฿" };
+        const symbol = symbolMap[currency] || "";
+        return symbol + safe.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      }
+
+      function convertCurrency(val, from, to) {
+        const util = window.CurrencyUtil;
+        if (util && typeof util.convert === "function") {
+          return util.convert(val, from, to);
+        }
+        return Number(val) || 0;
+      }
+
+      async function loadPanelPricePerWattJPY() {
+        if (panelPricePerWattJPY != null) return panelPricePerWattJPY;
+        try {
+          const res = await fetch("/static/models/demo_panel.csv");
+          const text = await res.text();
+          const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          if (lines.length < 2) return null;
+          const header = lines[0].split(",").map(h => h.trim());
+          let totalCost = 0;
+          let totalWatt = 0;
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",").map(c => c.trim());
+            const row = {};
+            header.forEach((h, idx) => row[h] = cols[idx] || "");
+            const watt = parseFloat(String(row["Solar panel wattage (W)"] || "").replace(/[^\d.]/g, ""));
+            const cost = parseFloat(String(row["Cost (¥)"] || "").replace(/[^\d.]/g, ""));
+            if (Number.isFinite(watt) && Number.isFinite(cost) && watt > 0) {
+              totalWatt += watt;
+              totalCost += cost;
+            }
+          }
+          if (totalWatt <= 0) return null;
+          panelPricePerWattJPY = totalCost / totalWatt;
+          return panelPricePerWattJPY;
+        } catch (e) {
+          return null;
+        }
+      }
+
       function getRoofDisplayIndex(roof, fallbackIndex) {
         if (Number.isFinite(roof.index)) {
-          return roof.index === 0 ? 1 : roof.index;
+          return roof.index + 1;
         }
         return fallbackIndex + 1;
       }
@@ -1321,17 +1462,17 @@
           const center2 = new THREE.Vector3();
           box2.getSize(size2);
           box2.getCenter(center2);
-          viewer.root.position.x -= center2.x;
-          viewer.root.position.z -= center2.z;
-          viewer.root.position.y -= box2.min.y;
-          // Y offset: scale proportionally to 3D model size (not table data)
-          const visualHeight = modelHeight * autoScale;
-          viewer.root.position.y += visualHeight * 0.3; // 30% of model height
-
           // 3D model: auto-scale for visual (decoration)
           const modelHeight = size2.y;
           const autoScale = 5 / (Math.max(size2.x, size2.y, size2.z) || 1);
           viewer.root.scale.setScalar(autoScale);
+
+          viewer.root.position.x -= center2.x;
+          viewer.root.position.z -= center2.z;
+          viewer.root.position.y -= box2.min.y;
+          const visualHeight = modelHeight * autoScale;
+          viewer.root.position.y += visualHeight * 0.3;
+
           const scaledMaxDim = Math.max(size2.x, size2.y, size2.z) * autoScale;
           const distance = scaledMaxDim * 1.6 || 10;
           viewer.camera.position.set(distance, distance, distance);
@@ -1349,8 +1490,7 @@
       // Populate roof info table from current project
       function populateRoofInfoTable() {
         const tbody = document.getElementById('roofInfoTableBody');
-        const tbodySolar = document.getElementById('roofInfoTableBodySolar');
-        if (!currentProject || !currentProject.roofs) return;
+        if (!tbody || !currentProject || !currentProject.roofs) return;
         
         const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
         
@@ -1358,7 +1498,6 @@
           const color = colors[index % colors.length];
           const tilt = roof.tilt != null ? roof.tilt.toFixed(1) : '-';
           const azimuth = roof.azimuth != null ? roof.azimuth.toFixed(1) : '-';
-          // Scale: real Euclidean 2.821m, data shows ~4.46m, factor = 0.632
           const rawHeight = roof.polygon && roof.polygon[0] ? ((Array.isArray(roof.polygon[0]) ? roof.polygon[0][2] : roof.polygon[0].height) || 0) : 0;
           const height = (rawHeight * 0.632).toFixed(2);
           const area = roof.area != null ? roof.area.toFixed(2) : '-';
@@ -1373,8 +1512,7 @@
           `;
         }).join('');
         
-        if (tbody) tbody.innerHTML = rows;
-        if (tbodySolar) tbodySolar.innerHTML = rows;
+        tbody.innerHTML = rows;
       }
 
       function colorKeyFromRGB(r, g, b) {
@@ -1703,6 +1841,31 @@
           );
 
         } catch (err) {
+          try {
+            const fallbackRes = await fetch(`/backend/static/roof_model.glb?t=${Date.now()}`);
+            if (fallbackRes.ok) {
+              const blob = await fallbackRes.blob();
+              clearCurrentModel();
+              currentModelUrl = URL.createObjectURL(blob);
+              loadModelToViewer(
+                baseViewer,
+                currentModelUrl,
+                loadToken,
+                () => {
+                  modelLoading.classList.add("hidden");
+                  modelPlaceholder.classList.add("hidden");
+                },
+                () => {
+                  modelLoading.classList.add("hidden");
+                  modelPlaceholder.textContent = "Unable to load roof model.";
+                  modelPlaceholder.classList.remove("hidden");
+                }
+              );
+              return;
+            }
+          } catch (fallbackErr) {
+            // ignore fallback errors
+          }
           modelLoading.classList.add("hidden");
           modelPlaceholder.textContent = "Model unavailable: " + err.message;
           modelPlaceholder.classList.remove("hidden");
@@ -1760,18 +1923,15 @@
         card.classList.add("selected");
         selectedId = parseInt(card.dataset.id);
         currentProject = datasets.find(d => d.id === selectedId);
-        document.getElementById("btnCalc").disabled = false;
+        const btnEstimate = document.getElementById("btnEstimate");
+        if (btnEstimate) btnEstimate.disabled = false;
         document.getElementById("btnDel").disabled = false;
         document.getElementById("selectedInfo").textContent = "Selected: " + (currentProject?.name || "Untitled");
-        if (btnSize) btnSize.disabled = true;
         if (sizingSection) sizingSection.classList.remove("visible");
         sizingData = null;
-        if (solarModelCard) solarModelCard.style.display = "none";
-        if (solarViewer) {
-          clearViewer(solarViewer);
-        }
+        lastIrradiationData = null;
+        if (reportSection) reportSection.classList.remove("visible");
 
-        // Hide chart section when changing selection
         document.getElementById("chartSection").classList.remove("visible");
         selectedRoofIndices.clear();
         loadProjectModel(selectedId);
@@ -1790,88 +1950,9 @@
       }
 
       // Populate roof checkboxes
-      function populateRoofCheckboxes() {
-        const container = document.getElementById("roofCheckboxList");
-        selectedRoofIndices.clear();
-
-        if (!currentProject || !currentProject.roofs || currentProject.roofs.length === 0) {
-          container.innerHTML = '<span style="color: var(--text-muted);">No roofs available</span>';
-          return;
-        }
-
-        // Add "All Roofs" checkbox
-        let html = `
-          <label class="roof-checkbox-item checked" data-index="all">
-            <input type="checkbox" id="roofCheckAll" checked>
-            <span class="roof-label">All Roofs</span>
-            <span class="roof-meta">(aggregate)</span>
-          </label>
-        `;
-
-        // Add individual roof checkboxes
-        currentProject.roofs.forEach((roof, idx) => {
-          const tilt = (roof.user_tilt || roof.tilt || 15).toFixed(0);
-          const area = roof.area ? roof.area.toFixed(1) : "?";
-          const displayIndex = getRoofDisplayIndex(roof, idx);
-          const color = getRoofColorRgb(roof);
-          html += `
-            <label class="roof-checkbox-item checked" data-index="${roof.index}">
-              <input type="checkbox" data-roof-index="${roof.index}" checked>
-              <span class="roof-color-dot" style="background:${rgbToRgba(color, 0.85)};"></span>
-              <span class="roof-label">Roof ${displayIndex}</span>
-              <span class="roof-meta">${area} m², ${tilt}°</span>
-            </label>
-          `;
-          selectedRoofIndices.add(roof.index);
-        });
-
-        container.innerHTML = html;
-
-        // Event listeners for checkboxes
-        const allCheckbox = container.querySelector('#roofCheckAll');
-        const roofCheckboxes = container.querySelectorAll('input[data-roof-index]');
-
-        allCheckbox.addEventListener('change', (e) => {
-          const isChecked = e.target.checked;
-          roofCheckboxes.forEach(cb => {
-            cb.checked = isChecked;
-            cb.closest('.roof-checkbox-item').classList.toggle('checked', isChecked);
-            const idx = parseInt(cb.dataset.roofIndex);
-            if (isChecked) {
-              selectedRoofIndices.add(idx);
-            } else {
-              selectedRoofIndices.delete(idx);
-            }
-          });
-          e.target.closest('.roof-checkbox-item').classList.toggle('checked', isChecked);
-        });
-
-        roofCheckboxes.forEach(cb => {
-          cb.addEventListener('change', (e) => {
-            const idx = parseInt(e.target.dataset.roofIndex);
-            const isChecked = e.target.checked;
-            e.target.closest('.roof-checkbox-item').classList.toggle('checked', isChecked);
-
-            if (isChecked) {
-              selectedRoofIndices.add(idx);
-            } else {
-              selectedRoofIndices.delete(idx);
-            }
-
-            // Update "All" checkbox state
-            const allSelected = selectedRoofIndices.size === currentProject.roofs.length;
-            allCheckbox.checked = allSelected;
-            allCheckbox.closest('.roof-checkbox-item').classList.toggle('checked', allSelected);
-          });
-        });
-      }
-
       // Get selected roof indices string for API
       function getSelectedIndicesParam() {
-        if (!currentProject || !currentProject.roofs) return "all";
-        if (selectedRoofIndices.size === 0) return "all";
-        if (selectedRoofIndices.size === currentProject.roofs.length) return "all";
-        return Array.from(selectedRoofIndices).join(",");
+        return "all";
       }
 
       // Fetch and display irradiation data
@@ -1899,18 +1980,15 @@
             throw new Error(data.error || "Failed to fetch irradiation data");
           }
 
+          lastIrradiationData = data;
           chartLoading.classList.add("hidden");
 
           // Determine label for chart
           const isAllRoofs = roofIndicesParam === "all";
-          const selectedCount = data.selected_count || selectedRoofIndices.size;
+          const selectedCount = data.selected_count || (currentProject?.roofs?.length || 0);
           let chartLabel;
           if (isAllRoofs) {
             chartLabel = `All Roofs (${data.roof_count})`;
-          } else if (selectedCount === 1) {
-            const idx = Array.from(selectedRoofIndices)[0];
-            const roof = getRoofByIndex(idx) || { index: idx };
-            chartLabel = `Roof ${getRoofDisplayIndex(roof, 0)}`;
           } else {
             chartLabel = `${selectedCount} Roofs Selected`;
           }
@@ -1959,7 +2037,10 @@
           }
 
           chartSummary.innerHTML = summaryHtml;
-          if (btnSize) btnSize.disabled = false;
+          // sizing can now run
+          const btnEstimate = document.getElementById("btnEstimate");
+          if (btnEstimate) btnEstimate.disabled = false;
+          renderReport();
 
         } catch (err) {
           chartLoading.classList.add("hidden");
@@ -1975,33 +2056,6 @@
         const s = data.sizing || {};
         const i = data.irradiation || {};
 
-        const perRoof = data.per_roof || [];
-        const perRoofHtml = perRoof.map(r => {
-          const rs = r.sizing || {};
-          return `
-            <div class="summary-stat">
-              <div class="summary-stat-value">Roof ${r.index ?? "-"}</div>
-              <div class="summary-stat-label">${(r.area_m2 || 0).toFixed(1)} m² · ${((r.irradiation || {}).daily_avg_kwh_m2 || 0).toFixed(2)} kWh/m²</div>
-            </div>
-            <div class="summary-stat">
-              <div class="summary-stat-value">${(rs.system_kwp || 0).toFixed(2)}</div>
-              <div class="summary-stat-label">System kWp</div>
-            </div>
-            <div class="summary-stat">
-              <div class="summary-stat-value">${rs.panel_count || 0}</div>
-              <div class="summary-stat-label">Panels (${rs.panel_watt || 0}W)</div>
-            </div>
-            <div class="summary-stat">
-              <div class="summary-stat-value">${(rs.total_panel_area_m2 || 0).toFixed(2)}</div>
-              <div class="summary-stat-label">Panel Area (m²)</div>
-            </div>
-            <div class="summary-stat">
-              <div class="summary-stat-value">${rs.fits_on_roof ? "Yes" : "No"}</div>
-              <div class="summary-stat-label">Fits on Roof</div>
-            </div>
-          `;
-        }).join("");
-
         sizingSummary.innerHTML = `
           <div class="summary-stat">
             <div class="summary-stat-value">${(c.daytime_kwh || 0).toFixed(2)}</div>
@@ -2011,114 +2065,321 @@
             <div class="summary-stat-value">${(c.total_daily_kwh || 0).toFixed(2)}</div>
             <div class="summary-stat-label">Total kWh/day</div>
           </div>
-          ${perRoofHtml || `
-            <div class="summary-stat">
-              <div class="summary-stat-value">${(s.system_kwp || 0).toFixed(2)}</div>
-              <div class="summary-stat-label">System kWp</div>
-            </div>
-          `}
+          <div class="summary-stat">
+            <div class="summary-stat-value">${(s.system_kwp || 0).toFixed(2)}</div>
+            <div class="summary-stat-label">System kWp</div>
+          </div>
+          <div class="summary-stat">
+            <div class="summary-stat-value">${s.panel_count || 0}</div>
+            <div class="summary-stat-label">Panels (${s.panel_watt || 0}W)</div>
+          </div>
         `;
 
-        const roofRows = (perRoof || []).map(r => {
-          const rs = r.sizing || {};
-          return `
-            <tr>
-              <td>Roof ${r.index ?? "-"}</td>
-              <td>${(r.area_m2 || 0).toFixed(2)}</td>
-              <td>${((r.irradiation || {}).daily_avg_kwh_m2 || 0).toFixed(2)}</td>
-              <td>${(rs.system_kwp || 0).toFixed(2)}</td>
-              <td>${rs.panel_count || 0}</td>
-              <td>${(rs.total_panel_area_m2 || 0).toFixed(2)}</td>
-              <td>${rs.fits_on_roof ? "Yes" : "No"}</td>
-            </tr>
-          `;
-        }).join("");
+        sizingBreakdown.innerHTML = "";
 
-        const rows = (c.appliances || []).map(a => `
-          <tr>
-            <td>${a.name || "-"}</td>
-            <td>${a.power || 0} W</td>
-            <td>${a.quantity || 1}</td>
-            <td>${(a.overlap_hours || 0).toFixed(2)}</td>
-            <td>${(a.daytime_kwh || 0).toFixed(2)}</td>
-            <td>${(a.total_kwh || 0).toFixed(2)}</td>
-          </tr>
-        `).join("");
-
-        sizingBreakdown.innerHTML = `
-          <table>
-            <thead>
-              <tr>
-                <th>Roof</th>
-                <th>Area (m²)</th>
-                <th>PSH</th>
-                <th>System (kWp)</th>
-                <th>Panels</th>
-                <th>Panel Area (m²)</th>
-                <th>Fits</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${roofRows || `<tr><td colspan="7">No roof sizing data.</td></tr>`}
-            </tbody>
-          </table>
-          <div style="height: 12px;"></div>
-          <table>
-            <thead>
-              <tr>
-                <th>Appliance</th>
-                <th>Power</th>
-                <th>Qty</th>
-                <th>Daytime h</th>
-                <th>Daytime kWh</th>
-                <th>Total kWh</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows || `<tr><td colspan="6">No appliance data.</td></tr>`}
-            </tbody>
-          </table>
-        `;
-
-        const installed = (perRoof || []).filter(r => {
-          const rs = r.sizing || {};
-          return rs.fits_on_roof && (rs.panel_count || 0) > 0;
-        });
-        sizingInstalled.innerHTML = `
-          <div class="sizing-title" style="margin-top: 0;">Roofs Selected for Panel Installation</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Roof</th>
-                <th>Panels</th>
-                <th>System (kWp)</th>
-                <th>Panel Area (m²)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(installed.length
-                ? installed.map(r => {
-                    const rs = r.sizing || {};
-                    return `
-                      <tr>
-                        <td>Roof ${r.index ?? "-"}</td>
-                        <td>${rs.panel_count || 0}</td>
-                        <td>${(rs.system_kwp || 0).toFixed(2)}</td>
-                        <td>${(rs.total_panel_area_m2 || 0).toFixed(2)}</td>
-                      </tr>
-                    `;
-                  }).join("")
-                : `<tr><td colspan="4">No roofs fit the selected system size.</td></tr>`)}
-            </tbody>
-          </table>
-        `;
+        sizingInstalled.innerHTML = "";
 
         sizingNote.textContent = s.self_consumption_note || "";
-        console.info("[Solar] calling renderSolarFromPolygons from renderSizing");
-        renderSolarFromPolygons();
-        if (solarViewer?.root && modelPlaceholderSolar) {
-          modelPlaceholderSolar.classList.add("hidden");
+        // Apply panel overlay on the 3D model viewer
+        applyPanelOverlay(baseViewer);
+        renderReport();
+      }
+
+      function buildCashflows(params) {
+        const years = 25;
+        const flows = [];
+        const cumulative = [];
+        let cum = -params.capex;
+
+        for (let y = 1; y <= years; y++) {
+          const degr = Math.pow(1 - params.degradation, y - 1);
+          const savings = params.annualSavings * degr;
+          let cost = params.omAnnual;
+          if (y === params.inverterReplaceYear) cost += params.inverterReplaceCost;
+          if (y === params.batteryReplaceYear) cost += params.batteryReplaceCost;
+          const cash = savings - cost;
+          flows.push(cash);
+          cum += cash;
+          cumulative.push(cum);
         }
+        return { flows, cumulative };
+      }
+
+      function computeNPV(cashflows, rate, capex) {
+        let npv = -capex;
+        cashflows.forEach((cf, idx) => {
+          npv += cf / Math.pow(1 + rate, idx + 1);
+        });
+        return npv;
+      }
+
+      function computeIRR(cashflows, capex) {
+        let low = -0.9;
+        let high = 1.0;
+        for (let i = 0; i < 60; i++) {
+          const mid = (low + high) / 2;
+          const npv = computeNPV(cashflows, mid, capex);
+          if (npv > 0) low = mid; else high = mid;
+        }
+        return (low + high) / 2;
+      }
+
+      function updateEnergyChart(monthlyLoad, monthlyPV, monthlySelf, monthlyExport) {
+        const ctx = document.getElementById("energyChart").getContext("2d");
+        const datasets = [
+          { label: "Load", data: monthlyLoad, backgroundColor: "rgba(55, 65, 81, 0.35)" },
+          { label: "Self-consumed", data: monthlySelf, backgroundColor: "rgba(28, 79, 110, 0.7)" },
+          { label: "Export", data: monthlyExport, backgroundColor: "rgba(16, 185, 129, 0.6)" }
+        ];
+
+        if (energyChart) {
+          energyChart.data.labels = MONTH_LABELS;
+          energyChart.data.datasets = datasets;
+          energyChart.update();
+          return;
+        }
+
+        energyChart = new Chart(ctx, {
+          type: "bar",
+          data: { labels: MONTH_LABELS, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: "top" } },
+            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+          }
+        });
+      }
+
+      function updateCashflowChart(cumulative) {
+        const ctx = document.getElementById("cashflowChart").getContext("2d");
+        const labels = cumulative.map((_, i) => `Y${i + 1}`);
+
+        if (cashflowChart) {
+          cashflowChart.data.labels = labels;
+          cashflowChart.data.datasets[0].data = cumulative;
+          cashflowChart.update();
+          return;
+        }
+
+        cashflowChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "Cumulative Cashflow",
+              data: cumulative,
+              borderColor: "rgba(28, 79, 110, 0.9)",
+              backgroundColor: "rgba(28, 79, 110, 0.12)",
+              fill: true,
+              tension: 0.2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+
+      function updateBillChart(baseline, post) {
+        const ctx = document.getElementById("billChart").getContext("2d");
+        const datasets = [
+          { label: "Baseline Bill", data: baseline, backgroundColor: "rgba(55, 65, 81, 0.35)" },
+          { label: "Post‑PV Bill", data: post, backgroundColor: "rgba(16, 185, 129, 0.6)" }
+        ];
+
+        if (billChart) {
+          billChart.data.labels = MONTH_LABELS;
+          billChart.data.datasets = datasets;
+          billChart.update();
+          return;
+        }
+
+        billChart = new Chart(ctx, {
+          type: "bar",
+          data: { labels: MONTH_LABELS, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: "top" } },
+            scales: { y: { beginAtZero: true } }
+          }
+        });
+      }
+
+      async function renderReport() {
+        if (!reportSection || !reportSummary || !currentProject || !sizingData || !lastIrradiationData) return;
+
+        const currency = getProjectCurrency();
+        const tariff = currentProject?.tariff?.price ?? currentProject?.tariff_price ?? 0;
+        const exportPrice = currentProject?.grid_export?.price ?? currentProject?.grid_export_price ?? 0;
+        const annualLoad = currentProject?.bill?.annual_kwh
+          ?? (currentProject?.bill?.monthly_kwh ? currentProject.bill.monthly_kwh * 12 : null)
+          ?? (sizingData?.consumption?.total_daily_kwh ? sizingData.consumption.total_daily_kwh * 365 : 0);
+
+        const annualPV = sizingData?.sizing?.annual_production_kwh || 0;
+        const selfRatio = sizingData?.sizing?.self_consumption_ratio || 0;
+        const selfConsumed = annualPV * selfRatio;
+        const exported = Math.max(0, annualPV - selfConsumed);
+        const gridImport = Math.max(0, annualLoad - selfConsumed);
+
+        const baselineBill = annualLoad * tariff;
+        const postBill = gridImport * tariff - exported * exportPrice;
+        const annualSavings = baselineBill - postBill;
+
+        const panelWatt = sizingData?.sizing?.panel_watt || 0;
+        const panelCount = sizingData?.sizing?.panel_count || 0;
+        const panelPricePerWattJPY = await loadPanelPricePerWattJPY();
+        const panelCostJPY = panelPricePerWattJPY ? panelCount * panelWatt * panelPricePerWattJPY : 0;
+        const panelCost = convertCurrency(panelCostJPY, "JPY", currency);
+
+        const inverters = currentProject?.inverters || [];
+        const batteries = currentProject?.batteries || [];
+        const inverterTotal = inverters.reduce((sum, inv) => sum + convertCurrency(Number(inv.price) || 0, "USD", currency), 0);
+        const batteryTotal = batteries.reduce((sum, bat) => sum + convertCurrency(Number(bat.price) || 0, "USD", currency), 0);
+
+        const hardwareTotal = panelCost + inverterTotal + batteryTotal;
+        const bosFactor = 0.2;
+        const capex = hardwareTotal * (1 + bosFactor);
+
+        const degradation = 0.007;
+        const omAnnual = capex * 0.01;
+        const discountRate = 0.06;
+        const inverterReplaceYear = 12;
+        const batteryReplaceYear = 10;
+        const inverterReplaceCost = inverterTotal * 0.8;
+        const batteryReplaceCost = batteryTotal * 0.8;
+
+        const cash = buildCashflows({
+          capex,
+          annualSavings,
+          omAnnual,
+          degradation,
+          inverterReplaceYear,
+          batteryReplaceYear,
+          inverterReplaceCost,
+          batteryReplaceCost
+        });
+
+        let discountedCost = capex;
+        let discountedEnergy = 0;
+        for (let y = 1; y <= 25; y++) {
+          const degr = Math.pow(1 - degradation, y - 1);
+          const energy = annualPV * degr;
+          const disc = Math.pow(1 + discountRate, y);
+          let cost = omAnnual;
+          if (y === inverterReplaceYear) cost += inverterReplaceCost;
+          if (y === batteryReplaceYear) cost += batteryReplaceCost;
+          discountedCost += cost / disc;
+          discountedEnergy += energy / disc;
+        }
+        const lcoe = discountedEnergy > 0 ? discountedCost / discountedEnergy : 0;
+
+        const npv = computeNPV(cash.flows, discountRate, capex);
+        const irr = computeIRR(cash.flows, capex);
+        const payback = annualSavings > 0 ? capex / annualSavings : 0;
+
+        reportSummary.innerHTML = `
+          <div class="report-card"><div class="report-card-value">${(sizingData?.sizing?.system_kwp || 0).toFixed(2)} kWp</div><div class="report-card-label">System Size</div></div>
+          <div class="report-card"><div class="report-card-value">${Math.round(annualPV).toLocaleString()}</div><div class="report-card-label">Annual PV (kWh)</div></div>
+          <div class="report-card"><div class="report-card-value">${(selfRatio * 100).toFixed(0)}%</div><div class="report-card-label">Self‑Consumption</div></div>
+          <div class="report-card"><div class="report-card-value">${formatCurrency(annualSavings, currency)}</div><div class="report-card-label">Annual Savings</div></div>
+          <div class="report-card"><div class="report-card-value">${payback ? payback.toFixed(1) : "-"}</div><div class="report-card-label">Payback (yrs)</div></div>
+          <div class="report-card"><div class="report-card-value">${formatCurrency(npv, currency)}</div><div class="report-card-label">NPV</div></div>
+          <div class="report-card"><div class="report-card-value">${(irr * 100).toFixed(1)}%</div><div class="report-card-label">IRR</div></div>
+          <div class="report-card"><div class="report-card-value">${formatCurrency(capex, currency)}</div><div class="report-card-label">Total Capex</div></div>
+          <div class="report-card"><div class="report-card-value">${formatCurrency(lcoe, currency)}/kWh</div><div class="report-card-label">LCOE</div></div>
+        `;
+
+        if (roofImage && roofImageEmpty) {
+          const roofSrc = currentProject?.capture_image_path;
+          if (roofSrc) {
+            roofImage.src = roofSrc;
+            roofImage.style.display = "block";
+            roofImageEmpty.style.display = "none";
+          } else {
+            roofImage.style.display = "none";
+            roofImageEmpty.style.display = "flex";
+          }
+        }
+        if (modelImage && modelImageEmpty) {
+          const modelSrc = currentProject?.capture_model_path;
+          if (modelSrc) {
+            modelImage.src = modelSrc;
+            modelImage.style.display = "block";
+            modelImageEmpty.style.display = "none";
+          } else {
+            modelImage.style.display = "none";
+            modelImageEmpty.style.display = "flex";
+          }
+        }
+
+        const panelUnitCost = panelCount > 0 ? panelCost / panelCount : 0;
+        const bomRows = [];
+        bomRows.push(`<tr><td>Panel</td><td>${panelCount}</td><td>${panelWatt} W</td><td>${panelUnitCost ? formatCurrency(panelUnitCost, currency) : "-"}</td><td>${panelCost ? formatCurrency(panelCost, currency) : "-"}</td></tr>`);
+        if (inverters.length) {
+          inverters.forEach(inv => {
+            const price = convertCurrency(Number(inv.price) || 0, "USD", currency);
+            bomRows.push(`<tr><td>Inverter</td><td>1</td><td>${inv.model || "-"}</td><td>${formatCurrency(price, currency)}</td><td>${formatCurrency(price, currency)}</td></tr>`);
+          });
+        } else {
+          bomRows.push(`<tr><td>Inverter</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`);
+        }
+        if (batteries.length) {
+          batteries.forEach(bat => {
+            const price = convertCurrency(Number(bat.price) || 0, "USD", currency);
+            bomRows.push(`<tr><td>Battery</td><td>1</td><td>${bat.model || "-"}</td><td>${formatCurrency(price, currency)}</td><td>${formatCurrency(price, currency)}</td></tr>`);
+          });
+        } else {
+          bomRows.push(`<tr><td>Battery</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`);
+        }
+        bomRows.push(`<tr><td colspan="4"><strong>Hardware Total</strong></td><td><strong>${formatCurrency(hardwareTotal, currency)}</strong></td></tr>`);
+        bomRows.push(`<tr><td colspan="4"><strong>Total Capex (incl. BOS)</strong></td><td><strong>${formatCurrency(capex, currency)}</strong></td></tr>`);
+
+        bomTable.innerHTML = `
+          <thead>
+            <tr>
+              <th>Item</th><th>Qty</th><th>Spec</th><th>Unit Cost</th><th>Total</th>
+            </tr>
+          </thead>
+          <tbody>${bomRows.join("")}</tbody>
+        `;
+
+        const monthlyIrr = lastIrradiationData?.monthly_kwh_m2 || [];
+        const monthSum = monthlyIrr.reduce((a, b) => a + b, 0) || 1;
+        const monthlyPV = monthlyIrr.map(v => annualPV * (v / monthSum));
+        const monthlyLoad = Array(12).fill(annualLoad / 12);
+        const monthlySelf = monthlyPV.map(v => v * selfRatio);
+        const monthlyExport = monthlyPV.map((v, i) => Math.max(0, v - monthlySelf[i]));
+
+        updateEnergyChart(monthlyLoad, monthlyPV, monthlySelf, monthlyExport);
+        updateCashflowChart(cash.cumulative);
+
+        const monthlyBaselineBill = monthlyLoad.map(v => v * tariff);
+        const monthlyPostBill = monthlyLoad.map((v, i) => {
+          const self = monthlySelf[i];
+          const grid = Math.max(0, v - self);
+          const exportKwh = Math.max(0, monthlyPV[i] - self);
+          return grid * tariff - exportKwh * exportPrice;
+        });
+        updateBillChart(monthlyBaselineBill, monthlyPostBill);
+
+        if (selfGaugeValue && selfGaugeFill) {
+          const pct = Math.max(0, Math.min(100, selfRatio * 100));
+          selfGaugeValue.textContent = `${pct.toFixed(0)}%`;
+          selfGaugeFill.style.width = `${pct}%`;
+          if (selfGaugeNote) {
+            selfGaugeNote.textContent = `${selfConsumed.toFixed(0)} kWh used onsite out of ${annualPV.toFixed(0)} kWh produced`;
+          }
+        }
+
+        reportAssumptions.textContent =
+          `Assumptions: no shading, degradation ${(degradation * 100).toFixed(1)}%/yr, O&M 1% of capex/yr, discount ${(discountRate * 100).toFixed(1)}%, inverter replace Y${inverterReplaceYear}, battery replace Y${batteryReplaceYear}.`;
+
+        reportSubtitle.textContent = `Project "${currentProject?.name || "Untitled"}" · Currency ${currency}`;
+        reportSection.classList.add("visible");
       }
 
       async function loadSizingData() {
@@ -2152,18 +2413,6 @@
           sizingData = data;
           sizingLoading.classList.add("hidden");
           renderSizing(data);
-          console.info("[Sizing] data", data);
-          if (solarModelCard) solarModelCard.style.display = "block";
-          if (!solarViewer && modelHostSolar) {
-            solarViewer = createViewer(modelHostSolar);
-          }
-          if (solarViewer) {
-            if (modelLoadingSolar) modelLoadingSolar.classList.remove("hidden");
-            if (modelPlaceholderSolar) modelPlaceholderSolar.classList.add("hidden");
-            requestAnimationFrame(() => renderSolarFromPolygons());
-            if (modelLoadingSolar) modelLoadingSolar.classList.add("hidden");
-            if (modelPlaceholderSolar) modelPlaceholderSolar.classList.add("hidden");
-          }
         } catch (err) {
           sizingLoading.classList.add("hidden");
           sizingError.style.display = "block";
@@ -2235,27 +2484,21 @@
         });
       }
 
-      // Event: Show Irradiation button
-      document.getElementById("btnCalc").addEventListener("click", () => {
-        if (selectedId) {
-          populateRoofCheckboxes();
-          loadIrradiationData();
-        }
-      });
+      const btnEstimate = document.getElementById("btnEstimate");
+      if (btnEstimate) {
+        btnEstimate.addEventListener("click", async () => {
+          if (!selectedId) return;
+          await loadIrradiationData();
+          await loadSizingData();
+        });
+      }
 
-      // Event: Update Chart button
-      document.getElementById("btnUpdateChart").addEventListener("click", () => {
-        if (selectedId && selectedRoofIndices.size > 0) {
-          loadIrradiationData();
-        } else if (selectedRoofIndices.size === 0) {
-          alert("Please select at least one roof.");
-        }
-      });
-
-      if (btnSize) {
-        btnSize.addEventListener("click", () => {
-          if (selectedId) {
-            loadSizingData();
+      if (btnExportPdf) {
+        btnExportPdf.addEventListener("click", () => {
+          if (reportSection && reportSection.classList.contains("visible")) {
+            window.print();
+          } else {
+            alert("Generate the report first.");
           }
         });
       }
