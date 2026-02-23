@@ -1,7 +1,7 @@
 # Solar ROI Calculator - Project State
 
-> **Last Updated:** 2026-02-22 (Session 10)
-> **Session Summary:** Tab-driven workspace transformation. App boots into split workspace (not map). New command bar: EARTH, Add Panel, Project Detail, Inverter, Battery, Save Project. Left dock switches between tree/project-detail/inverter/battery. Removed right panel (forms relocated to left dock). Removed equipment browser from tree (inverter/battery now in dedicated dock tabs). Centralized UI state model.
+> **Last Updated:** 2025-07-22 (Session 12)
+> **Session Summary:** Fixed 13 bugs on calculate/analyze page — 3D viewer crash, dead solar viewer code paths, broken currency conversion, missing panel overlay, duplicate roof indices, inconsistent design tone. Audited all calculation models (sizing, irradiation, cashflow, ROI) for correctness.
 
 ---
 
@@ -47,6 +47,23 @@
 
 ## 2. CURRENT LAYOUT
 
+### Session 12 Delta (Latest)
+- **Calculate page:** Fixed 13 bugs — 3D viewer crash, dead code paths, broken currency conversion, missing panel overlay, duplicate roof indices, inconsistent CSS tone.
+- **CurrencyUtil:** Added static FX rate conversion (USD/EUR/JPY/THB) so cost displays are correct.
+- **Panel overlay:** `applyPanelOverlay(baseViewer)` now called after sizing — panels visible on 3D model.
+- **Design tone:** Body background uses `var(--bg-surface)` to match grid pattern; duplicate inline CSS removed.
+
+### Session 11 Delta
+- **Top strip branding:** Gemini logo on left; Kosen + Cesium logos on right; title uses `SUNSCOPE`.
+- **Command bar cleanup:** only EARTH keeps emoji icon; other tabs are text-only.
+- **Left dock width:** default tree/dock width increased from `250px` to `425px` (1.7x); still resizable (200–520px).
+- **Project detail tone:** right-side project detail panel removed earlier; forms remain in left dock with aligned visual tone and tighter spacing.
+- **Inverter/Battery input mode:** changed from dropdown select to live search + add buttons + installed list (remove supported).
+- **Top-right 3D overlay:** realtime price text now appears at top-right of 3D viewer, minimal display only:
+  - `¥<panel_total> / $<object_total>`
+  - no panel box, no title, no extra labels.
+- **3D viewport grid:** added lightweight "infinite-like" CAD grid using recentered `THREE.GridHelper` layers (major+minor), tuned for low overhead.
+
 ### Initial Landing (After Login)
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -72,8 +89,8 @@
 ```
 Mode: tree           → Project tree (roof/panel nodes)
 Mode: project_detail → Appliance, Bill, Tariff, Export, Project Name forms
-Mode: inverter       → Select dropdown + installed list (add/remove)
-Mode: battery        → Select dropdown + installed list (add/remove)
+Mode: inverter       → Search input + results list + installed list (add/remove)
+Mode: battery        → Search input + results list + installed list (add/remove)
 ```
 
 ### After EARTH → Analyze
@@ -244,6 +261,8 @@ model = trimesh.util.concatenate(parts)
 ### D. Split View & Left Dock (Session 10)
 - **Left Dock:** Single panel, 4 content modes: tree, project_detail, inverter, battery
 - **Center:** 3D viewer (flex: 1) with XYZ triad (bottom-left 80×80px)
+- **Session 11 addition:** top-right realtime price text overlay (`¥ panels / $ objects`)
+- **Session 11 addition:** lightweight infinite-like grid in 3D viewer
 - **Right Panel:** REMOVED (content relocated to left dock)
 - **Sketch bar:** Undo / Redo / ✓ Finish / ✗ Cancel (top-right of 3D viewer)
 - **Command bar:** 36px height, dark (#1a2332) background, above split view
@@ -309,6 +328,9 @@ panelPlacer.cancelSketch();  // safe — no callbacks fire
 ---
 
 ## 6. FILES MODIFIED BY SESSION
+
+### Session 12 — Calculate Page Bug Fixes & Model Audit
+- `calculate.html` — Fixed 13 bugs: viewer crash (const before declaration), getRoofDisplayIndex duplicate, added CurrencyUtil with FX rates, enabled applyPanelOverlay on base viewer, removed ~200 lines dead solarViewer code, fixed body background tone, removed duplicate CSS, added app.css link, removed dead tbodySolar ref. Audited backend sizing/irradiation models — all correct.
 
 ### Session 10 — Tab-Driven Workspace Transformation
 - `app.html` — Added command bar (6 tabs), changed boot to split-view visible / map hidden, restructured left dock with 3 dock-content containers (project-detail, inverter, battery forms), hidden right panel, UIState sync in panelPlacer.onStateChange
