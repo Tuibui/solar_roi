@@ -100,68 +100,58 @@ class ShadingVisualizer {
    * Applies vertex colors directly to existing roof mesh (no separate plate)
    */
   createBlackWhiteHeatmap(roofMesh, shadingResults) {
-    // Find all meshes in the roof model
     const meshes = [];
-    roofMesh.traverse((child) => {
-      if (child.isMesh && child.geometry) {
-        meshes.push(child);
-      }
+    roofMesh.traverse(child => {
+      if (child.isMesh && child.geometry) meshes.push(child);
     });
-    
+
     if (meshes.length === 0) {
       console.warn('[ShadingVisualizer] No meshes found for heatmap');
       return;
     }
 
-    // Build spatial index from samples
     const samplesWithPos = shadingResults.filter(r => r.local);
-    
-    console.log(`[ShadingVisualizer] Creating B/W heatmap with ${samplesWithPos.length} samples for ${meshes.length} meshes`);
+    if (samplesWithPos.length === 0) {
+      console.warn('[ShadingVisualizer] No samples with position data');
+      return;
+    }
 
-    // Apply vertex colors to each mesh directly
-    meshes.forEach((mesh, meshIndex) => {
+    console.log(`[ShadingVisualizer] Creating B/W heatmap — ${samplesWithPos.length} samples, ${meshes.length} meshes`);
+
+    meshes.forEach(mesh => {
       const geometry = mesh.geometry;
       const positions = geometry.attributes.position;
-      
-      // Skip if no position attribute
       if (!positions) return;
-      
+
+      // Step 1: Precompute all sample world positions once per mesh
+      // (was: clone+transform inside the V×S inner loop — now just S transforms total)
+      const sampleWorlds = samplesWithPos.map(s =>
+        s.local.clone().applyMatrix4(mesh.matrixWorld)
+      );
+
+      // Step 2: Build spatial grid for O(1) average nearest-neighbor lookup
+      const grid = this._buildSpatialGrid(sampleWorlds);
+
+      // Step 3: Assign vertex colors
       const colors = new Float32Array(positions.count * 3);
       const vertex = new THREE.Vector3();
 
       for (let i = 0; i < positions.count; i++) {
-        vertex.set(positions.getX(i), positions.getY(i), positions.getZ(i));
-        
-        // Transform vertex to world space for comparison with samples
-        vertex.applyMatrix4(mesh.matrixWorld);
+        vertex.fromBufferAttribute(positions, i).applyMatrix4(mesh.matrixWorld);
 
-        // Find nearest sample using distance
-        let nearest = null;
-        let minDist = Infinity;
-        
-        for (const sample of samplesWithPos) {
-          const sampleWorld = sample.local.clone().applyMatrix4(mesh.matrixWorld);
-          const dist = vertex.distanceToSquared(sampleWorld);
-          if (dist < minDist) {
-            minDist = dist;
-            nearest = sample;
-          }
-        }
+        const idx = grid.nearest(vertex);
+        const sample = samplesWithPos[idx];
+        const intensity = sample
+          ? (sample.shadingRatio ?? (sample.isShaded ? 1 : 0))
+          : 0;
+        const brightness = 1.0 - intensity * 0.8;
 
-        // Get black/white shade based on shading intensity
-        const intensity = nearest ? (nearest.shadingRatio || (nearest.isShaded ? 1 : 0)) : 0;
-        
-        // White base (1.0) mixed with black based on intensity
-        const brightness = 1.0 - (intensity * 0.8);
-        
-        colors[i * 3] = brightness;
+        colors[i * 3]     = brightness;
         colors[i * 3 + 1] = brightness;
         colors[i * 3 + 2] = brightness;
       }
 
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-      // Update material to show vertex colors
       mesh.material = new THREE.MeshStandardMaterial({
         vertexColors: true,
         roughness: 0.5,
@@ -170,14 +160,88 @@ class ShadingVisualizer {
       });
     });
 
-    this.heatmaps.push({
-      roof: roofMesh,
-      meshes: meshes,
-      type: 'direct-vertex'
+    this.heatmaps.push({ roof: roofMesh, meshes, type: 'direct-vertex' });
+    console.log('[ShadingVisualizer] Heatmap applied');
+    return roofMesh;
+  }
+
+  /**
+   * Build a 3-D spatial hash grid for fast nearest-neighbour queries.
+   * Cell size is chosen so each cell holds ~1–4 samples on average.
+   *
+   * @param {THREE.Vector3[]} worldPoints  Precomputed world-space positions
+   * @returns {{ nearest(query: THREE.Vector3): number }}  Returns index into worldPoints
+   */
+  _buildSpatialGrid(worldPoints) {
+    if (worldPoints.length === 0) return { nearest: () => 0 };
+
+    // Compute bounding box
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (const p of worldPoints) {
+      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
+    }
+
+    const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 0.01);
+    // Target ~2 samples per cell; clamp to avoid degenerate cell sizes
+    const cellSize = Math.max(span / Math.sqrt(worldPoints.length / 2), 0.05);
+
+    /** @type {Map<string, number[]>} */
+    const cells = new Map();
+
+    const cellCoords = p => [
+      Math.floor(p.x / cellSize),
+      Math.floor(p.y / cellSize),
+      Math.floor(p.z / cellSize)
+    ];
+    const cellKey = (cx, cy, cz) => `${cx},${cy},${cz}`;
+
+    // Insert each sample into its grid cell
+    worldPoints.forEach((p, i) => {
+      const [cx, cy, cz] = cellCoords(p);
+      const k = cellKey(cx, cy, cz);
+      if (!cells.has(k)) cells.set(k, []);
+      cells.get(k).push(i);
     });
 
-    console.log('[ShadingVisualizer] Black/white heatmap applied directly to roof');
-    return roofMesh;
+    return {
+      nearest(query) {
+        const [qx, qy, qz] = cellCoords(query);
+
+        let bestDist = Infinity;
+        let bestIdx  = 0;
+
+        // Expand search radius shell by shell.
+        // r=0 → same cell; r=1 → 3³−1³ = 26 neighbours; stop as soon as
+        // the nearest candidate can't be beaten by an outer shell.
+        for (let r = 0; r <= 3; r++) {
+          for (let dx = -r; dx <= r; dx++) {
+            for (let dy = -r; dy <= r; dy++) {
+              for (let dz = -r; dz <= r; dz++) {
+                // Only visit the surface of the shell (skip interior)
+                if (r > 0 && Math.abs(dx) < r && Math.abs(dy) < r && Math.abs(dz) < r) continue;
+
+                const bucket = cells.get(cellKey(qx + dx, qy + dy, qz + dz));
+                if (!bucket) continue;
+
+                for (const idx of bucket) {
+                  const d = query.distanceToSquared(worldPoints[idx]);
+                  if (d < bestDist) { bestDist = d; bestIdx = idx; }
+                }
+              }
+            }
+          }
+
+          // Early exit: if best distance is within this shell,
+          // no outer shell can produce a closer point.
+          if (bestDist < (r * cellSize) ** 2) break;
+        }
+
+        return bestIdx;
+      }
+    };
   }
 
   /**

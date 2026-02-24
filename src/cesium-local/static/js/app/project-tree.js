@@ -13,6 +13,7 @@ const ProjectTree = (function () {
   let onContextActionCallback = null;
   let panelBrowserEl = null;
   let panelBrowserRoofId = null;
+  let panelBrowserAutoMode = false;
   let panelCatalog = [];
   let panelCatalogLoadPromise = null;
 
@@ -35,6 +36,20 @@ const ProjectTree = (function () {
     if (!cleaned) return null;
     const n = Number(cleaned);
     return Number.isFinite(n) ? n : null;
+  }
+
+  function formatPanelPrice(priceJPY) {
+    const curUtil = window.CurrencyUtil;
+    const currency = curUtil && typeof curUtil.getSelectedCurrency === 'function'
+      ? curUtil.getSelectedCurrency()
+      : 'THB';
+    const converted = curUtil && typeof curUtil.convert === 'function'
+      ? curUtil.convert(priceJPY, 'JPY', currency)
+      : Number(priceJPY) || 0;
+    if (curUtil && typeof curUtil.format === 'function') {
+      return curUtil.format(converted, currency);
+    }
+    return `${currency} ${Number(converted || 0).toLocaleString()}`;
   }
 
   function parsePanelSizeMm(text) {
@@ -138,16 +153,17 @@ const ProjectTree = (function () {
   }
 
   function createRoofNode(roof, index) {
-    const roofColors = ['🔴', '🟢', '🔵', '🟡', '🟣', '🩵'];
+    const roofColors = ['#d32f2f', '#2e7d32', '#1565c0', '#f9a825', '#6a1b9a', '#00838f'];
     const color = roofColors[index % roofColors.length];
     const fmt = (v, unit, dec) => v != null ? v.toFixed(dec) + unit : '—';
     const area = roof.area_m2 ?? roof.area;
     const tilt = roof.tilt_deg ?? roof.tilt;
     const azimuth = roof.azimuth_deg ?? roof.azimuth;
-    const usableArea = roof.usable_area_m2 ?? roof.usable_area ?? roof.panel_area;
+    // Show usable area; default to full roof area if no explicit usable area set.
+    const usableArea = roof.usable_area_m2 ?? roof.usable_area ?? roof.area;
 
     return {
-      id: `roof-${index}`, icon: color, label: `Roof_${index + 1}`, open: false, type: 'feature',
+      id: `roof-${index}`, icon: '', color, label: `Roof_${index + 1}`, open: false, type: 'feature',
       children: [
         {
           id: `panels-${index}`, icon: '', label: 'Panels', open: false, type: 'panels',
@@ -171,8 +187,14 @@ const ProjectTree = (function () {
     root:              [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
     'roof-group':      [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
     folder:   [{ action: 'expand-all', label: 'Expand All' }, { action: 'collapse-all', label: 'Collapse All' }],
-    panels:   [{ action: 'edit-roof', label: 'Edit Roof' }],
-    feature:  [{ action: 'add-panel', label: 'Add Panel' }],
+    panels:   [
+      { action: 'edit-roof', label: 'Edit Roof' },
+      { action: 'clear-roof-panels', label: 'Clear Panels' }
+    ],
+    feature:  [
+      { action: 'add-panel', label: 'Add Panel' },
+      { action: 'auto-panel', label: 'Auto Panel' }
+    ],
     param:    [{ action: 'copy-value', label: 'Copy Value' }],
     data:     [{ action: 'copy-value', label: 'Copy Value' }],
     panel:    [{ action: 'delete-panel', label: 'Delete Panel' }]
@@ -210,8 +232,13 @@ const ProjectTree = (function () {
     }
     row.appendChild(arrow);
 
-    // Icon (only roof color circles)
-    if (node.icon) {
+    // Roof color marker
+    if (node.color) {
+      const dot = document.createElement('span');
+      dot.className = 'ptree-icon-dot';
+      dot.style.backgroundColor = node.color;
+      row.appendChild(dot);
+    } else if (node.icon) {
       const icon = document.createElement('span');
       icon.className = 'ptree-icon';
       icon.textContent = node.icon;
@@ -350,10 +377,16 @@ const ProjectTree = (function () {
         break;
       case 'add-panel':
         if (onContextActionCallback) onContextActionCallback('add-panel', node);
-        showPanelBrowser(node.id);
+        showPanelBrowser(node.id, { auto: false });
+        break;
+      case 'auto-panel':
+        if (onContextActionCallback) onContextActionCallback('add-panel', node);
+        if (onContextActionCallback) onContextActionCallback('auto-panel', node);
+        showPanelBrowser(node.id, { auto: true });
         break;
       case 'select-3d': case 'hide': case 'show':
       case 'edit-roof':
+      case 'clear-roof-panels':
       case 'delete-panel':
         if (onContextActionCallback) onContextActionCallback(action, node);
         break;
@@ -464,8 +497,9 @@ const ProjectTree = (function () {
   }
 
   // ─── Panel Browser ───
-  function showPanelBrowser(roofId) {
+  function showPanelBrowser(roofId, options = {}) {
     panelBrowserRoofId = roofId;
+    panelBrowserAutoMode = options.auto === true;
     const panel = treeRoot?.closest('.project-tree-panel');
     if (!panel) return;
 
@@ -499,7 +533,15 @@ const ProjectTree = (function () {
     if (panelBrowserEl) panelBrowserEl.style.display = 'none';
     if (treeRoot) treeRoot.style.display = '';
     panelBrowserRoofId = null;
+    panelBrowserAutoMode = false;
     updateStatusBar(selectedId);
+  }
+
+  function refreshPanelBrowser() {
+    if (!panelBrowserEl || panelBrowserEl.style.display === 'none') return;
+    const searchInput = panelBrowserEl.querySelector('.pb-search');
+    const filter = searchInput ? searchInput.value : '';
+    renderPanelBrowser(filter, false);
   }
 
   function renderPanelBrowser(filterText, loading) {
@@ -519,7 +561,7 @@ const ProjectTree = (function () {
     panelBrowserEl.innerHTML = `
       <div class="pb-header">
         <button class="pb-back-btn" title="Back to tree">← Back</button>
-        <span class="pb-title">Add Panel — ${roofLabel}</span>
+        <span class="pb-title">${panelBrowserAutoMode ? 'Auto Panel' : 'Add Panel'} — ${roofLabel}</span>
       </div>
       <div class="pb-search-wrap">
         <input type="text" class="pb-search" placeholder="Search brand, model, watt..." value="${filterText || ''}" autocomplete="off" spellcheck="false">
@@ -541,7 +583,7 @@ const ProjectTree = (function () {
                data-thicknessm="${p.thicknessM}">
             <div class="pb-card-top">
               <span class="pb-brand">${p.brand} ${p.model}</span>
-              <span class="pb-price">¥${(p.price || 0).toLocaleString()}</span>
+              <span class="pb-price">${formatPanelPrice(p.price || 0)}</span>
             </div>
             <div class="pb-model">${p.type || ''} · ${p.lengthM.toFixed(3)} × ${p.widthM.toFixed(3)} m</div>
             <div class="pb-card-bottom">
@@ -608,7 +650,8 @@ const ProjectTree = (function () {
               lengthM,
               widthM,
               thicknessM
-            }
+            },
+            auto: panelBrowserAutoMode === true
           });
         }
       });
@@ -622,6 +665,7 @@ const ProjectTree = (function () {
     updateRoofs, updatePanels,
     getSelected, selectNode,
     showPanelBrowser, hidePanelBrowser,
+    refreshPanelBrowser,
     set onSelect(fn) { onSelectCallback = fn; },
     set onContextAction(fn) { onContextActionCallback = fn; },
     findNode: (id) => treeData ? findNode(treeData, id) : null,

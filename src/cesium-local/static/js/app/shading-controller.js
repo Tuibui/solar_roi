@@ -28,111 +28,133 @@ class ShadingController {
     this.onError = null;
   }
 
-  async initialize(houseLocation) {
+  /**
+   * Initialize the shading controller.
+   *
+   * Fix #14 — accept an existing Cesium viewer so we don't create a second
+   * WebGL context when the caller already has one running.
+   *
+   * @param {Object} houseLocation  { lat, lon, height }
+   * @param {Object} [opts]
+   * @param {Cesium.Viewer}        [opts.viewer]       Existing Cesium viewer to reuse.
+   * @param {Cesium.Cesium3DTileset} [opts.osmBuildings] Pre-loaded OSM Buildings tileset.
+   *
+   * When opts.viewer is supplied:
+   *   • No hidden <div> is created.
+   *   • No second WebGL context is allocated.
+   *   • destroy() will NOT destroy the viewer (caller owns it).
+   *
+   * When opts.viewer is omitted (legacy / standalone use):
+   *   • A minimal hidden viewer is created with requestRenderMode:true so
+   *     its render loop fires only on demand — minimal GPU cost.
+   *   • destroy() will destroy the viewer.
+   */
+  async initialize(houseLocation, { viewer = null, osmBuildings = null } = {}) {
     this.houseLocation = houseLocation;
-    
-    // Ensure Cesium token is set
+
     if (typeof CONFIG !== 'undefined' && CONFIG.CESIUM_TOKEN) {
       Cesium.Ion.defaultAccessToken = CONFIG.CESIUM_TOKEN;
-      console.log('[ShadingController] Cesium token set');
     }
-    
-    this.container = document.createElement('div');
-    this.container.id = 'cesium-shading-container';
-    this.container.style.cssText = `
-      position: fixed;
-      width: 2px;
-      height: 2px;
-      overflow: hidden;
-      opacity: 0;
-      pointer-events: none;
-      z-index: -1;
-      left: -100px;
-      top: -100px;
-    `;
-    document.body.appendChild(this.container);
-    
-    // Terrain provider with fallback
-    let terrainProvider;
-    if (Cesium.createWorldTerrain) {
-      terrainProvider = Cesium.createWorldTerrain();
-    } else if (Cesium.EllipsoidTerrainProvider) {
-      terrainProvider = new Cesium.EllipsoidTerrainProvider();
+
+    if (viewer) {
+      // ── Reuse existing viewer — zero extra GPU cost ──────────────────────
+      this.cesiumViewer = viewer;
+      this.osmBuildings = osmBuildings || null;
+      this._ownsViewer  = false;
+      console.log('[ShadingController] Reusing existing Cesium viewer');
+
     } else {
-      terrainProvider = new Cesium.CesiumTerrainProvider({
-        url: 'https://assets.agi.com/stk-terrain/world'
+      // ── Fallback: create a minimal hidden viewer ─────────────────────────
+      this._ownsViewer = true;
+
+      this.container = document.createElement('div');
+      this.container.id = 'cesium-shading-container';
+      this.container.style.cssText = `
+        position: fixed;
+        width: 2px;
+        height: 2px;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        z-index: -1;
+        left: -100px;
+        top: -100px;
+      `;
+      document.body.appendChild(this.container);
+
+      let terrainProvider;
+      if (Cesium.createWorldTerrain) {
+        terrainProvider = Cesium.createWorldTerrain();
+      } else if (Cesium.EllipsoidTerrainProvider) {
+        terrainProvider = new Cesium.EllipsoidTerrainProvider();
+      } else {
+        terrainProvider = new Cesium.CesiumTerrainProvider({
+          url: 'https://assets.agi.com/stk-terrain/world'
+        });
+      }
+
+      this.cesiumViewer = new Cesium.Viewer(this.container, {
+        terrainProvider,
+        skyBox: false,
+        skyAtmosphere: false,
+        baseLayerPicker: false,
+        geocoder: false,
+        homeButton: false,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        animation: false,
+        timeline: false,
+        fullscreenButton: false,
+        vrButton: false,
+        shadows: false,
+        // Only render when something changes — eliminates continuous render loop
+        requestRenderMode: true,
+        maximumRenderTimeChange: Infinity
       });
-    }
-    
-    this.cesiumViewer = new Cesium.Viewer(this.container, {
-      terrainProvider: terrainProvider,
-      skyBox: false,
-      skyAtmosphere: false,
-      baseLayerPicker: false,
-      geocoder: false,
-      homeButton: false,
-      sceneModePicker: false,
-      navigationHelpButton: false,
-      animation: false,
-      timeline: false,
-      fullscreenButton: false,
-      vrButton: false,
-      shadows: false
-    });
-    
-    this.cesiumViewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(
-        houseLocation.lon,
-        houseLocation.lat,
-        houseLocation.height + 100
-      )
-    });
-    
-    try {
-      // Method 1: Try createOsmBuildings() (Cesium 1.95+)
-      if (typeof Cesium.createOsmBuildings === 'function') {
-        console.log('[ShadingController] Using Cesium.createOsmBuildings()');
-        this.osmBuildings = await Cesium.createOsmBuildings();
-        this.cesiumViewer.scene.primitives.add(this.osmBuildings);
-      } 
-      // Method 2: Try ion asset ID directly with new token
-      else {
-        console.log('[ShadingController] Using Cesium Ion OSM Buildings asset');
-        
-        // OSM Buildings asset ID on Cesium Ion is 96188
-        this.osmBuildings = await Cesium.Cesium3DTileset.fromIonAssetId(96188, {
-          show: true
-        });
-        
-        this.cesiumViewer.scene.primitives.add(this.osmBuildings);
-        
-        // Wait for tileset to be ready
-        await this.osmBuildings.readyPromise;
-        console.log('[ShadingController] OSM Buildings tileset ready');
+
+      this.cesiumViewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(
+          houseLocation.lon,
+          houseLocation.lat,
+          houseLocation.height + 100
+        )
+      });
+
+      // Load OSM Buildings into the hidden viewer
+      try {
+        if (typeof Cesium.createOsmBuildings === 'function') {
+          console.log('[ShadingController] Using Cesium.createOsmBuildings()');
+          this.osmBuildings = await Cesium.createOsmBuildings();
+          this.cesiumViewer.scene.primitives.add(this.osmBuildings);
+        } else {
+          console.log('[ShadingController] Using Cesium Ion OSM Buildings asset');
+          this.osmBuildings = await Cesium.Cesium3DTileset.fromIonAssetId(96188, { show: true });
+          this.cesiumViewer.scene.primitives.add(this.osmBuildings);
+          await this.osmBuildings.readyPromise;
+          console.log('[ShadingController] OSM Buildings tileset ready');
+        }
+
+        if (this.osmBuildings) {
+          this.osmBuildings.style = new Cesium.Cesium3DTileStyle({
+            color: 'rgba(255, 255, 255, 0.01)'
+          });
+        }
+
+        console.log('[ShadingController] OSM Buildings loaded successfully');
+      } catch (error) {
+        console.error('[ShadingController] Failed to load OSM Buildings:', error);
+        this.osmBuildings = null;
       }
-      
-      // Make nearly transparent but still pickable
-      if (this.osmBuildings) {
-        this.osmBuildings.style = new Cesium.Cesium3DTileStyle({
-          color: 'rgba(255, 255, 255, 0.01)'
-        });
-      }
-      
-      console.log('[ShadingController] OSM Buildings loaded successfully');
-    } catch (error) {
-      console.error('[ShadingController] Failed to load OSM Buildings:', error);
-      console.warn('[ShadingController] Continuing without OSM Buildings');
-      this.osmBuildings = null;
     }
-    
+
     this.shadingEngine = new ShadingEngine(
       this.cesiumViewer,
       this.osmBuildings,
       houseLocation
     );
-    
+
     await this._waitForTiles();
-    
+
     return this;
   }
 
@@ -189,22 +211,7 @@ class ShadingController {
     
     try {
       console.log(`[ShadingController] Starting single-time shading analysis for ${dateTime}`);
-      
-      // Find mesh with geometry
-      let targetMesh = roofMesh;
-      if (!roofMesh.geometry) {
-        let foundMesh = null;
-        roofMesh.traverse((child) => {
-          if (child.isMesh && child.geometry && !foundMesh) {
-            foundMesh = child;
-          }
-        });
-        if (foundMesh) {
-          targetMesh = foundMesh;
-        } else {
-          throw new Error('No mesh with geometry found in roof model');
-        }
-      }
+      const targetMesh = this._resolveMesh(roofMesh);
       
       // Sample roof
       this.roofSampler = new RoofSampler(targetMesh, {
@@ -277,24 +284,8 @@ class ShadingController {
     
     try {
       console.log(`[ShadingController] Starting monthly shading analysis for ${this.options.month}/${this.options.year}`);
-      
-      // Ensure the mesh has geometry
-      if (!roofMesh.geometry) {
-        console.warn('[ShadingController] Roof mesh has no geometry, looking for child meshes...');
-        // If it's a Group, find the first child with geometry
-        let foundMesh = null;
-        roofMesh.traverse((child) => {
-          if (child.isMesh && child.geometry && !foundMesh) {
-            foundMesh = child;
-          }
-        });
-        if (foundMesh) {
-          console.log('[ShadingController] Found child mesh:', foundMesh.name);
-          roofMesh = foundMesh;
-        } else {
-          throw new Error('No mesh with geometry found in roof model');
-        }
-      }
+      const roofMeshResolved = this._resolveMesh(roofMesh);
+      roofMesh = roofMeshResolved;
       
       // Sample roof
       this.roofSampler = new RoofSampler(roofMesh, {
@@ -348,6 +339,125 @@ class ShadingController {
   }
 
   /**
+   * Resolve the first mesh with geometry from a mesh or Group.
+   * Extracted from computeMonthlyShading / computeSingleTimeShading to avoid duplication.
+   * @param {THREE.Object3D} roofMesh
+   * @returns {THREE.Mesh}
+   */
+  _resolveMesh(roofMesh) {
+    if (roofMesh.geometry) return roofMesh;
+
+    let found = null;
+    roofMesh.traverse(child => {
+      if (child.isMesh && child.geometry && !found) found = child;
+    });
+
+    if (!found) throw new Error('No mesh with geometry found in roof model');
+    console.log('[ShadingController] Resolved child mesh:', found.name || '(unnamed)');
+    return found;
+  }
+
+  /**
+   * Compute full-year (12-month) shading analysis.
+   *
+   * Samples the roof surface ONCE and reuses the same sample set for all 12
+   * months — avoids redundant geometry work and ensures consistent comparison.
+   *
+   * Returns:
+   *   results          – annual-average per-sample shading ratios (for heatmap)
+   *   monthlyResults   – array[12] of per-sample result arrays
+   *   monthlyStats     – array[12] of { month, avgShading, avgShadingPercent, heavilyShaded }
+   *   stats            – overall { totalSamples, avgShading, monthlyShading[12], duration }
+   *
+   * Progress callback receives (completedRays, totalRays, currentMonth).
+   */
+  async computeAnnualShading(roofMesh, progressCallback = null) {
+    if (this.isComputing) throw new Error('Shading computation already in progress');
+    if (!this.shadingEngine)  throw new Error('Controller not initialized');
+
+    this.isComputing = true;
+    this.currentResults = null;
+
+    try {
+      const targetMesh = this._resolveMesh(roofMesh);
+
+      // Sample once — reused across all 12 months
+      this.roofSampler = new RoofSampler(targetMesh, { gridSize: this.options.gridSize });
+      const samples = this.roofSampler.sample();
+      if (samples.length === 0) throw new Error('No samples generated from roof mesh');
+
+      const year        = this.options.year;
+      const MONTHS      = 12;
+      // 4 representative days × 5 hours × samples = total ray casts
+      const monthOps    = samples.length * 4;
+      const totalOps    = monthOps * MONTHS;
+
+      console.log(`[ShadingController] Annual shading: ${samples.length} samples × 12 months (${totalOps} ray casts)`);
+      const startTime = performance.now();
+
+      const monthlyResults = []; // length 12 — each entry is array of per-sample results
+      const monthlyStats   = []; // length 12 — summary per month
+
+      for (let m = 1; m <= MONTHS; m++) {
+        const monthResults = await this.shadingEngine.computeMonthlyShading(
+          samples,
+          targetMesh.matrixWorld,
+          m,
+          year,
+          (doneInMonth) => {
+            if (progressCallback) {
+              const overall = (m - 1) * monthOps + doneInMonth;
+              progressCallback(overall, totalOps, m);
+            }
+          }
+        );
+
+        const avgShading = monthResults.reduce((s, r) => s + (r.shadingRatio || 0), 0) / monthResults.length;
+        monthlyResults.push(monthResults);
+        monthlyStats.push({
+          month: m,
+          avgShading,
+          avgShadingPercent: (avgShading * 100).toFixed(1),
+          heavilyShaded: monthResults.filter(r => (r.shadingRatio || 0) > 0.5).length
+        });
+      }
+
+      // Annual result: average each sample's shading ratio across all 12 months
+      const annualResults = samples.map((_, i) => {
+        const annualRatio = monthlyResults.reduce((s, mRes) => s + (mRes[i]?.shadingRatio || 0), 0) / MONTHS;
+        return {
+          ...monthlyResults[0][i],
+          shadingRatio: annualRatio,
+          isShaded: annualRatio > 0.3
+        };
+      });
+
+      const annualAvg = annualResults.reduce((s, r) => s + r.shadingRatio, 0) / annualResults.length;
+      const duration  = ((performance.now() - startTime) / 1000).toFixed(2);
+
+      console.log(`[ShadingController] Annual analysis done in ${duration}s — avg shading ${(annualAvg * 100).toFixed(1)}%`);
+
+      this.currentResults = annualResults;
+
+      return {
+        results:       annualResults,
+        monthlyResults,
+        monthlyStats,
+        stats: {
+          totalSamples:   annualResults.length,
+          avgShading:     annualAvg,
+          avgShadingPercent: (annualAvg * 100).toFixed(1),
+          monthlyShading: monthlyStats.map(m => m.avgShading), // [jan…dec]
+          duration
+        }
+      };
+
+    } finally {
+      this.isComputing = false;
+    }
+  }
+
+  /**
    * Create heatmap visualization
    */
   visualize(threeScene, results = null) {
@@ -386,33 +496,29 @@ class ShadingController {
   }
 
   /**
-   * Auto-run: initialize, compute, and visualize
+   * Auto-run: initialize, compute, and visualize (single month)
    */
   async autoAnalyze(threeScene, houseLocation, roofMesh) {
     try {
       if (!this.cesiumViewer) {
         await this.initialize(houseLocation);
       }
-      
+
+      // Progress callback only receives what's available at call time (current, total)
+      // stats are only ready after computeMonthlyShading resolves — not during it
       const { results, stats } = await this.computeMonthlyShading(roofMesh, (current, total) => {
-        if (this.onProgress) {
-          this.onProgress(current, total, stats);
-        }
+        if (this.onProgress) this.onProgress(current, total);
       });
-      
+
       this.visualize(threeScene, results);
-      
-      if (this.onComplete) {
-        this.onComplete(stats);
-      }
-      
+
+      if (this.onComplete) this.onComplete(stats);
+
       return stats;
-      
+
     } catch (error) {
       console.error('[ShadingController] Auto-analysis failed:', error);
-      if (this.onError) {
-        this.onError(error);
-      }
+      if (this.onError) this.onError(error);
       throw error;
     }
   }
@@ -437,31 +543,34 @@ class ShadingController {
 
   destroy() {
     this.clearVisualization();
-    
+
     if (this.visualizer) {
       this.visualizer.dispose();
       this.visualizer = null;
     }
-    
+
     if (this.shadingEngine) {
       this.shadingEngine.destroy();
       this.shadingEngine = null;
     }
-    
-    if (this.cesiumViewer) {
+
+    // Only destroy the viewer if we created it — never destroy a borrowed viewer
+    if (this._ownsViewer && this.cesiumViewer) {
       this.cesiumViewer.destroy();
-      this.cesiumViewer = null;
+      console.log('[ShadingController] Hidden viewer destroyed');
     }
-    
+    this.cesiumViewer = null;
+
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
       this.container = null;
     }
-    
+
     this.osmBuildings = null;
-    this.roofSampler = null;
+    this.roofSampler  = null;
     this.currentResults = null;
-    
+    this._ownsViewer  = false;
+
     console.log('[ShadingController] Destroyed');
   }
 }

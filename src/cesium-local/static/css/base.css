@@ -2,7 +2,7 @@
    DESIGN SYSTEM - Japanese Engineering Style
    Clean, precise, data-dense, professional
    ============================================ */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Anton&display=swap");
 
 :root {
   /* Primary palette - restrained */
@@ -98,6 +98,10 @@ body {
   line-height: 1.5;
   min-height: 100vh;
   letter-spacing: 0.01em;
+}
+
+.app-page {
+  overflow: hidden;
 }
 
 /* ============================================
@@ -216,22 +220,22 @@ body {
 }
 
 .top-auth-btn {
-  background: linear-gradient(180deg, #f0f3f6 0%, #d9dee3 100%);
-  border: 1px solid #9aa1a6;
-  color: #1f272d;
-  padding: 6px 12px;
-  height: 34px;
-  min-width: 84px;
-  border-radius: 4px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #f3f6f9;
+  padding: 8px 14px;
+  height: 36px;
+  min-width: 90px;
+  border-radius: 3px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.12s ease;
-  box-shadow: inset 0 1px 0 #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 .top-auth-btn:hover {
-  background: linear-gradient(180deg, #f7f9fb 0%, #e2e7ec 100%);
-  border-color: #7f8890;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255,255,255,0.35);
 }
 
 .live-price-box {
@@ -268,33 +272,60 @@ body {
   height: 36px;
   width: auto;
   object-fit: contain;
-  padding: 4px 8px;
-  background: #f2f4f6;
-  border: 1px solid #b4bbc1;
-  border-radius: 4px;
-  box-shadow: inset 0 1px 0 #ffffff;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.top-strip .gemini-logo {
+  height: calc(var(--bar-unit) * 4 - 12px);
+  max-height: 104px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .top-strip img[alt="SUNSCOPE"] {
   height: 52px;
 }
 
+.sunscope-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  font-family: "Anton", "Impact", "JetBrains Mono", sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  font-size: 38px;
+  color: #f9b24c;
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+     0 3px 7px rgba(0,0,0,0.35);
+}
+.sunscope-wordmark .sunscope-sun { color: #fca63a; }
+.sunscope-wordmark .sunscope-scope { color: #3a94ff; }
+
 .sub-strip {
   height: var(--bar-unit);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0;
-  padding: 6px 16px 4px;
-  background: linear-gradient(180deg, #bfc5cb 0%, #a1aab3 100%);
+  padding: 0;
+  background: linear-gradient(180deg, #c7ccd1 0%, #a5aeb6 100%);
   border-bottom: 1px solid #9aa1a6;
-  box-shadow: inset 0 1px 0 #ffffff;
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 8px rgba(18, 28, 36, 0.18);
 }
 
 .sub-strip-left {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: 0;
 }
 
 .sub-strip-title {
@@ -308,23 +339,26 @@ body {
 .sub-strip a {
   text-decoration: none;
   font-size: 11px;
-  font-weight: 600;
-  color: #3e4a53;
-  padding: 8px 14px;
+  font-weight: 700;
+  color: #e7edf3;
+  padding: 0 16px;
   margin: 0;
-  line-height: 1.2;
+  line-height: var(--bar-unit);
   border-radius: 0;
-  border: 1px solid #9aa1a6;
-  background: linear-gradient(180deg, #f0f2f4 0%, #d7dde2 100%);
-  box-shadow: inset 0 1px 0 #ffffff;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: transparent;
+  box-shadow: none;
   transition: all 0.12s ease;
+  height: var(--bar-unit);
+  display: inline-flex;
+  align-items: center;
 }
 
 .sub-strip a.active,
 .sub-strip a:hover {
-  color: #0f2f44;
-  border-color: #6f7a83;
-  background: linear-gradient(180deg, #f8fbfe 0%, #dde4ea 100%);
+  color: #0f1d2a;
+  border-color: rgba(255,255,255,0.35);
+  background: #f7e7a3;
 }
 
 .sub-strip-logout {

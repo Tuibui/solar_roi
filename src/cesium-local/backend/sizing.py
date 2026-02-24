@@ -209,7 +209,7 @@ def size_pv_system(
         consumption["daytime_kwh"],
         peak_sun_hours,
         available_area,
-        performance_ratio=0.80
+        performance_ratio=0.86
     )
 
     irradiation = {
@@ -231,7 +231,7 @@ def size_pv_system(
             consumption["daytime_kwh"],
             roof_psh,
             roof_available,
-            performance_ratio=0.80
+            performance_ratio=0.86
         )
         per_roof.append({
             "index": roof_index,

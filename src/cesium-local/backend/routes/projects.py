@@ -1,16 +1,43 @@
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
 import os
+import re
+import base64
+import json
 import numpy as np
 
-from ..config import STATIC_DIR
+from ..config import STATIC_DIR, STATIC_DIR_FRONTEND
 from ..extensions import db
 from ..models import Appliance, Project, Roof, User
-from ..irradiation import compute_multi_roof_irradiation, PVGISError
+from ..irradiation import compute_multi_roof_irradiation, compute_multi_roof_pv_output, PVGISError
 from ..sizing import size_pv_system
 from ..services.geometry import latlon_to_ecef
 from ..services.mesh_builder import build_glb_from_roofs
 
 projects_bp = Blueprint("projects", __name__)
+
+
+def _save_capture_image(project_id, data_url, suffix="roof"):
+    if not data_url or not isinstance(data_url, str):
+        return None
+    match = re.match(r'^data:image/([a-zA-Z0-9+]+);base64,(.+)$', data_url)
+    if not match:
+        return None
+    ext = match.group(1).lower()
+    if ext not in {"png", "jpg", "jpeg", "webp"}:
+        ext = "png"
+    b64_data = match.group(2)
+    try:
+        image_bytes = base64.b64decode(b64_data)
+    except Exception:
+        return None
+
+    capture_dir = os.path.join(STATIC_DIR_FRONTEND, "captures")
+    os.makedirs(capture_dir, exist_ok=True)
+    filename = f"project_{project_id}_{suffix}.{ext}"
+    file_path = os.path.join(capture_dir, filename)
+    with open(file_path, "wb") as f:
+        f.write(image_bytes)
+    return f"/static/captures/{filename}"
 
 
 @projects_bp.route("/api/projects", methods=["GET"])
@@ -64,9 +91,20 @@ def create_project():
             system_type=data.get("system_type", "auto"),
             selected_roof_index=data.get("selected_roof_index", 0)
         )
+        project.inverters_json = json.dumps(data.get("inverters") or [])
+        project.batteries_json = json.dumps(data.get("batteries") or [])
 
         db.session.add(project)
         db.session.commit()
+
+        capture_path = _save_capture_image(project.id, data.get("capture_image"), "roof")
+        if capture_path:
+            project.capture_image_path = capture_path
+        capture_model_path = _save_capture_image(project.id, data.get("capture_model_image"), "model")
+        if capture_model_path:
+            project.capture_model_path = capture_model_path
+        if capture_path or capture_model_path:
+            db.session.commit()
 
         roofs_data = data.get("roofs", [])
         for i, roof_data in enumerate(roofs_data):
@@ -152,6 +190,18 @@ def update_project(project_id):
             project.system_type = data["system_type"]
         if "selected_roof_index" in data:
             project.selected_roof_index = data["selected_roof_index"]
+        if "inverters" in data:
+            project.inverters_json = json.dumps(data.get("inverters") or [])
+        if "batteries" in data:
+            project.batteries_json = json.dumps(data.get("batteries") or [])
+        if "capture_image" in data:
+            capture_path = _save_capture_image(project.id, data.get("capture_image"), "roof")
+            if capture_path:
+                project.capture_image_path = capture_path
+        if "capture_model_image" in data:
+            capture_model_path = _save_capture_image(project.id, data.get("capture_model_image"), "model")
+            if capture_model_path:
+                project.capture_model_path = capture_model_path
 
         if "roofs" in data:
             Roof.query.filter_by(project_id=project.id).delete()
@@ -469,6 +519,76 @@ def get_irradiation(project_id):
         return jsonify({"error": str(e)}), 500
 
 
+@projects_bp.route("/api/projects/<int:project_id>/pvoutput", methods=["GET"])
+def get_pv_output(project_id):
+    try:
+        project = Project.query.get(project_id)
+        if not project:
+            return jsonify({"error": "Project not found"}), 404
+
+        if not project.latitude or not project.longitude:
+            return jsonify({"error": "Project has no location data"}), 400
+
+        roofs = project.roofs
+        if not roofs:
+            return jsonify({"error": "Project has no roofs"}), 400
+
+        system_kwp = request.args.get("system_kwp", type=float)
+        if not system_kwp or system_kwp <= 0:
+            return jsonify({"error": "system_kwp required"}), 400
+
+        roof_indices_param = request.args.get("roof_indices", "all")
+        loss = request.args.get("loss", type=float) or 14.0
+
+        lat = project.latitude
+        lon = project.longitude
+
+        roof_data = []
+        for roof in roofs:
+            roof_data.append({
+                "index": roof.index,
+                "tilt": roof.user_tilt or roof.tilt or 15,
+                "azimuth": roof.user_azimuth or roof.azimuth or 180,
+                "area": roof.area or 1,
+                "user_tilt": roof.user_tilt,
+                "user_azimuth": roof.user_azimuth
+            })
+
+        if roof_indices_param == "all":
+            selected_indices = None
+        else:
+            try:
+                selected_indices = [int(idx.strip()) for idx in roof_indices_param.split(",") if idx.strip()]
+                if not selected_indices:
+                    selected_indices = None
+            except ValueError:
+                return jsonify({"error": "Invalid roof_indices format. Use comma-separated integers or 'all'."}), 400
+
+        result = compute_multi_roof_pv_output(
+            lat, lon, roof_data, total_kwp=system_kwp, roof_indices=selected_indices, loss=loss
+        )
+
+        return jsonify({
+            "success": True,
+            "data_source": "PVGIS_PVcalc",
+            "roof_indices": "all" if selected_indices is None else selected_indices,
+            "location": {"lat": lat, "lon": lon},
+            "system_kwp": system_kwp,
+            "loss": loss,
+            "monthly_kwh": result["monthly"],
+            "annual_kwh": result["annual"]
+        })
+
+    except PVGISError as e:
+        current_app.logger.error("PVGIS API error: %s", e)
+        return jsonify({"error": f"PVGIS API error: {str(e)}"}), 502
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        current_app.logger.error("Error computing PV output: %s", e, exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @projects_bp.route("/api/projects/<int:project_id>/sizing", methods=["GET"])
 def get_sizing(project_id):
     try:
@@ -518,7 +638,7 @@ def get_sizing(project_id):
             selected_roofs = [r for r in roof_data if r.get("index") in selected_indices]
 
         appliances_payload = [a.to_dict() for a in appliances]
-        shading_ratio = project.shading_ratio or 0.8
+        shading_ratio = 1.0
 
         sizing_result = size_pv_system(
             appliances_payload,

@@ -10,12 +10,12 @@
 <body class="register-page">
   <div class="top-strip">
     <div class="top-strip-left">
-      <img src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="SUNSCOPE" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 52px; width: auto;">
+      <img class="gemini-logo" src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="Gemini">
     </div>
     <div class="top-strip-right">
+      <button id="topAuthBtn" class="top-auth-btn">Login</button>
       <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
       <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
-      <button id="topAuthBtn" class="top-auth-btn">Login</button>
     </div>
   </div>
 
@@ -28,20 +28,6 @@
 
   <main class="register-main">
     <section class="register-shell">
-      <aside class="register-brief">
-        <div class="brief-title">Enrollment Brief</div>
-        <div class="brief-panel">
-          <h2>Operator Provisioning</h2>
-          <p>New operator profiles are linked to project workspaces, panel libraries, and energy analytics. Provide your credentials to activate a session profile.</p>
-          <ul class="spec-list">
-            <li><span class="spec-key">Access</span><span class="spec-value">Controlled</span></li>
-            <li><span class="spec-key">Role</span><span class="spec-value">Engineering User</span></li>
-            <li><span class="spec-key">Provision</span><span class="spec-value">Instant</span></li>
-            <li><span class="spec-key">Security</span><span class="spec-value">Enabled</span></li>
-          </ul>
-        </div>
-      </aside>
-
       <div class="register-panel">
         <div class="panel-header">
           <div class="panel-title">Create Operator Profile</div>
@@ -86,6 +72,23 @@
     (function() {
       const AUTH_KEY = "solar_demo_auth";
       const USER_KEY = "solar_auth_user";
+      const isGuest = !(sessionStorage.getItem(AUTH_KEY) && sessionStorage.getItem(USER_KEY));
+      const topBtn = document.getElementById("topAuthBtn");
+      if (topBtn) {
+        if (isGuest) {
+          topBtn.textContent = "Login";
+          topBtn.onclick = () => { window.location.href = "/login"; };
+        } else {
+          topBtn.textContent = "Logout";
+          topBtn.onclick = (e) => {
+            e.preventDefault();
+            sessionStorage.removeItem(AUTH_KEY);
+            sessionStorage.removeItem(USER_KEY);
+            localStorage.removeItem("solar_wizard_session");
+            window.location.href = "/login";
+          };
+        }
+      }
       const logoutLink = document.getElementById("logoutLink");
 
       if (logoutLink) {

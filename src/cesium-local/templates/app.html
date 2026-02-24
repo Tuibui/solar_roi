@@ -18,7 +18,7 @@
     }
   </script>
 </head>
-<body>
+<body class="app-page">
   <script>
     (function() {
       const AUTH_KEY = "solar_demo_auth";
@@ -33,12 +33,12 @@
 
   <div class="top-strip">
     <div class="top-strip-left">
-      <img src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="SUNSCOPE" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 52px; width: auto;">
+      <img class="gemini-logo" src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="Gemini">
     </div>
     <div class="top-strip-right">
+      <button id="topAuthBtn" class="top-auth-btn">Login</button>
       <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
       <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
-      <button id="topAuthBtn" class="top-auth-btn">Login</button>
     </div>
   </div>
 
@@ -56,9 +56,9 @@
   <!-- Command Tab Bar -->
   <div id="commandBar" class="command-bar">
     <div class="command-bar-left">
-      <button class="command-bar-tab" data-tab="earth"><span class="tab-icon">🌍</span></button>
-      <button class="command-bar-tab" data-tab="add-panel">Add Panel</button>
-      <button class="command-bar-tab" data-tab="project-detail">Project Detail</button>
+      <button class="command-bar-tab" data-tab="earth"><img class="tab-icon-img" src="/static/images/global.gif" alt="Earth"></button>
+      <button class="command-bar-tab" data-tab="add-panel">Manager Tree</button>
+      <button class="command-bar-tab" data-tab="project-detail">User Information</button>
       <button class="command-bar-tab" data-tab="inverter">Inverter</button>
       <button class="command-bar-tab" data-tab="battery">Battery</button>
     </div>
@@ -138,7 +138,7 @@
                     <option value="pump|750">Water Pump (750W)</option>
                     <option value="custom">+ Custom...</option>
                   </select>
-                  <button class="btn-small primary" id="btnAddAppliance" type="button">+</button>
+                  <button class="btn-small primary wide-btn" id="btnAddAppliance" type="button">Add</button>
                 </div>
               </div>
               <div id="wizardAppliancesList" class="appliances-list"></div>
@@ -220,6 +220,10 @@
       <div class="split-viewer-col">
 
       <div class="split-viewer-wrap">
+        <div class="viewer-loc-overlay hidden" id="viewerLocOverlay">
+          <div class="viewer-loc-title" id="viewerLocTitle">Location</div>
+          <div class="viewer-loc-coord" id="viewerLocCoord">Lat -- · Lon --</div>
+        </div>
         <div id="splitModelHost"></div>
 
         <div class="live-price-overlay live-price-min" id="livePriceBox">

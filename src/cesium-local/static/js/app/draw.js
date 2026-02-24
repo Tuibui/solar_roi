@@ -266,3 +266,35 @@ function resetBoundaries() {
   sessionStorage.removeItem(CONFIG.STATE_KEY);
   setStatus("Reset");
 }
+
+// Restore saved boundaries (e.g. when loading a project).
+// polygons: array of polygon arrays, each polygon being [{x,y,z}, ...].
+// Re-populates `boundaries` and re-draws Cesium polygon entities.
+function restoreBoundaries(polygons) {
+  const viewer = getViewer();
+  // Clear any existing drawn polygons (without wiping sessionStorage)
+  polygonEntities.forEach(e => { if (viewer) viewer.entities.remove(e); });
+  polygonEntities = [];
+  boundaries = [];
+
+  (polygons || []).forEach((poly) => {
+    if (!Array.isArray(poly) || poly.length < 3) return;
+    boundaries.push(poly);
+
+    if (viewer && typeof ROOF_COLORS !== 'undefined') {
+      const colorIndex = (boundaries.length - 1) % ROOF_COLORS.length;
+      const roofColor = ROOF_COLORS[colorIndex];
+      const cartPositions = poly.map(p => new Cesium.Cartesian3(p.x, p.y, p.z));
+      const entity = viewer.entities.add({
+        polygon: {
+          hierarchy: cartPositions,
+          material: roofColor.cesium.withAlpha(0.4),
+          classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
+        }
+      });
+      polygonEntities.push(entity);
+    }
+  });
+
+  updateRoofCount();
+}

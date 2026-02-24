@@ -170,6 +170,145 @@ def compute_monthly_poa_irradiation(
     }
 
 
+@lru_cache(maxsize=64)
+def fetch_pvgis_monthly_pvcalc(
+    lat: float,
+    lon: float,
+    tilt: float,
+    azimuth: float,
+    peakpower_kwp: float,
+    loss: float = 14.0,
+    startyear: int = 2020,
+    endyear: int = 2020
+) -> Dict:
+    """
+    Fetch PVGIS PVcalc monthly PV output (grid-connected PV).
+
+    Returns JSON with outputs->monthly->fixed entries containing E_m (kWh/month).
+    """
+    lat = round(lat, 4)
+    lon = round(lon, 4)
+    tilt = round(tilt, 1)
+    peakpower_kwp = round(float(peakpower_kwp or 0), 3)
+    loss = round(float(loss or 0), 2)
+
+    pvgis_azimuth = (azimuth - 180) % 360
+    if pvgis_azimuth > 180:
+        pvgis_azimuth -= 360
+    pvgis_azimuth = round(pvgis_azimuth, 1)
+
+    url = f"{PVGIS_BASE_URL}/PVcalc"
+    params = {
+        "lat": lat,
+        "lon": lon,
+        "startyear": startyear,
+        "endyear": endyear,
+        "peakpower": peakpower_kwp,  # kWp
+        "loss": loss,                 # %
+        "angle": tilt,
+        "aspect": pvgis_azimuth,
+        "outputformat": "json"
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.Timeout:
+        raise PVGISError("PVGIS PVcalc timeout. Please try again.")
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 400:
+            error_msg = "Invalid parameters or location outside PVGIS coverage area."
+            try:
+                error_data = response.json()
+                if "message" in error_data:
+                    error_msg = error_data["message"]
+            except:
+                pass
+            raise PVGISError(f"PVGIS PVcalc error: {error_msg}")
+        raise PVGISError(f"PVGIS PVcalc HTTP error: {e}")
+    except requests.exceptions.RequestException as e:
+        raise PVGISError(f"PVGIS PVcalc request failed: {e}")
+    except ValueError as e:
+        raise PVGISError(f"PVGIS PVcalc returned invalid JSON: {e}")
+
+
+def compute_monthly_pv_output(
+    lat: float,
+    lon: float,
+    tilt: float,
+    azimuth: float,
+    peakpower_kwp: float,
+    loss: float = 14.0
+) -> Dict:
+    """
+    Compute monthly PV output (kWh) using PVGIS PVcalc.
+    """
+    data = fetch_pvgis_monthly_pvcalc(lat, lon, tilt, azimuth, peakpower_kwp, loss)
+    outputs = data.get("outputs", {})
+    monthly = outputs.get("monthly", {}).get("fixed", [])
+
+    if not monthly:
+        # PVGIS sometimes returns list at outputs->monthly
+        monthly = outputs.get("monthly", []) or []
+
+    monthly_values = []
+    for entry in monthly:
+        # E_m = monthly energy output (kWh)
+        val = entry.get("E_m", 0)
+        monthly_values.append(round(float(val), 2))
+
+    while len(monthly_values) < 12:
+        monthly_values.append(0.0)
+    monthly_values = monthly_values[:12]
+
+    annual_total = sum(monthly_values)
+    return {
+        "monthly": monthly_values,
+        "annual": round(annual_total, 2)
+    }
+
+
+def compute_multi_roof_pv_output(
+    lat: float,
+    lon: float,
+    roofs: List[Dict],
+    total_kwp: float,
+    roof_indices: Optional[List[int]] = None,
+    loss: float = 14.0
+) -> Dict:
+    """
+    Compute monthly PV output for multiple roofs by splitting total kWp by area ratio.
+    """
+    selected = roofs
+    if roof_indices is not None:
+        selected = [r for r in roofs if r.get("index") in roof_indices]
+
+    total_area = sum(float(r.get("area") or 0) for r in selected) or 0.0
+    if total_area <= 0 or total_kwp <= 0:
+        return {"monthly": [0.0] * 12, "annual": 0.0}
+
+    monthly_sum = [0.0] * 12
+    annual_sum = 0.0
+
+    for r in selected:
+        area = float(r.get("area") or 0)
+        if area <= 0:
+            continue
+        share_kwp = total_kwp * (area / total_area)
+        tilt = r.get("tilt") or 15
+        azimuth = r.get("azimuth") or 180
+        pv = compute_monthly_pv_output(lat, lon, tilt, azimuth, share_kwp, loss)
+        for i, v in enumerate(pv["monthly"]):
+            monthly_sum[i] += v
+        annual_sum += pv["annual"]
+
+    return {
+        "monthly": [round(v, 2) for v in monthly_sum],
+        "annual": round(annual_sum, 2)
+    }
+
+
 def compute_multi_roof_irradiation(
     lat: float,
     lon: float,

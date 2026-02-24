@@ -34,6 +34,99 @@ const DEMO_BATTERIES = [
   { brand: 'LG Energy', model: 'RESU16H Prime', kwh: 16.0, kw: 7.0, price: 9800 },
 ];
 
+function formatMoney(value) {
+  const n = Number(value);
+  const safe = Number.isFinite(n) ? n : 0;
+  return Math.round(safe).toLocaleString();
+}
+
+function getObjectsPriceTotal() {
+  const wiz = typeof wizard !== 'undefined' ? wizard : null;
+  const step2 = wiz && wiz.sessionData ? wiz.sessionData.step2 : null;
+  if (!step2) return 0;
+  const inverters = Array.isArray(step2.q9_inverters) ? step2.q9_inverters : [];
+  const batteries = Array.isArray(step2.q10_batteries) ? step2.q10_batteries : [];
+  let total = 0;
+  inverters.forEach((inv) => { total += Number(inv && inv.price) || 0; });
+  batteries.forEach((bat) => { total += Number(bat && bat.price) || 0; });
+  return total;
+}
+
+function getPanelsPriceTotal() {
+  const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+  if (!pp || typeof pp.getPanelCostSummary !== 'function') return 0;
+  const summary = pp.getPanelCostSummary(true);
+  return Number(summary && summary.totalPrice) || 0;
+}
+
+function getSelectedCurrencySafe() {
+  if (window.CurrencyUtil && typeof window.CurrencyUtil.getSelectedCurrency === 'function') {
+    return window.CurrencyUtil.getSelectedCurrency();
+  }
+  return 'THB';
+}
+
+function convertAmount(amount, from, to) {
+  if (window.CurrencyUtil && typeof window.CurrencyUtil.convert === 'function') {
+    return window.CurrencyUtil.convert(amount, from, to);
+  }
+  return Number(amount) || 0;
+}
+
+function formatCurrencyAmount(amount, currency) {
+  if (window.CurrencyUtil && typeof window.CurrencyUtil.format === 'function') {
+    return window.CurrencyUtil.format(amount, currency);
+  }
+  const safe = Number(amount) || 0;
+  return `${currency} ${safe.toLocaleString()}`;
+}
+
+function updateViewerLocationOverlay(locationOverride) {
+  const box = document.getElementById('viewerLocOverlay');
+  const titleEl = document.getElementById('viewerLocTitle');
+  const coordEl = document.getElementById('viewerLocCoord');
+  if (!box || !titleEl || !coordEl) return;
+
+  const loc = locationOverride || (wizard && wizard.sessionData && wizard.sessionData.step1?.location) || {};
+  const lat = Number(loc.lat);
+  const lon = Number(loc.lon);
+  const address = (loc.address || '').trim();
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    box.classList.add('hidden');
+    return;
+  }
+
+  titleEl.textContent = address || 'Roof Location';
+  coordEl.textContent = `Lat ${lat.toFixed(5)} · Lon ${lon.toFixed(5)}`;
+  box.classList.remove('hidden');
+}
+window.updateViewerLocationOverlay = updateViewerLocationOverlay;
+
+function refreshLivePrice() {
+  const totalEl = document.getElementById('livePriceTotal');
+  if (!totalEl) return;
+
+  const currency = getSelectedCurrencySafe();
+  const panelsTotal = convertAmount(getPanelsPriceTotal(), 'JPY', currency);
+  const objectsTotal = convertAmount(getObjectsPriceTotal(), 'USD', currency);
+  totalEl.textContent = formatCurrencyAmount(panelsTotal + objectsTotal, currency);
+}
+window.refreshLivePrice = refreshLivePrice;
+
+function refreshCurrencyDisplays() {
+  refreshLivePrice();
+  const inverterSearch = document.getElementById('splitInverterSearch');
+  if (inverterSearch) renderInverterSearchResults(inverterSearch.value);
+  const batterySearch = document.getElementById('splitBatterySearch');
+  if (batterySearch) renderBatterySearchResults(batterySearch.value);
+  renderInverterList();
+  renderBatteryList();
+  if (window.ProjectTree && typeof window.ProjectTree.refreshPanelBrowser === 'function') {
+    window.ProjectTree.refreshPanelBrowser();
+  }
+}
+
 // ============ INITIALIZATION ============
 window.addEventListener("DOMContentLoaded", async () => {
   // Initialize wizard (data manager)
@@ -58,6 +151,16 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Boot into workspace (not map)
   showWorkspaceEmpty();
+  updateViewerLocationOverlay();
+  refreshCurrencyDisplays();
+
+  // Open Project modal — close button + backdrop click
+  const opmOverlay = document.getElementById('openProjectOverlay');
+  const opmClose   = document.getElementById('openProjectClose');
+  if (opmClose)   opmClose.addEventListener('click',  () => opmOverlay?.classList.add('hidden'));
+  if (opmOverlay) opmOverlay.addEventListener('click', e => {
+    if (e.target === opmOverlay) opmOverlay.classList.add('hidden');
+  });
 });
 
 // ============ WIZARD TOOLBAR SETUP ============
@@ -123,6 +226,10 @@ function handleTabClick(tab) {
       switchLeftDock('battery');
       setActiveTab('battery');
       break;
+    case 'open':
+      openSavedProject();
+      setActiveTab('open');
+      break;
     case 'save':
       saveFromSplitView();
       setActiveTab('save');
@@ -171,13 +278,13 @@ function switchLeftDock(mode) {
   }
 
   // Update dock header
-  const titles = { tree: 'Project', project_detail: 'Project Detail', inverter: 'Inverter', battery: 'Battery' };
+  const titles = { tree: 'Project', project_detail: 'User Information', inverter: 'Inverter', battery: 'Battery' };
   const header = document.getElementById('dockHeaderTitle');
   if (header) header.textContent = titles[mode] || 'Project';
 
   // Refresh lists when switching to dock modes
-  if (mode === 'inverter') { renderInverterOptions(); renderInverterList(); }
-  if (mode === 'battery') { renderBatteryOptions(); renderBatteryList(); }
+  if (mode === 'inverter') { renderInverterSearchResults(); renderInverterList(); }
+  if (mode === 'battery') { renderBatterySearchResults(); renderBatteryList(); }
   if (mode === 'project_detail') { populateSplitForm(); }
 
   // Resize 3D viewer after layout change
@@ -262,12 +369,24 @@ function setupProjectTree() {
       const roofIndex = parseInt((data.id || '').replace('panels-', ''), 10);
       if (!isNaN(roofIndex)) enterEditRoof(roofIndex);
     }
+    if (action === 'clear-roof-panels') {
+      const roofIndex = parseInt((data.id || '').replace('panels-', ''), 10);
+      if (!isNaN(roofIndex)) clearPanelsForRoof(roofIndex);
+    }
     if (action === 'add-panel') {
       const roofIndex = parseInt((data.id || '').replace('roof-', ''), 10);
       if (!isNaN(roofIndex)) snapCameraToRoof(roofIndex);
     }
+    if (action === 'auto-panel') {
+      const roofIndex = parseInt((data.id || '').replace('roof-', ''), 10);
+      if (!isNaN(roofIndex)) snapCameraToRoof(roofIndex);
+    }
     if (action === 'panel-selected') {
-      startPanelPlacement(data);
+      if (data && data.auto) {
+        handleAutoPanelSelection(data);
+      } else {
+        startPanelPlacement(data);
+      }
     }
     if (action === 'browser-closed') {
       const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
@@ -283,7 +402,7 @@ function setupProjectTree() {
   const panel = document.getElementById('projectTreePanel');
   const resizeHandle = document.getElementById('projectTreeResizeHandle');
   if (btnToggle && panel) {
-    let lastExpandedWidth = Math.max(200, Math.round(panel.getBoundingClientRect().width) || 250);
+    let lastExpandedWidth = Math.max(200, Math.round(panel.getBoundingClientRect().width) || 425);
 
     const syncToggleTitle = () => {
       btnToggle.title = panel.classList.contains('collapsed') ? 'Expand tree' : 'Collapse tree';
@@ -340,11 +459,80 @@ async function snapCameraToRoof(roofIndex) {
   if (pp) pp.snapToRoof(roofIndex);
 }
 
+function handleAutoPanelSelection(data) {
+  const roofId = data?.roofId || '';
+  const roofIndex = parseInt(String(roofId).replace('roof-', ''), 10);
+  if (isNaN(roofIndex)) {
+    alert('Please select a roof first.');
+    return;
+  }
+
+  const usableArea = getRoofUsableAreaM2(roofIndex);
+  if (!Number.isFinite(usableArea) || usableArea <= 0) {
+    alert('Usable area for this roof is unknown. Analyze the roof first.');
+    return;
+  }
+
+  const lengthM = Number(data?.panelSpec?.lengthM);
+  const widthM = Number(data?.panelSpec?.widthM);
+  const panelArea = (Number.isFinite(lengthM) && Number.isFinite(widthM) && lengthM > 0 && widthM > 0)
+    ? lengthM * widthM
+    : null;
+
+  if (!panelArea) {
+    alert('Panel dimensions are missing for this model.');
+    return;
+  }
+
+  const maxPanels = Math.floor(usableArea / panelArea);
+  if (!Number.isFinite(maxPanels) || maxPanels < 1) {
+    alert('Roof area is too small for this panel.');
+    return;
+  }
+
+  const promptMsg = [
+    'Auto Panel',
+    `Roof usable area: ${usableArea.toFixed(1)} m²`,
+    `Panel area: ${panelArea.toFixed(2)} m²`,
+    `Max panels (area basis): ${maxPanels}`,
+    `Enter desired panel count (1-${maxPanels}):`
+  ].join('\n');
+
+  const defaultCount = Math.min(maxPanels, 10);
+  const input = window.prompt(promptMsg, String(defaultCount));
+  if (input === null) return; // user cancelled
+  const count = parseInt(input, 10);
+  if (!Number.isInteger(count) || count < 1 || count > maxPanels) {
+    alert(`Out of range. Please enter between 1 and ${maxPanels}.`);
+    return;
+  }
+
+  data.autoPanelCount = count;
+  data.autoPanelMax = maxPanels;
+  startPanelPlacement(data);
+}
+
 function getRoofAreaM2(roofIndex) {
-  const roof = (wizard && typeof wizard.getRoof === 'function') ? wizard.getRoof(roofIndex) : null;
+  const roof = (wizard && typeof wizard.getRoof === 'function')
+    ? wizard.getRoof(roofIndex)
+    : (wizard && typeof wizard.getRoofByIndex === 'function')
+      ? wizard.getRoofByIndex(roofIndex)
+      : null;
   if (!roof) return null;
   const area = roof.area_m2 ?? roof.area;
   const n = Number(area);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function getRoofUsableAreaM2(roofIndex) {
+  const roof = (wizard && typeof wizard.getRoof === 'function')
+    ? wizard.getRoof(roofIndex)
+    : (wizard && typeof wizard.getRoofByIndex === 'function')
+      ? wizard.getRoofByIndex(roofIndex)
+      : null;
+  if (!roof) return null;
+  const usable = roof.usable_area_m2 ?? roof.usable_area ?? roof.area_m2 ?? roof.area;
+  const n = Number(usable);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
@@ -352,6 +540,10 @@ async function enterEditRoof(roofIndex) {
   if (!window.ensurePanelPlacer) return;
   const pp = await window.ensurePanelPlacer();
   if (!pp) return;
+
+  // Keep live price in sync as panels are placed/removed (Bug 2)
+  pp.onPanelsChanged = () => refreshLivePrice();
+
   const areaM2 = getRoofAreaM2(roofIndex);
   if (areaM2) pp.setRoofArea(roofIndex, areaM2);
 
@@ -381,6 +573,9 @@ async function startPanelPlacement(data) {
   const pp = await window.ensurePanelPlacer();
   if (!pp) { console.warn('[PanelPlacement] PanelPlacer not available'); return; }
 
+  // Keep live price in sync as panels are placed/removed (Bug 2)
+  pp.onPanelsChanged = () => refreshLivePrice();
+
   const roofId = data.roofId;
   if (!roofId) { console.warn('[PanelPlacement] No roofId in data'); return; }
   const roofIndex = parseInt(roofId.replace('roof-', ''), 10);
@@ -402,6 +597,60 @@ async function startPanelPlacement(data) {
     return;
   }
 
+  // ── AUTO PANEL PATH ──────────────────────────────────────────────────────
+  if (data.autoPanelCount) {
+    // If sketching a different roof, cancel it first
+    if (pp.state === PlacerState.SKETCH && pp.sketchRoofIndex !== roofIndex) {
+      const prevRoof = pp.sketchRoofIndex;
+      pp.onFinish = null;
+      pp.onCancel = null;
+      pp.cancelSketch();
+      if (prevRoof != null) updateTreePanelsForRoof(prevRoof);
+    }
+
+    // Clear existing confirmed panels on this roof before auto place
+    if (typeof clearPanelsForRoof === 'function') {
+      clearPanelsForRoof(roofIndex);
+    }
+
+    // Enter sketch mode BEFORE autoPlacePanels (it requires state === SKETCH)
+    if (pp.state !== PlacerState.SKETCH) {
+      const ok = pp.enterSketchForRoof(roofIndex);
+      if (!ok) {
+        showToast('Could not enter sketch mode for this roof.', 'error');
+        return;
+      }
+    }
+
+    // Wire callbacks so tree + browser update correctly after finishSketch
+    pp.autoPanelTarget = { roofIndex, count: data.autoPanelCount };
+    pp.onFinish = (placed, ri) => {
+      pp.autoPanelTarget = null;
+      updateTreePanelsForRoof(ri);
+      if (window.ProjectTree) window.ProjectTree.hidePanelBrowser();
+    };
+    pp.onCancel = (ri) => {
+      pp.autoPanelTarget = null;
+      updateTreePanelsForRoof(ri);
+      if (window.ProjectTree) window.ProjectTree.hidePanelBrowser();
+    };
+
+    const placedCount = pp.autoPlacePanels(data.autoPanelCount);
+    if (!placedCount) {
+      showToast('Unable to auto-place panels. Try a smaller count or different panel size.', 'error');
+      pp.cancelSketch();
+      pp.autoPanelTarget = null;
+      return;
+    }
+
+    showToast(`Auto-placed ${placedCount} panel${placedCount !== 1 ? 's' : ''} of ${modelLabel}`);
+    pp.finishSketch();
+    return;
+  }
+
+  // ── MANUAL PANEL PATH ────────────────────────────────────────────────────
+  pp.autoPanelTarget = null;
+
   // Already in sketch for this roof? Just switch model, restart ghost.
   if (pp.state === PlacerState.SKETCH && pp.sketchRoofIndex === roofIndex) {
     pp.startInstall();
@@ -419,10 +668,12 @@ async function startPanelPlacement(data) {
 
   // Wire finish/cancel callbacks — close browser + update tree
   pp.onFinish = (placed, sketchRoofIndex) => {
+    pp.autoPanelTarget = null;
     updateTreePanelsForRoof(sketchRoofIndex);
     if (window.ProjectTree) window.ProjectTree.hidePanelBrowser();
   };
   pp.onCancel = (sketchRoofIndex) => {
+    pp.autoPanelTarget = null;
     updateTreePanelsForRoof(sketchRoofIndex);
     if (window.ProjectTree) window.ProjectTree.hidePanelBrowser();
   };
@@ -456,8 +707,21 @@ function updateTreePanelsForRoof(roofIndex) {
   });
 
   ProjectTree.updatePanels(roofIndex, panelEntries);
+  refreshLivePrice();
 }
 window.updateTreePanelsForRoof = updateTreePanelsForRoof;
+
+async function clearPanelsForRoof(roofIndex) {
+  const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+  if (!pp) return;
+  const metas = pp.getPanelsForRoof(roofIndex);
+  if (!metas.length) return;
+  // Remove each confirmed panel on this roof
+  metas.forEach(m => {
+    pp.deleteConfirmedPanel(m.panelName);
+  });
+  updateTreePanelsForRoof(roofIndex);
+}
 
 function handleDeletePanel(node) {
   const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
@@ -505,24 +769,16 @@ function setupSplitViewHandlers() {
   if (btnAddAppliance) {
     btnAddAppliance.addEventListener('click', addApplianceFromWizard);
   }
-  const btnAddInverter = document.getElementById('btnAddInverter');
-  if (btnAddInverter) {
-    btnAddInverter.addEventListener('click', addInverterFromDetails);
+  const inverterSearch = document.getElementById('splitInverterSearch');
+  if (inverterSearch) {
+    inverterSearch.addEventListener('input', () => renderInverterSearchResults(inverterSearch.value));
   }
-  const btnAddBattery = document.getElementById('btnAddBattery');
-  if (btnAddBattery) {
-    btnAddBattery.addEventListener('click', addBatteryFromDetails);
+  const batterySearch = document.getElementById('splitBatterySearch');
+  if (batterySearch) {
+    batterySearch.addEventListener('input', () => renderBatterySearchResults(batterySearch.value));
   }
 
 
-
-  // Monthly bill
-  const monthlyInput = document.getElementById('wizardMonthlyKwh');
-  if (monthlyInput) {
-    monthlyInput.addEventListener('change', (e) => {
-      wizard.setBillUsage(e.target.value, null);
-    });
-  }
 
   // Tariff
   const tariffInput = document.getElementById('wizardTariff');
@@ -542,6 +798,7 @@ function setupSplitViewHandlers() {
       if (exportLabel) {
         exportLabel.textContent = e.target.value + '/kWh';
       }
+      refreshCurrencyDisplays();
     });
   }
 
@@ -579,6 +836,160 @@ function showSplitView() {
   initSplitViewer();
 }
 
+// ============ LOAD SAVED PROJECT ============
+function openSavedProject() {
+  if (!wizard || typeof wizard.loadDatasets !== 'function') {
+    showToast('Loader unavailable.', 'error');
+    return;
+  }
+  showOpenProjectModal();
+}
+
+// ---- Open Project Modal ----
+async function showOpenProjectModal() {
+  const overlay = document.getElementById('openProjectOverlay');
+  const body    = document.getElementById('openProjectBody');
+  if (!overlay || !body) return;
+
+  body.innerHTML = '<div class="opm-loading">Loading projects…</div>';
+  overlay.classList.remove('hidden');
+
+  try {
+    const res = await wizard.loadDatasets();
+    const datasets = (res && res.datasets) || [];
+
+    if (!datasets.length) {
+      body.innerHTML = '<div class="opm-empty">No saved projects found.</div>';
+      return;
+    }
+
+    body.innerHTML = '';
+    datasets.forEach(ds => {
+      const ts = ds.timestamp ? new Date(ds.timestamp).toLocaleString() : '—';
+      const roofCount = ds.roofData?.roofs?.length ?? '?';
+
+      const card = document.createElement('div');
+      card.className = 'opm-card';
+      card.innerHTML = `
+        <div class="opm-card-info">
+          <div class="opm-card-name">${_escHtml(ds.name || 'Untitled Project')}</div>
+          <div class="opm-card-meta">${roofCount} roof${roofCount !== 1 ? 's' : ''} · ${ts}</div>
+        </div>
+        <div class="opm-card-actions">
+          <button class="opm-btn-open"  data-id="${ds.id}">Open</button>
+          <button class="opm-btn-delete" data-id="${ds.id}">Delete</button>
+        </div>`;
+
+      card.querySelector('.opm-btn-open').addEventListener('click', async () => {
+        overlay.classList.add('hidden');
+        await applyDatasetToWorkspace(ds);
+        showToast(`Project "${ds.name || 'Untitled'}" loaded.`, 'success');
+      });
+
+      card.querySelector('.opm-btn-delete').addEventListener('click', async () => {
+        if (!confirm(`Delete "${ds.name || 'Untitled'}"?`)) return;
+        try {
+          await wizard.deleteDataset(ds.id);
+          card.remove();
+          if (!body.querySelector('.opm-card')) {
+            body.innerHTML = '<div class="opm-empty">No saved projects found.</div>';
+          }
+        } catch (err) {
+          showToast('Failed to delete project.', 'error');
+        }
+      });
+
+      body.appendChild(card);
+    });
+  } catch (e) {
+    console.error('Failed to load projects', e);
+    body.innerHTML = `<div class="opm-empty opm-error">Failed to load projects: ${_escHtml(e?.message || String(e))}</div>`;
+  }
+}
+
+function _escHtml(str) {
+  return String(str).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
+// ---- Toast notification ----
+function showToast(message, type = 'info', duration = 3000) {
+  const existing = document.getElementById('appToast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'appToast';
+  toast.className = `app-toast app-toast--${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  // Trigger animation
+  requestAnimationFrame(() => toast.classList.add('app-toast--visible'));
+  setTimeout(() => {
+    toast.classList.remove('app-toast--visible');
+    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+  }, duration);
+}
+
+async function applyDatasetToWorkspace(ds) {
+  if (!ds || !wizard) return;
+  const defaults = wizard.getDefaultSessionData();
+
+  // Reset session, preserve loaded project id
+  wizard.clearSessionData();
+  wizard.sessionData = wizard.normalizeSessionData({
+    ...defaults,
+    projectId: ds.id ?? null
+  });
+
+  // Location
+  const loc = ds.roofData?.location || ds.inputs?.q1_location || { lat: null, lon: null, address: '' };
+  wizard.setLocationData(loc.lat, loc.lon, loc.address);
+
+  // Fly camera to project location (Fix #4)
+  if (loc.lat && loc.lon && typeof flyToLocation === 'function') {
+    flyToLocation({ lat: loc.lat, lon: loc.lon, height: 500 }, loc.address || '');
+  }
+
+  // Roofs
+  const roofs = ds.roofData?.roofs || [];
+  wizard.setRoofs(roofs);
+
+  // Restore boundaries so scatter/shading analysis has polygon data (Bug 1)
+  if (typeof restoreBoundaries === 'function') {
+    restoreBoundaries(roofs.map(r => r.polygon || []));
+  }
+
+  // Inputs
+  const inputs = ds.inputs || {};
+  wizard.sessionData.step2.q3_shading    = { ...defaults.step2.q3_shading,   ...(inputs.q3_shading   || {}) };
+  wizard.sessionData.step2.q4_appliances = inputs.q4_appliances || [];
+  wizard.sessionData.step2.q5_bill       = { ...defaults.step2.q5_bill,      ...(inputs.q5_bill      || {}) };
+  wizard.sessionData.step2.q6_tariff     = { ...defaults.step2.q6_tariff,    ...(inputs.q6_tariff    || {}) };
+  wizard.sessionData.step2.q7_export     = { ...defaults.step2.q7_export,    ...(inputs.q7_export    || {}) };
+  wizard.sessionData.step2.q8_system     = { ...defaults.step2.q8_system,    ...(inputs.q8_system    || {}) };
+  wizard.sessionData.step2.q9_inverters  = inputs.q9_inverters  || [];
+  wizard.sessionData.step2.q10_batteries = inputs.q10_batteries || [];
+
+  wizard.saveSessionData();
+
+  // Refresh UI/3D
+  updateRoofCount();
+  populateSplitForm();
+
+  // Schedule scatter for all roofs once the model finishes loading
+  window.pendingScatter = {
+    mode: 'all',
+    waitForShading: true,
+    finishOverlay: false,
+    finalOnly: true
+  };
+
+  showSplitView();
+  if (window.ProjectTree) ProjectTree.updateRoofs(roofs);
+}
+
 function resizeCesium() {
   if (typeof getViewer !== 'function') return;
   const viewer = getViewer();
@@ -600,6 +1011,8 @@ function clearSplitScene() {
     if (obj === scene) return;
     // Keep lights and camera
     if (obj.isLight || obj.isCamera) return;
+    if (obj.userData && obj.userData.keepInScene) return;
+    if (obj.name && obj.name === 'cad-grid') return;
     toRemove.push(obj);
   });
   // Remove only top-level children (traverse covers nested)
@@ -654,27 +1067,41 @@ function initSplitViewer() {
 
   // Load model
   if (splitViewer && window.threeViewer) {
-    const modelUrl = '/backend/static/roof_model.glb?t=' + Date.now();
+    const pid = wizard?.sessionData?.projectId;
+    const ts = Date.now();
+    // Use the API route for saved projects — it generates the GLB on demand if missing.
+    // Fall back to the shared roof_model.glb for fresh (unsaved) analyses.
+    const primaryUrl = (pid && !isNaN(pid))
+      ? `/api/projects/${pid}/model?lite=1&t=${ts}`
+      : `/backend/static/roof_model.glb?t=${ts}`;
+    const fallbackUrl = `/backend/static/roof_model.glb?t=${ts}`;
     const roofIndex = wizard && wizard.selectedGeometryRoofIndex != null ? wizard.selectedGeometryRoofIndex : 0;
-    window.threeViewer.loadModelToViewer(splitViewer, modelUrl, roofIndex,
-      async () => {
-        // Model loaded
-        if (window.pendingScatter) {
-          const { mode, roofIndex: pendingRoofIndex, waitForShading, finishOverlay, finalOnly } = window.pendingScatter;
-          window.pendingScatter = null;
-          if (mode === 'all') {
-            await runAllBoundaryScatter({ waitForShading, finishOverlay, finalOnly });
-          } else {
-            await runBoundaryScatter(pendingRoofIndex, { waitForShading, finishOverlay, finalOnly });
+
+    const loadWithFallback = (url, triedFallback = false) => {
+      window.threeViewer.loadModelToViewer(splitViewer, url, roofIndex,
+        async () => {
+          // Model loaded
+          if (window.pendingScatter) {
+            const { mode, roofIndex: pendingRoofIndex, waitForShading, finishOverlay, finalOnly } = window.pendingScatter;
+            window.pendingScatter = null;
+            if (mode === 'all') {
+              await runAllBoundaryScatter({ waitForShading, finishOverlay, finalOnly });
+            } else {
+              await runBoundaryScatter(pendingRoofIndex, { waitForShading, finishOverlay, finalOnly });
+            }
+            return;
           }
-          return;
+          runBoundaryScatter(roofIndex);
+        },
+        () => {
+          if (!triedFallback && url !== fallbackUrl) {
+            loadWithFallback(fallbackUrl, true);
+          }
         }
-        runBoundaryScatter(roofIndex);
-      },
-      () => {
-        // Error loading model
-      }
-    );
+      );
+    };
+
+    loadWithFallback(primaryUrl, false);
   }
 }
 
@@ -685,16 +1112,10 @@ function populateSplitForm() {
   // Appliances
   renderAppliancesList();
   ensureEquipmentListsState();
-  renderInverterOptions();
-  renderBatteryOptions();
+  renderInverterSearchResults('');
+  renderBatterySearchResults('');
   renderInverterList();
   renderBatteryList();
-
-  // Monthly bill
-  const monthlyInput = document.getElementById('wizardMonthlyKwh');
-  if (monthlyInput && data.q5_bill.monthly_kwh != null) {
-    monthlyInput.value = data.q5_bill.monthly_kwh;
-  }
 
   // Tariff
   const tariffInput = document.getElementById('wizardTariff');
@@ -713,6 +1134,7 @@ function populateSplitForm() {
   if (exportLabel) {
     exportLabel.textContent = (data.q6_tariff.currency || 'THB') + '/kWh';
   }
+  refreshCurrencyDisplays();
 }
 
 // ============ MODEL ROTATION CONTROLS ============
@@ -1306,6 +1728,26 @@ async function saveFromSplitView() {
 
   const btn = document.getElementById('btnSplitSave');
   const msgEl = document.getElementById('splitSaveMsg');
+  const popup = document.getElementById('savePopup');
+  const popupTitle = document.getElementById('savePopupTitle');
+  const popupBody = document.getElementById('savePopupBody');
+  const popupClose = document.getElementById('savePopupClose');
+
+  function showPopup(title, body) {
+    if (!popup || !popupTitle || !popupBody) return;
+    popupTitle.textContent = title;
+    popupBody.textContent = body || '';
+    popup.classList.remove('hidden');
+  }
+
+  function hidePopup() {
+    if (!popup) return;
+    popup.classList.add('hidden');
+  }
+
+  if (popupClose) {
+    popupClose.onclick = () => hidePopup();
+  }
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Saving...';
@@ -1316,12 +1758,17 @@ async function saveFromSplitView() {
   wizard.setSystemType('auto');
 
   try {
+    const modelCapture = await captureModelSnapshot();
+    if (modelCapture && wizard) {
+      wizard.setCaptureModelImage(modelCapture);
+    }
     const result = await wizard.saveDataset(name);
     if (msgEl) {
       msgEl.style.display = 'block';
       msgEl.textContent = `Project "${result.project?.name || name}" saved successfully!`;
       msgEl.className = 'success-message';
     }
+    showPopup('Project Saved', `Saved "${result.project?.name || name}".`);
     if (btn) {
       btn.textContent = 'Saved!';
       setTimeout(() => {
@@ -1336,10 +1783,29 @@ async function saveFromSplitView() {
       msgEl.textContent = 'Error saving project. Please try again.';
       msgEl.className = 'error-message';
     }
+    showPopup('Save Failed', 'Error saving project. Please try again.');
     if (btn) {
       btn.disabled = false;
       btn.textContent = 'Save Project';
     }
+  }
+}
+
+async function captureModelSnapshot() {
+  if (!splitViewer || !splitViewer.renderer) return null;
+  const canvas = splitViewer.renderer.domElement;
+  if (!canvas) return null;
+
+  if (splitViewer.renderer.render && splitViewer.scene && splitViewer.camera) {
+    splitViewer.renderer.render(splitViewer.scene, splitViewer.camera);
+  }
+  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+  try {
+    return canvas.toDataURL('image/png');
+  } catch (err) {
+    console.warn('Model capture failed:', err);
+    return null;
   }
 }
 
@@ -1510,6 +1976,22 @@ async function onAnalyzeRoof() {
 
     renderMapMode();
 
+    // Capture cropped roof image from Cesium view (before leaving map mode)
+    try {
+      const capture = await captureRoofSnapshot(boundaries);
+      if (capture && wizard) {
+        wizard.setCaptureImage(capture);
+      }
+    } catch (err) {
+      console.warn('Capture failed:', err);
+    }
+
+    // Fresh analysis — detach from any previously saved project so
+    // initSplitViewer() loads the newly generated roof_model.glb
+    // instead of an old project-specific model file.
+    wizard.sessionData.projectId = null;
+    wizard.saveSessionData();
+
     // Defer overlay until scatter is computed in split view
     deferOverlayHide = true;
     overlayMsg.textContent = 'Computing shading...';
@@ -1529,6 +2011,59 @@ async function onAnalyzeRoof() {
       overlay.style.display = 'none';
     }
   }
+}
+
+async function captureRoofSnapshot(boundaries) {
+  const viewer = getViewer && getViewer();
+  if (!viewer || !viewer.scene || !viewer.scene.canvas) return null;
+  const canvas = viewer.scene.canvas;
+
+  viewer.scene.requestRender();
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  const ratio = canvas.width / Math.max(1, canvas.clientWidth);
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  const allPoints = [];
+  (boundaries || []).forEach(b => {
+    (b || []).forEach(p => allPoints.push(p));
+  });
+
+  allPoints.forEach((pos) => {
+    const win = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, pos);
+    if (!win) return;
+    const x = win.x * ratio;
+    const y = win.y * ratio;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  });
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
+    return canvas.toDataURL('image/png');
+  }
+
+  const pad = 80 * ratio;
+  let x = Math.max(0, Math.floor(minX - pad));
+  let y = Math.max(0, Math.floor(minY - pad));
+  let w = Math.min(canvas.width - x, Math.ceil((maxX - minX) + pad * 2));
+  let h = Math.min(canvas.height - y, Math.ceil((maxY - minY) + pad * 2));
+
+  if (w <= 0 || h <= 0) {
+    return canvas.toDataURL('image/png');
+  }
+
+  const temp = document.createElement('canvas');
+  temp.width = w;
+  temp.height = h;
+  const ctx = temp.getContext('2d');
+  ctx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
+  return temp.toDataURL('image/png');
 }
 
 function onResetRoof() {
@@ -1661,46 +2196,100 @@ function ensureEquipmentListsState() {
   if (!Array.isArray(step2.q10_batteries)) step2.q10_batteries = [];
 }
 
-function renderInverterOptions() {
-  const select = document.getElementById('splitInverterSelect');
-  if (!select) return;
-  select.innerHTML = '<option value="">-- Select Inverter --</option>' +
-    DEMO_INVERTERS.map((inv, i) =>
-      `<option value="${i}">${inv.brand} ${inv.model} (${inv.kw} kW)</option>`
-    ).join('');
-}
-
-function renderBatteryOptions() {
-  const select = document.getElementById('splitBatterySelect');
-  if (!select) return;
-  select.innerHTML = '<option value="">-- Select Battery --</option>' +
-    DEMO_BATTERIES.map((bat, i) =>
-      `<option value="${i}">${bat.brand} ${bat.model} (${bat.kwh} kWh)</option>`
-    ).join('');
-}
-
-function addInverterFromDetails() {
+function addInverterFromDetailsByIndex(idx) {
   ensureEquipmentListsState();
-  const select = document.getElementById('splitInverterSelect');
-  if (!select || !select.value) return;
-  const idx = Number(select.value);
   if (!Number.isInteger(idx) || !DEMO_INVERTERS[idx]) return;
   wizard.sessionData.step2.q9_inverters.push({ ...DEMO_INVERTERS[idx] });
   wizard.saveSessionData();
-  select.value = '';
+  const search = document.getElementById('splitInverterSearch');
+  if (search) search.value = '';
+  renderInverterSearchResults('');
   renderInverterList();
+  refreshLivePrice();
 }
 
-function addBatteryFromDetails() {
+function addBatteryFromDetailsByIndex(idx) {
   ensureEquipmentListsState();
-  const select = document.getElementById('splitBatterySelect');
-  if (!select || !select.value) return;
-  const idx = Number(select.value);
   if (!Number.isInteger(idx) || !DEMO_BATTERIES[idx]) return;
   wizard.sessionData.step2.q10_batteries.push({ ...DEMO_BATTERIES[idx] });
   wizard.saveSessionData();
-  select.value = '';
+  const search = document.getElementById('splitBatterySearch');
+  if (search) search.value = '';
+  renderBatterySearchResults('');
   renderBatteryList();
+  refreshLivePrice();
+}
+
+function renderInverterSearchResults(filterText = '') {
+  const list = document.getElementById('splitInverterSearchList');
+  if (!list) return;
+  const currency = getSelectedCurrencySafe();
+  const ft = String(filterText || '').toLowerCase().trim();
+  const filtered = DEMO_INVERTERS.filter((inv) => {
+    if (!ft) return true;
+    return inv.brand.toLowerCase().includes(ft) ||
+      inv.model.toLowerCase().includes(ft) ||
+      String(inv.kw).includes(ft);
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="form-hint">No inverter found.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((inv) => {
+    const idx = DEMO_INVERTERS.indexOf(inv);
+    const priceText = formatCurrencyAmount(convertAmount(inv.price, 'USD', currency), currency);
+    return `
+      <div class="appliance-item">
+        <div class="appliance-item-info">
+          <div class="appliance-item-name">${inv.brand} ${inv.model}</div>
+          <div class="appliance-item-details">${inv.kw} kW · ${inv.phase} phase · ${priceText}</div>
+        </div>
+        <button class="btn-small" data-add-inverter="${idx}" style="padding: 6px 10px; background: #2b2b2b; color: #fff; border: none;">Add</button>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-add-inverter]').forEach((btn) => {
+    btn.addEventListener('click', () => addInverterFromDetailsByIndex(Number(btn.dataset.addInverter)));
+  });
+}
+
+function renderBatterySearchResults(filterText = '') {
+  const list = document.getElementById('splitBatterySearchList');
+  if (!list) return;
+  const currency = getSelectedCurrencySafe();
+  const ft = String(filterText || '').toLowerCase().trim();
+  const filtered = DEMO_BATTERIES.filter((bat) => {
+    if (!ft) return true;
+    return bat.brand.toLowerCase().includes(ft) ||
+      bat.model.toLowerCase().includes(ft) ||
+      String(bat.kwh).includes(ft);
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="form-hint">No battery found.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((bat) => {
+    const idx = DEMO_BATTERIES.indexOf(bat);
+    const priceText = formatCurrencyAmount(convertAmount(bat.price, 'USD', currency), currency);
+    return `
+      <div class="appliance-item">
+        <div class="appliance-item-info">
+          <div class="appliance-item-name">${bat.brand} ${bat.model}</div>
+          <div class="appliance-item-details">${bat.kwh} kWh · ${bat.kw} kW · ${priceText}</div>
+        </div>
+        <button class="btn-small" data-add-battery="${idx}" style="padding: 6px 10px; background: #2b2b2b; color: #fff; border: none;">Add</button>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-add-battery]').forEach((btn) => {
+    btn.addEventListener('click', () => addBatteryFromDetailsByIndex(Number(btn.dataset.addBattery)));
+  });
 }
 
 function renderInverterList() {
@@ -1708,6 +2297,7 @@ function renderInverterList() {
   const list = document.getElementById('splitInverterList');
   if (!list) return;
   const inverters = wizard.sessionData.step2.q9_inverters;
+  const currency = getSelectedCurrencySafe();
   if (!inverters.length) {
     list.innerHTML = '<div class="form-hint">No inverter added.</div>';
     return;
@@ -1716,7 +2306,7 @@ function renderInverterList() {
     <div class="appliance-item">
       <div class="appliance-item-info">
         <div class="appliance-item-name">${inv.brand} ${inv.model}</div>
-        <div class="appliance-item-details">${inv.kw} kW · ${inv.phase} phase · $${inv.price}</div>
+        <div class="appliance-item-details">${inv.kw} kW · ${inv.phase} phase · ${formatCurrencyAmount(convertAmount(inv.price, 'USD', currency), currency)}</div>
       </div>
       <button class="appliance-remove" data-index="${idx}" data-type="inverter">Remove</button>
     </div>
@@ -1731,6 +2321,7 @@ function renderBatteryList() {
   const list = document.getElementById('splitBatteryList');
   if (!list) return;
   const batteries = wizard.sessionData.step2.q10_batteries;
+  const currency = getSelectedCurrencySafe();
   if (!batteries.length) {
     list.innerHTML = '<div class="form-hint">No battery added.</div>';
     return;
@@ -1739,7 +2330,7 @@ function renderBatteryList() {
     <div class="appliance-item">
       <div class="appliance-item-info">
         <div class="appliance-item-name">${bat.brand} ${bat.model}</div>
-        <div class="appliance-item-details">${bat.kwh} kWh · ${bat.kw} kW · $${bat.price}</div>
+        <div class="appliance-item-details">${bat.kwh} kWh · ${bat.kw} kW · ${formatCurrencyAmount(convertAmount(bat.price, 'USD', currency), currency)}</div>
       </div>
       <button class="appliance-remove" data-index="${idx}" data-type="battery">Remove</button>
     </div>
@@ -1756,6 +2347,7 @@ function removeInverterFromDetails(index) {
   list.splice(index, 1);
   wizard.saveSessionData();
   renderInverterList();
+  refreshLivePrice();
 }
 
 function removeBatteryFromDetails(index) {
@@ -1765,6 +2357,7 @@ function removeBatteryFromDetails(index) {
   list.splice(index, 1);
   wizard.saveSessionData();
   renderBatteryList();
+  refreshLivePrice();
 }
 
 // ============ UTILITIES ============

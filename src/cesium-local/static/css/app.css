@@ -3,7 +3,7 @@
 /* Big Analyze Button - Bottom Right of Map */
 .analyze-button-container {
   position: absolute;
-  bottom: 40px;
+  bottom: 68px;
   right: 40px;
   z-index: 1000;
 }

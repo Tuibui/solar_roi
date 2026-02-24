@@ -113,8 +113,7 @@ class SolarWizard {
   }
 
   validateStep5() {
-    const bill = this.sessionData.step2.q5_bill;
-    return bill.monthly_kwh != null || bill.annual_kwh != null;
+    return true;
   }
 
   validateStep6() {
@@ -181,6 +180,7 @@ class SolarWizard {
     return {
       ...defaults,
       ...data,
+      projectId: data.projectId ?? defaults.projectId,
       step1: { ...defaults.step1, ...data.step1 },
       step2: {
         ...defaults.step2,
@@ -233,11 +233,14 @@ class SolarWizard {
 
   getDefaultSessionData() {
     return {
+      projectId: null,
       currentStep: 1,
       sessionId: this.generateSessionId(),
       step1: {
         location: { lat: null, lon: null, address: '' },
-        roofs: []
+        roofs: [],
+        capture_image: null,
+        capture_model_image: null
       },
       step2: {
         q1_location: { lat: null, lon: null },
@@ -247,7 +250,9 @@ class SolarWizard {
         q5_bill: { monthly_kwh: null, annual_kwh: null },
         q6_tariff: { price: 4.5, currency: 'THB' },
         q7_export: { allowed: true, price: null },
-        q8_system: { type: 'auto' }
+        q8_system: { type: 'auto' },
+        q9_inverters: [],
+        q10_batteries: []
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -290,6 +295,16 @@ class SolarWizard {
       this.selectedGeometryRoofIndex = null;
       this.selectedUsabilityRoofIndex = null;
     }
+    this.saveSessionData();
+  }
+
+  setCaptureImage(dataUrl) {
+    this.sessionData.step1.capture_image = dataUrl || null;
+    this.saveSessionData();
+  }
+
+  setCaptureModelImage(dataUrl) {
+    this.sessionData.step1.capture_model_image = dataUrl || null;
     this.saveSessionData();
   }
 
@@ -383,14 +398,18 @@ class SolarWizard {
       shading_method: this.sessionData.step2.q3_shading.method,
       shading_ratio: this.sessionData.step2.q3_shading.ratio,
       shading_level: this.sessionData.step2.q3_shading.level,
-      monthly_kwh: this.sessionData.step2.q5_bill.monthly_kwh,
-      annual_kwh: this.sessionData.step2.q5_bill.annual_kwh,
+      monthly_kwh: null,
+      annual_kwh: null,
       tariff_price: this.sessionData.step2.q6_tariff.price,
       tariff_currency: this.sessionData.step2.q6_tariff.currency,
       grid_export_allowed: this.sessionData.step2.q7_export.allowed,
       grid_export_price: this.sessionData.step2.q7_export.price,
       system_type: this.sessionData.step2.q8_system.type,
       selected_roof_index: this.sessionData.step2.q2_geometry.roofIndex || 0,
+      capture_image: this.sessionData.step1.capture_image,
+      capture_model_image: this.sessionData.step1.capture_model_image,
+      inverters: this.sessionData.step2.q9_inverters || [],
+      batteries: this.sessionData.step2.q10_batteries || [],
       roofs: this.roofs.map((roof, i) => {
         const roofShading = this.getRoofShading(i);
         return {
@@ -421,11 +440,17 @@ class SolarWizard {
     };
 
     try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectData)
-      });
+      const existingId = this.sessionData.projectId;
+      const isUpdate = existingId && !isNaN(existingId);
+
+      const response = await fetch(
+        isUpdate ? `/api/projects/${existingId}` : '/api/projects',
+        {
+          method: isUpdate ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(projectData)
+        }
+      );
 
       const result = await response.json();
 
@@ -433,9 +458,15 @@ class SolarWizard {
         throw new Error(result.error || 'Failed to save project');
       }
 
+      // Store the project id so future saves do PUT
+      if (result.project?.id) {
+        this.sessionData.projectId = result.project.id;
+        this.saveSessionData();
+      }
+
       return {
         id: result.project.id,
-        timestamp: result.project.created_at,
+        timestamp: result.project.created_at || result.project.updated_at,
         success: true,
         project: result.project
       };
@@ -456,7 +487,9 @@ class SolarWizard {
           name: name,
           timestamp: timestamp,
           roofData: this.sessionData.step1,
-          inputs: this.sessionData.step2
+          inputs: this.sessionData.step2,
+          inverters: this.sessionData.step2.q9_inverters || [],
+          batteries: this.sessionData.step2.q10_batteries || []
         };
 
         const datasets = JSON.parse(localStorage.getItem('solar_saved_datasets') || '[]');
@@ -517,7 +550,9 @@ class SolarWizard {
           q5_bill: project.bill,
           q6_tariff: project.tariff,
           q7_export: project.grid_export,
-          q8_system: project.system
+          q8_system: project.system,
+          q9_inverters: project.inverters || [],
+          q10_batteries: project.batteries || []
         }
       }));
 
@@ -590,6 +625,9 @@ class SolarWizard {
     const lon = Number.isFinite(parsedLon) ? parsedLon : null;
     this.sessionData.step1.location = { lat: lat, lon: lon, address: locationName || '' };
     this.sessionData.step2.q1_location = { lat: lat, lon: lon };
+    if (typeof window.updateViewerLocationOverlay === 'function') {
+      window.updateViewerLocationOverlay({ lat, lon, address: locationName || '' });
+    }
     this.saveSessionData();
   }
 

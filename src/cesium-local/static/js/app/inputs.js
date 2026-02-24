@@ -158,7 +158,7 @@ function autoFillFromRoofData(data) {
       const tilt = roof.user_tilt != null ? roof.user_tilt : roof.tilt;
       const azimuth = roof.azimuth;
       const isFlat = roof.is_flat || (roof.tilt != null && roof.tilt < 5);
-      const warning = (isFlat && roof.user_tilt == null) ? ' ⚠️' : '';
+      const warning = (isFlat && roof.user_tilt == null) ? ' [warn]' : '';
       return `
         <div class="roof-plane-item selected" data-area="${area}" data-index="${roof.index}">
           <input type="checkbox" class="roof-plane-checkbox" id="plane${roof.index}"
@@ -241,10 +241,14 @@ function collectInputData() {
       dayPercent: a.dayPercent,
       dailyEnergy: calculateApplianceEnergy(a)
     })),
-    electricityBill: {
-      monthlyKwh: parseFloat(document.getElementById('inputMonthlyKwh').value) || null,
-      annualKwh: parseFloat(document.getElementById('inputAnnualKwh').value) || null
-    },
+    electricityBill: (() => {
+      const monthlyEl = document.getElementById('inputMonthlyKwh');
+      const annualEl = document.getElementById('inputAnnualKwh');
+      return {
+        monthlyKwh: monthlyEl ? (parseFloat(monthlyEl.value) || null) : null,
+        annualKwh: annualEl ? (parseFloat(annualEl.value) || null) : null
+      };
+    })(),
     tariff: {
       price: parseFloat(document.getElementById('inputTariff').value),
       currency: document.getElementById('inputCurrency').value
@@ -269,11 +273,8 @@ function validateAndCalculate() {
     errors.push('Please select at least one roof plane');
   }
 
-  const monthlyKwh = parseFloat(document.getElementById('inputMonthlyKwh').value);
-  const annualKwh = parseFloat(document.getElementById('inputAnnualKwh').value);
   const hasAppliances = appliances.length > 0;
-  const hasBill = !isNaN(monthlyKwh) || !isNaN(annualKwh);
-  if (!hasAppliances && !hasBill) errors.push('Either add appliances OR enter electricity bill usage');
+  if (!hasAppliances) errors.push('Please add at least one appliance to estimate load');
 
   const tariff = parseFloat(document.getElementById('inputTariff').value);
   if (isNaN(tariff) || tariff <= 0) errors.push('Electricity tariff is required');

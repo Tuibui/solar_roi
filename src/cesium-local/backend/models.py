@@ -73,6 +73,15 @@ class Project(db.Model):
     # Selected roof for calculations
     selected_roof_index = db.Column(db.Integer, default=0)
 
+    # Capture image path (map snapshot)
+    capture_image_path = db.Column(db.String(300), nullable=True)
+    # 3D model snapshot path
+    capture_model_path = db.Column(db.String(300), nullable=True)
+
+    # Equipment lists (stored as JSON text)
+    inverters_json = db.Column(db.Text, nullable=True)
+    batteries_json = db.Column(db.Text, nullable=True)
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -112,6 +121,10 @@ class Project(db.Model):
                 'type': self.system_type
             },
             'selected_roof_index': self.selected_roof_index,
+            'capture_image_path': self.capture_image_path,
+            'capture_model_path': self.capture_model_path,
+            'inverters': self._parse_json_list(self.inverters_json),
+            'batteries': self._parse_json_list(self.batteries_json),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -121,6 +134,16 @@ class Project(db.Model):
             data['appliances'] = [app.to_dict() for app in self.appliances]
 
         return data
+
+    @staticmethod
+    def _parse_json_list(value):
+        if not value:
+            return []
+        try:
+            data = json.loads(value)
+            return data if isinstance(data, list) else []
+        except Exception:
+            return []
 
 
 class Roof(db.Model):

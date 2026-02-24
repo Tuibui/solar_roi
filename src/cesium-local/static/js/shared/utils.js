@@ -65,3 +65,56 @@ async function checkAPIHealth() {
     return false;
   }
 }
+
+// =========================
+// Currency Utilities (fixed rates)
+// =========================
+const CURRENCY_SYMBOLS = {
+  USD: '$',
+  EUR: '€',
+  JPY: '¥',
+  THB: '฿'
+};
+
+// Fixed FX rates: 1 unit of currency => USD
+const FX_TO_USD = {
+  USD: 1,
+  JPY: 0.0067,
+  EUR: 1.08,
+  THB: 0.028
+};
+
+function getSelectedCurrency() {
+  const select = document.getElementById('wizardCurrency');
+  if (select && select.value) return select.value;
+  const wiz = window.wizard;
+  const cur = wiz && wiz.sessionData && wiz.sessionData.step2 && wiz.sessionData.step2.q6_tariff
+    ? wiz.sessionData.step2.q6_tariff.currency
+    : null;
+  return cur || 'THB';
+}
+
+function convertCurrency(amount, from, to) {
+  const val = Number(amount);
+  if (!Number.isFinite(val)) return 0;
+  if (!FX_TO_USD[from] || !FX_TO_USD[to]) return val;
+  const usd = val * FX_TO_USD[from];
+  return usd / FX_TO_USD[to];
+}
+
+function formatCurrency(amount, currency) {
+  const val = Number(amount);
+  const symbol = CURRENCY_SYMBOLS[currency] || '';
+  const decimals = currency === 'JPY' ? 0 : 2;
+  const safe = Number.isFinite(val) ? val : 0;
+  return `${symbol}${safe.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  })}`;
+}
+
+window.CurrencyUtil = {
+  getSelectedCurrency,
+  convert: convertCurrency,
+  format: formatCurrency
+};

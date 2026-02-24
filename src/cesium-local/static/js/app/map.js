@@ -24,7 +24,7 @@ async function initMap() {
   controller._zoomFactor = 1;
 
   viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(0, 20, 20000000)
+    destination: Cesium.Cartesian3.fromDegrees(0, 20, 30000000)
   });
 
   // Load Google 3D tiles

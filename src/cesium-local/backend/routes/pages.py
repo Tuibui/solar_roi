@@ -1,13 +1,13 @@
 from flask import Blueprint, redirect, render_template, send_from_directory, url_for
 
-from ..config import FRONTEND_DIR
+from ..config import FRONTEND_DIR, STATIC_DIR
 
 pages_bp = Blueprint("pages", __name__)
 
 
 @pages_bp.route("/")
 def index():
-    return redirect(url_for("pages.login"))
+    return redirect(url_for("pages.app_page"))
 
 
 @pages_bp.route("/login")
@@ -48,3 +48,9 @@ def contact():
 @pages_bp.route("/Build/<path:filename>")
 def serve_build(filename):
     return send_from_directory(f"{FRONTEND_DIR}/Build", filename)
+
+
+@pages_bp.route("/backend/static/<path:filename>")
+def serve_backend_static(filename):
+    """Serve backend-generated artifacts (GLB, stats)."""
+    return send_from_directory(STATIC_DIR, filename)

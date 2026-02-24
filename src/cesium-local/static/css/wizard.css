@@ -965,6 +965,10 @@
   font-size: var(--text-xs);
   font-weight: 600;
 }
+.btn-small.wide-btn {
+  padding: 8px 18px;
+  min-width: 80px;
+}
 
 .btn-small:hover {
   background: var(--bg-surface);
@@ -975,15 +979,15 @@
 }
 
 .btn-small.primary {
-  background: linear-gradient(180deg, #2b5875 0%, #1f3f57 100%);
-  color: #fff;
-  border-color: #1f3f57;
+  background: linear-gradient(180deg, #e1e4e8 0%, #cdd2d8 100%);
+  color: #1f272d;
+  border-color: #b0b7be;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .btn-small.primary:hover {
-  background: linear-gradient(180deg, #306484 0%, #244860 100%);
-  border-color: #244860;
+  background: linear-gradient(180deg, #d9dde2 0%, #c3c9d0 100%);
+  border-color: #a5adb5;
 }
 
 /* Loading & Messages */
