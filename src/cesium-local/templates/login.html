@@ -5,231 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Solar ROI Calculator - Login</title>
   <link rel="stylesheet" href="/static/css/base.css">
-  <style>
-    /* Full page layout */
-    .login-page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: url('/static/images/human.png') center center / cover no-repeat fixed;
-      position: relative;
-    }
-
-    /* 50% transparent dark overlay */
-    .login-page::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 0;
-    }
-
-    /* White top strip - 10% height */
-    .top-strip {
-      height: 10vh;
-      background: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 40px;
-      position: relative;
-      z-index: 1;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .top-strip img {
-      height: 50px;
-      width: auto;
-      object-fit: contain;
-    }
-
-    /* Main content area */
-    .login-main {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 1;
-      padding: 20px;
-    }
-
-    /* Login box - 40% width, ~30% height */
-    .login-box {
-      width: 40%;
-      min-width: 360px;
-      max-width: 500px;
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      overflow: hidden;
-    }
-
-    .login-header {
-      background: linear-gradient(135deg, #0f2a3a 0%, #1a3d52 100%);
-      padding: 24px 32px;
-      text-align: center;
-    }
-
-    .login-header h1 {
-      color: #ffffff;
-      font-size: 20px;
-      font-weight: 600;
-      margin: 0 0 4px 0;
-    }
-
-    .login-header p {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 13px;
-      margin: 0;
-    }
-
-    .login-body {
-      padding: 32px;
-    }
-
-    .login-form .form-group {
-      margin-bottom: 20px;
-    }
-
-    .login-form .form-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: #1a232b;
-      margin-bottom: 6px;
-    }
-
-    .login-form .form-group input {
-      width: 100%;
-      padding: 12px 14px;
-      font-size: 14px;
-      border: 1px solid #d1d5db;
-      border-radius: 4px;
-      background: #fff;
-      color: #1a232b;
-      transition: border-color 0.15s ease;
-    }
-
-    .login-form .form-group input:focus {
-      outline: none;
-      border-color: #1c4f6e;
-      box-shadow: 0 0 0 3px rgba(28, 79, 110, 0.1);
-    }
-
-    .login-form .form-group input::placeholder {
-      color: #9ca3af;
-    }
-
-    .login-error {
-      padding: 10px 14px;
-      background: #fef2f2;
-      border: 1px solid #dc2626;
-      border-radius: 4px;
-      color: #dc2626;
-      font-size: 13px;
-      margin-bottom: 20px;
-      display: none;
-    }
-
-    .login-error.show {
-      display: block;
-    }
-
-    .login-btn {
-      width: 100%;
-      padding: 14px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #fff;
-      background: #1c4f6e;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background 0.15s ease;
-    }
-
-    .login-btn:hover {
-      background: #163e57;
-    }
-
-    .login-footer {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 13px;
-      color: #6b7280;
-    }
-
-    .login-footer a {
-      color: #1c4f6e;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    .login-footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-      .login-box {
-        width: 90%;
-        min-width: unset;
-      }
-
-      .top-strip {
-        height: 8vh;
-        gap: 20px;
-      }
-
-      .top-strip img {
-        height: 36px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/static/css/auth.css">
 </head>
 <body class="login-page">
-
-  <!-- White top strip with logos -->
   <div class="top-strip">
-    <img src="/static/images/kosen_logo.png" alt="Kosen">
-    <img src="/static/images/cesium_logo.png" alt="Cesium">
+    <div class="top-strip-left">
+      <img src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="SUNSCOPE" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 52px; width: auto;">
+    </div>
+    <div class="top-strip-right">
+      <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
+      <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
+      <button id="topAuthBtn" class="top-auth-btn">Login</button>
+    </div>
   </div>
 
-  <!-- Main login area -->
+  <div class="sub-strip">
+    <div class="sub-strip-left">
+      <a href="/app">Workspace</a>
+      <a href="/calculate">Analysis</a>
+    </div>
+  </div>
+
   <main class="login-main">
-    <div class="login-box">
-      <div class="login-header">
-        <h1>Solar ROI Calculator</h1>
-        <p>Sign in to your account</p>
-      </div>
-      <div class="login-body">
-        <div class="login-error" id="loginError"></div>
-        <form id="loginForm" class="login-form">
-          <div class="form-group">
-            <label for="loginEmail">Email or Username</label>
-            <input type="text" id="loginEmail" name="email" placeholder="Enter your email" required>
-          </div>
-          <div class="form-group">
-            <label for="loginPassword">Password</label>
-            <input type="password" id="loginPassword" name="password" placeholder="Enter your password" required>
-          </div>
-          <button type="submit" class="login-btn">Sign In</button>
-        </form>
-        <div class="login-footer">
-          Don't have an account? <a href="/register">Create one</a>
+    <section class="login-shell">
+      <aside class="login-brief">
+        <div class="brief-title">System Overview</div>
+        <div class="brief-panel">
+          <h2>Solid Modeling Workspace</h2>
+          <p>Authenticate to access the 3D assembly and energy sizing environment. Session data is mapped to the project tree and analysis panels.</p>
+          <ul class="spec-list">
+            <li><span class="spec-key">Engine</span><span class="spec-value">Cesium Core</span></li>
+            <li><span class="spec-key">Mode</span><span class="spec-value">Engineering View</span></li>
+            <li><span class="spec-key">Dataset</span><span class="spec-value">Solar ROI Suite</span></li>
+            <li><span class="spec-key">Status</span><span class="spec-value">Ready</span></li>
+          </ul>
+        </div>
+      </aside>
+
+      <div class="login-panel">
+        <div class="panel-header">
+          <div class="panel-title">Operator Login</div>
+          <div class="panel-tag">Revision 2.6</div>
+        </div>
+        <div class="panel-body">
+          <div class="login-error" id="loginError"></div>
+          <form id="loginForm" class="login-form">
+            <div class="form-group">
+              <label for="loginEmail">Operator ID</label>
+              <input type="text" id="loginEmail" name="email" placeholder="Email or username" required>
+            </div>
+            <div class="form-group">
+              <label for="loginPassword">Access Key</label>
+              <input type="password" id="loginPassword" name="password" placeholder="Enter password" required>
+            </div>
+            <div class="login-actions">
+              <button type="submit" class="login-btn">Engage Session</button>
+              <div class="login-footer">Need credentials? <a href="/register">Create an account</a></div>
+            </div>
+          </form>
         </div>
       </div>
-    </div>
+    </section>
   </main>
+
+  <div class="login-status">
+    <span>System: Nominal</span>
+    <span>Console: SOLAR-ROI / v2.6</span>
+    <span>Security: Active</span>
+  </div>
 
   <script>
     (function() {
       const AUTH_KEY = "solar_demo_auth";
       const USER_KEY = "solar_auth_user";
 
-      // Redirect if already logged in
-      if (sessionStorage.getItem(AUTH_KEY) && sessionStorage.getItem(USER_KEY)) {
+      const isGuest = !(sessionStorage.getItem(AUTH_KEY) && sessionStorage.getItem(USER_KEY));
+
+      // Top bar auth button
+      const topBtn = document.getElementById("topAuthBtn");
+      if (topBtn) {
+        if (isGuest) {
+          topBtn.textContent = "Login";
+          topBtn.onclick = () => window.location.href = "/login";
+        } else {
+          topBtn.textContent = "Logout";
+          topBtn.onclick = (e) => {
+            e.preventDefault();
+            sessionStorage.removeItem(AUTH_KEY);
+            sessionStorage.removeItem(USER_KEY);
+            localStorage.removeItem("solar_wizard_session");
+            window.location.href = "/login";
+          };
+        }
+      }
+
+
+      if (!isGuest) {
+        // Already logged in → go to app
         window.location.replace("/app");
         return;
       }

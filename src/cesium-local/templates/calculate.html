@@ -15,784 +15,29 @@
       }
     }
   </script>
-  <style>
-    body {
-      /* Inherit grid pattern from base.css; layer a subtle gradient on top */
-      background-color: var(--bg-surface);
-    }
-
-    .calc-container {
-      max-width: 1200px;
-      margin: 18px auto 32px;
-      padding: 0 var(--sp-5) var(--sp-5);
-    }
-
-    .calc-header {
-      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
-      border: 1px solid #aab2b8;
-      border-radius: var(--radius-lg);
-      padding: 18px 20px;
-      box-shadow: inset 0 1px 0 #ffffff, 0 10px 20px rgba(15, 39, 53, 0.12);
-      margin-bottom: var(--sp-4);
-    }
-
-    .calc-header h2 {
-      font-size: 22px;
-      font-weight: 700;
-      color: #1f272d;
-      margin: 0 0 6px 0;
-      letter-spacing: 0.04em;
-    }
-
-    .calc-header p {
-      font-size: 14px;
-      color: #5f6971;
-      margin: 0 0 10px 0;
-    }
-
-    .calc-steps { display: none; }
-
-    .calc-layout {
-      display: grid;
-      grid-template-columns: 300px 1fr;
-      gap: var(--sp-4);
-      align-items: start;
-    }
-
-    .project-panel {
-      display: flex;
-      flex-direction: column;
-      gap: var(--sp-3);
-      padding: var(--sp-3);
-      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
-      border: 1px solid #aab2b8;
-      border-radius: var(--radius-md);
-      box-shadow: inset 0 1px 0 #ffffff;
-      min-height: 520px;
-    }
-
-    .project-panel-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #1f272d;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .project-list {
-      display: flex;
-      flex-direction: column;
-      gap: var(--sp-2);
-      max-height: 440px;
-      overflow-y: auto;
-      padding-right: 4px;
-    }
-
-    .dataset-card {
-      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
-      border: 1px solid #aab2b8;
-      border-radius: var(--radius-sm);
-      padding: var(--sp-2) var(--sp-3);
-      cursor: pointer;
-      transition: all 0.1s ease;
-      box-shadow: inset 0 1px 0 #ffffff;
-    }
-
-    .dataset-card:hover {
-      border-color: #1c4f6e;
-    }
-
-    .dataset-card.selected {
-      border-color: #1c4f6e;
-      background: linear-gradient(180deg, #e7eef4 0%, #d1d9e1 100%);
-      border-width: 2px;
-      padding: calc(var(--sp-3) - 1px);
-    }
-
-    .dataset-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: var(--sp-2);
-    }
-
-    .dataset-meta {
-      font-size: 12px;
-      color: var(--text-muted);
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .dataset-meta-row {
-      display: flex;
-      justify-content: space-between;
-      gap: var(--sp-2);
-    }
-
-    .dataset-meta-value {
-      color: var(--text-primary);
-      font-weight: 500;
-      font-family: var(--font-mono);
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: var(--sp-6);
-      color: var(--text-muted);
-    }
-
-    .empty-state h3 {
-      font-size: var(--text-md);
-      color: var(--text-primary);
-      margin: 0 0 var(--sp-2) 0;
-    }
-
-    .empty-state a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    .empty-state a:hover {
-      text-decoration: underline;
-    }
-
-    .loading {
-      text-align: center;
-      padding: var(--sp-6);
-      color: var(--text-muted);
-      font-size: var(--text-sm);
-    }
-
-    .action-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sp-2);
-      align-items: center;
-    }
-
-    .action-bar button {
-      padding: 10px 16px;
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      border: 1px solid transparent;
-      transition: all 0.1s ease;
-    }
-
-    .btn-calc {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-
-    .btn-calc:hover:not(:disabled) {
-      background: var(--accent-hover);
-    }
-
-    .btn-calc:disabled {
-      background: var(--border-medium);
-      border-color: var(--border-medium);
-      cursor: not-allowed;
-    }
-
-    .btn-del {
-      background: var(--bg-card);
-      color: var(--error);
-      border-color: var(--error);
-    }
-
-    .btn-del:hover:not(:disabled) {
-      background: var(--error);
-      color: #fff;
-    }
-
-    .btn-del:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .selected-info {
-      margin-left: auto;
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-    }
-
-    .model-panel {
-      display: flex;
-      flex-direction: column;
-      gap: var(--sp-4);
-    }
-
-    .model-card {
-      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
-      border: 1px solid #aab2b8;
-      border-radius: var(--radius-md);
-      padding: var(--sp-3);
-      box-shadow: inset 0 1px 0 #ffffff, 0 8px 18px rgba(15, 39, 53, 0.08);
-    }
-
-    .model-card-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #1f272d;
-      margin-bottom: var(--sp-2);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .model-viewer-wrap {
-      position: relative;
-      height: 420px;
-      background: #e8ecef;
-      border-radius: var(--radius-md);
-      border: 1px solid #9aa1a6;
-      overflow: hidden;
-      box-shadow: inset 0 1px 0 #ffffff;
-    }
-
-    #threeModelHost,
-    #threeModelHostSolar {
-      width: 100%;
-      height: 100%;
-    }
-
-    #threeModelHost canvas,
-    #threeModelHostSolar canvas {
-      width: 100%;
-      height: 100%;
-      background: transparent;
-    }
-
-    .model-placeholder,
-    .model-loading {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: var(--sp-3);
-      color: var(--text-muted);
-      font-size: var(--text-sm);
-      background: rgba(242, 244, 247, 0.85);
-    }
-
-    .model-placeholder.hidden,
-    .model-loading.hidden {
-      display: none;
-    }
-
-    /* Irradiation Chart Section */
-    .chart-section {
-      margin-top: 0;
-      padding-top: 0;
-      border-top: none;
-      display: none;
-    }
-
-    .chart-section.visible {
-      display: block;
-    }
-
-    .chart-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: var(--sp-3);
-      flex-wrap: wrap;
-      gap: var(--sp-2);
-    }
-
-    .chart-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin: 0;
-    }
-
-    .chart-controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sp-2);
-      align-items: center;
-    }
-
-    .chart-controls label {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-
-    .roof-checkbox-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sp-2);
-      margin-top: var(--sp-2);
-    }
-
-    .roof-checkbox-item {
-      display: flex;
-      align-items: center;
-      gap: var(--sp-1);
-      padding: var(--sp-1) var(--sp-2);
-      background: var(--bg-card);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      font-size: var(--text-sm);
-      cursor: pointer;
-      transition: all 0.1s ease;
-    }
-
-    .roof-checkbox-item:hover {
-      border-color: var(--accent);
-    }
-
-    .roof-checkbox-item.checked {
-      background: var(--accent-subtle);
-      border-color: var(--accent);
-    }
-
-    .roof-checkbox-item input[type="checkbox"] {
-      margin: 0;
-      accent-color: var(--accent);
-    }
-
-    .roof-checkbox-item .roof-label {
-      color: var(--text-primary);
-    }
-
-    .roof-checkbox-item .roof-meta {
-      color: var(--text-muted);
-      font-size: var(--text-xs);
-      font-family: var(--font-mono);
-    }
-
-    .roof-color-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      border: 1px solid rgba(0, 0, 0, 0.2);
-    }
-
-    .btn-update-chart {
-      padding: 10px 14px;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: var(--text-sm);
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.1s ease;
-    }
-
-    .btn-update-chart:hover:not(:disabled) {
-      background: var(--accent-hover);
-    }
-
-    .btn-update-chart:disabled {
-      background: var(--border-medium);
-      cursor: not-allowed;
-    }
-
-    .data-source-badge {
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-      background: var(--bg-surface);
-      padding: 2px 8px;
-      border-radius: var(--radius-sm);
-      margin-left: var(--sp-2);
-    }
-
-    .chart-container {
-      position: relative;
-      height: 320px;
-      width: 100%;
-      background: #e8ecef;
-      border-radius: var(--radius-md);
-      padding: var(--sp-3);
-      border: 1px solid #9aa1a6;
-      box-shadow: inset 0 1px 0 #ffffff;
-    }
-
-    .chart-loading {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255,255,255,0.9);
-      border-radius: var(--radius-md);
-      font-size: var(--text-sm);
-      color: var(--text-muted);
-    }
-
-    .chart-loading.hidden {
-      display: none;
-    }
-
-    .chart-summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: var(--sp-2);
-      margin-top: var(--sp-3);
-    }
-
-    .summary-stat {
-      background: var(--bg-card);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      padding: var(--sp-2) var(--sp-3);
-      text-align: center;
-    }
-
-    .summary-stat-value {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--accent);
-      font-family: var(--font-mono);
-    }
-
-    .summary-stat-label {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    .chart-error {
-      text-align: center;
-      padding: var(--sp-4);
-      color: var(--error);
-      font-size: var(--text-sm);
-    }
-
-    .sizing-section {
-      margin-top: var(--sp-4);
-      padding: var(--sp-4);
-      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
-      border: 1px solid #aab2b8;
-      border-radius: var(--radius-md);
-      box-shadow: inset 0 1px 0 #ffffff, 0 10px 20px rgba(15, 39, 53, 0.08);
-      display: none;
-    }
-
-    .sizing-section.visible {
-      display: block;
-    }
-
-    .sizing-title {
-      font-size: var(--text-md);
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: var(--sp-2);
-    }
-
-    .sizing-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: var(--sp-2);
-      margin-bottom: var(--sp-3);
-    }
-
-    .sizing-breakdown {
-      border-top: 1px solid var(--border-light);
-      padding-top: var(--sp-2);
-    }
-
-    .sizing-breakdown table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: var(--text-sm);
-    }
-
-    .sizing-breakdown th,
-    .sizing-breakdown td {
-      text-align: left;
-      padding: 8px 6px;
-      border-bottom: 1px solid var(--border-light);
-    }
-
-    .sizing-note {
-      margin-top: var(--sp-2);
-      color: var(--text-muted);
-      font-size: var(--text-xs);
-    }
-
-    /* Report Section */
-    .report-section {
-      margin-top: var(--sp-5);
-      padding: var(--sp-4);
-      background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
-      border: 1px solid #aab2b8;
-      border-radius: var(--radius-md);
-      box-shadow: inset 0 1px 0 #ffffff, 0 10px 20px rgba(15, 39, 53, 0.08);
-      display: none;
-    }
-
-    .report-section.visible {
-      display: block;
-    }
-
-    .report-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: var(--sp-2);
-      border-bottom: 1px solid var(--border-light);
-      padding-bottom: var(--sp-2);
-      margin-bottom: var(--sp-3);
-    }
-
-    .report-title {
-      font-size: var(--text-md);
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .report-subtitle {
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-    }
-
-    .report-actions {
-      display: flex;
-      gap: var(--sp-2);
-      align-items: center;
-    }
-
-    .btn-report {
-      padding: 6px 12px;
-      font-size: var(--text-xs);
-      font-weight: 700;
-      color: #f6f8fa;
-      background: linear-gradient(180deg, #2b5875 0%, #1f3f57 100%);
-      border: 1px solid #1f3f57;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .btn-report:hover {
-      background: linear-gradient(180deg, #306484 0%, #244860 100%);
-    }
-
-    .report-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: var(--sp-2);
-      margin-bottom: var(--sp-3);
-    }
-
-    .report-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      padding: var(--sp-2) var(--sp-3);
-    }
-
-    .report-card-value {
-      font-size: var(--text-lg);
-      font-weight: 700;
-      color: var(--accent);
-      font-family: var(--font-mono);
-    }
-
-    .report-card-label {
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    .report-image-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: var(--sp-3);
-      margin-bottom: var(--sp-3);
-    }
-
-    .report-image-card {
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      background: var(--bg-surface);
-      padding: var(--sp-2);
-    }
-
-    .report-image-title {
-      font-size: var(--text-xs);
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: var(--sp-2);
-    }
-
-    .report-image-card img {
-      width: 100%;
-      height: 220px;
-      object-fit: cover;
-      border-radius: var(--radius-sm);
-      background: #e1e5e9;
-      border: 1px solid var(--border-light);
-    }
-
-    .report-image-empty {
-      height: 220px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      background: #eef1f4;
-      border: 1px dashed var(--border-medium);
-      border-radius: var(--radius-sm);
-      font-size: var(--text-sm);
-    }
-
-    .report-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: var(--text-sm);
-      margin-bottom: var(--sp-3);
-    }
-
-    .report-table th,
-    .report-table td {
-      text-align: left;
-      padding: 8px 6px;
-      border-bottom: 1px solid var(--border-light);
-    }
-
-    .report-table th {
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .report-charts {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: var(--sp-3);
-    }
-
-    .report-chart-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      padding: var(--sp-2);
-      height: 280px;
-    }
-
-    .report-chart-title {
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-      font-weight: 600;
-      margin-bottom: var(--sp-2);
-    }
-
-    .report-gauge {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      height: 100%;
-      gap: var(--sp-2);
-    }
-
-    .gauge-bar {
-      height: 12px;
-      background: #e1e5e9;
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid var(--border-light);
-    }
-
-    .gauge-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #1c4f6e 0%, #3b82a0 100%);
-      width: 0%;
-      transition: width 0.2s ease;
-    }
-
-    .gauge-value {
-      font-size: var(--text-lg);
-      font-weight: 700;
-      color: var(--accent);
-      font-family: var(--font-mono);
-    }
-
-    .gauge-note {
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-    }
-
-    .report-assumptions {
-      margin-top: var(--sp-3);
-      font-size: var(--text-xs);
-      color: var(--text-muted);
-    }
-
-    @media print {
-      body {
-        background: #fff;
-      }
-      .top-strip,
-      .sub-strip,
-      .project-panel,
-      .chart-section,
-      .sizing-section,
-      .model-card,
-      .action-bar,
-      .report-actions {
-        display: none !important;
-      }
-      .calc-container {
-        max-width: 100%;
-        margin: 0;
-        padding: 0;
-        border: none;
-        box-shadow: none;
-      }
-      .calc-layout {
-        grid-template-columns: 1fr;
-      }
-      .report-section {
-        display: block !important;
-        border: none;
-        box-shadow: none;
-        padding: 0;
-      }
-      .report-image-card img {
-        height: 180px;
-      }
-    }
-
-  </style>
+  <link rel="stylesheet" href="/static/css/calculate.css">
 </head>
 <body>
 
   <div class="top-strip">
     <div class="top-strip-left">
-      <img src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="SUNSCOPE">
+      <img src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="SUNSCOPE" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 52px; width: auto;">
     </div>
     <div class="top-strip-right">
-      <img src="/static/images/kosen_logo.png" alt="Kosen">
-      <img src="/static/images/cesium_logo.png" alt="Cesium">
+      <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
+      <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
+      <button id="topAuthBtn" class="top-auth-btn">Login</button>
     </div>
   </div>
 
   <div class="sub-strip">
     <div class="sub-strip-left">
-      <div class="sub-strip-title">SUNSCOPE</div>
       <a href="/app">Workspace</a>
       <a href="/calculate" class="active">Analysis</a>
     </div>
-    <a href="#" id="logoutLink" class="sub-strip-logout">Logout</a>
   </div>
 
   <div class="calc-container">
-    <div class="calc-header">
-      <h2>Analysis Workspace</h2>
-      <p>Select a project and click “Estimate System” to generate the report below.</p>
-    </div>
-
     <div class="calc-layout">
       <aside class="project-panel">
         <div class="project-panel-title">Projects</div>
@@ -805,53 +50,73 @@
       </aside>
 
       <main class="model-panel">
-        <div class="model-card">
-          <div class="model-card-title">3D Roof Model</div>
-          <div class="model-viewer-wrap">
-            <div id="threeModelHost"></div>
-            <div class="model-placeholder" id="modelPlaceholder">Select a project to load its roof model.</div>
-            <div class="model-loading hidden" id="modelLoading">Loading roof model...</div>
-            <!-- Roof Info Table Overlay -->
-            <div id="roofInfoTable" class="roof-info-table">
-              <table>
+        <!-- Roof & Model capture images (side by side) -->
+        <div class="capture-images" id="captureImages" style="display:none;">
+          <div class="capture-card">
+            <div class="capture-label">ACTUAL ROOF</div>
+            <img id="captureRoof" alt="Roof capture" />
+          </div>
+          <div class="capture-card">
+            <div class="capture-label">3D MODEL</div>
+            <img id="captureModel" alt="Model capture" />
+          </div>
+        </div>
+        <!-- Irradiation + Sizing (hidden until estimate) -->
+        <div class="chart-section" id="chartSection">
+          <div class="chart-container">
+            <div class="chart-header" style="margin-bottom: 6px;">
+              <h3 class="chart-title">Monthly Solar Irradiation <span class="data-source-badge">PVGIS</span></h3>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="irradiationChart"></canvas>
+              <div class="chart-loading" id="chartLoading">Loading irradiation data from PVGIS...</div>
+            </div>
+            <div class="chart-table-wrap">
+              <table class="chart-table" id="irradiationRoofTable">
                 <thead>
                   <tr>
                     <th>Roof</th>
                     <th>Tilt (°)</th>
                     <th>Azimuth (°)</th>
-                    <th>Height (m)</th>
                     <th>Area (m²)</th>
+                    <th>Irradiation (kWh/m²/y)</th>
                   </tr>
                 </thead>
-                <tbody id="roofInfoTableBody">
-                  <!-- Populated by JS -->
+                <tbody>
+                  <tr><td colspan="5">No data</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-        <!-- Irradiation + Sizing (hidden until estimate) -->
-        <div class="chart-section" id="chartSection">
-          <div class="chart-header">
-            <h3 class="chart-title">Monthly Solar Irradiation <span class="data-source-badge">PVGIS</span></h3>
-          </div>
-          <div class="chart-container">
-            <canvas id="irradiationChart"></canvas>
-            <div class="chart-loading" id="chartLoading">Loading irradiation data from PVGIS...</div>
-          </div>
-          <div class="chart-summary" id="chartSummary"></div>
           <div class="chart-error" id="chartError" style="display:none;"></div>
         </div>
 
-        <section class="sizing-section" id="sizingSection">
-          <div class="sizing-title">System Sizing (Self-Consumption)</div>
-          <div class="chart-loading hidden" id="sizingLoading">Calculating system size...</div>
-          <div class="chart-error" id="sizingError" style="display:none;"></div>
-          <div class="sizing-grid" id="sizingSummary"></div>
-          <div class="sizing-breakdown" id="sizingBreakdown"></div>
-          <div class="sizing-breakdown" id="sizingInstalled"></div>
-          <div class="sizing-note" id="sizingNote"></div>
-        </section>
+        <div class="chart-section" id="pvOutputSection">
+          <div class="chart-container pv-output-container">
+            <div class="chart-header" style="margin-bottom: 6px;">
+              <h3 class="chart-title">Monthly PV Output (Total System) <span class="data-source-badge">PVGIS</span></h3>
+              <div class="chart-kpi">
+                <div class="chart-kpi-item">
+                  <div class="chart-kpi-label">System Size</div>
+                  <div class="chart-kpi-value" id="pvKpiSystem">-</div>
+                </div>
+                <div class="chart-kpi-item">
+                  <div class="chart-kpi-label">Annual PV</div>
+                  <div class="chart-kpi-value" id="pvKpiAnnual">-</div>
+                </div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="pvOutputChart"></canvas>
+              <div class="chart-loading hidden" id="pvOutputLoading">Calculating PV output...</div>
+            </div>
+            <div class="chart-table-wrap bom-table-wrap" style="margin-top: 16px;">
+              <div class="model-card-title" style="margin: 0 0 8px;">Bill of Materials</div>
+              <table class="chart-table" id="bomTable"></table>
+            </div>
+          </div>
+          <div class="chart-error" id="pvOutputError" style="display:none;"></div>
+        </div>
 
         <section class="report-section" id="reportSection">
           <div class="report-header">
@@ -859,28 +124,10 @@
               <div class="report-title">ROI Report (No Shading)</div>
               <div class="report-subtitle" id="reportSubtitle">Select a project and calculate sizing to generate the report.</div>
             </div>
-            <div class="report-actions">
-              <button class="btn-report" id="btnExportPdf" type="button">Export PDF</button>
-            </div>
+            <div class="report-actions"></div>
           </div>
 
           <div class="report-grid" id="reportSummary"></div>
-
-          <div class="report-image-row">
-            <div class="report-image-card">
-              <div class="report-image-title">Roof Capture</div>
-              <div class="report-image-empty" id="roofImageEmpty">No roof image available</div>
-              <img id="roofImage" alt="Roof capture" style="display:none;">
-            </div>
-            <div class="report-image-card">
-              <div class="report-image-title">3D Model Capture</div>
-              <div class="report-image-empty" id="modelImageEmpty">No model image available</div>
-              <img id="modelImage" alt="Model capture" style="display:none;">
-            </div>
-          </div>
-
-          <div class="model-card-title" style="margin-top: var(--sp-2);">Bill of Materials</div>
-          <table class="report-table" id="bomTable"></table>
 
           <div class="report-charts">
             <div class="report-chart-card">
@@ -897,13 +144,7 @@
             </div>
             <div class="report-chart-card">
               <div class="report-chart-title">Self‑Consumption Ratio</div>
-              <div class="report-gauge">
-                <div class="gauge-value" id="selfGaugeValue">0%</div>
-                <div class="gauge-bar">
-                  <div class="gauge-fill" id="selfGaugeFill"></div>
-                </div>
-                <div class="gauge-note" id="selfGaugeNote">PV used onsite vs total PV generation</div>
-              </div>
+              <canvas id="selfConsumptionChart"></canvas>
             </div>
           </div>
 
@@ -956,34 +197,23 @@
       let energyChart = null;
       let cashflowChart = null;
       let billChart = null;
+      let pvOutputChart = null;
+      let selfConsumptionChart = null;
       let selectedRoofIndices = new Set(); // kept for color mix (all roofs)
       let currentModelUrl = null;
       let lastIrradiationData = null;
+      let lastPvOutputData = null;
       let panelPricePerWattJPY = null;
 
-      const modelHost = document.getElementById("threeModelHost");
-      const modelPlaceholder = document.getElementById("modelPlaceholder");
-      const modelLoading = document.getElementById("modelLoading");
-      const sizingSection = document.getElementById("sizingSection");
-      const sizingLoading = document.getElementById("sizingLoading");
-      const sizingError = document.getElementById("sizingError");
-      const sizingSummary = document.getElementById("sizingSummary");
-      const sizingBreakdown = document.getElementById("sizingBreakdown");
-      const sizingInstalled = document.getElementById("sizingInstalled");
-      const sizingNote = document.getElementById("sizingNote");
+      const modelHost = null;
+      const modelPlaceholder = null;
+      const modelLoading = null;
       const reportSection = document.getElementById("reportSection");
       const reportSummary = document.getElementById("reportSummary");
       const reportSubtitle = document.getElementById("reportSubtitle");
-      const roofImage = document.getElementById("roofImage");
-      const roofImageEmpty = document.getElementById("roofImageEmpty");
-      const modelImage = document.getElementById("modelImage");
-      const modelImageEmpty = document.getElementById("modelImageEmpty");
       const bomTable = document.getElementById("bomTable");
       const reportAssumptions = document.getElementById("reportAssumptions");
-      const btnExportPdf = document.getElementById("btnExportPdf");
-      const selfGaugeValue = document.getElementById("selfGaugeValue");
-      const selfGaugeFill = document.getElementById("selfGaugeFill");
-      const selfGaugeNote = document.getElementById("selfGaugeNote");
+      const irradiationRoofTable = document.getElementById("irradiationRoofTable");
 
       let baseViewer = null;
       let modelLoadToken = 0;
@@ -1255,14 +485,13 @@
       }
 
       function clearCurrentModel() {
-        clearViewer(baseViewer);
         if (currentModelUrl) {
           URL.revokeObjectURL(currentModelUrl);
           currentModelUrl = null;
         }
       }
 
-      baseViewer = createViewer(modelHost);
+      baseViewer = null;
 
       function getUser() {
         try {
@@ -1333,7 +562,7 @@
 
       function getRoofDisplayIndex(roof, fallbackIndex) {
         if (Number.isFinite(roof.index)) {
-          return roof.index + 1;
+          return roof.index === 0 ? 1 : roof.index;
         }
         return fallbackIndex + 1;
       }
@@ -1800,76 +1029,7 @@
       }
 
       async function loadProjectModel(projectId) {
-        if (!modelHost || !modelPlaceholder || !modelLoading) return;
-
-        const loadToken = ++modelLoadToken;
-        modelLoading.classList.remove("hidden");
-        modelPlaceholder.classList.add("hidden");
-
-        if (!projectId) {
-          clearCurrentModel();
-          modelLoading.classList.add("hidden");
-          modelPlaceholder.textContent = "Select a project to load its roof model.";
-          modelPlaceholder.classList.remove("hidden");
-          return;
-        }
-
-        try {
-          const cacheBust = Date.now();
-          const res = await fetch(`/api/projects/${projectId}/model?lite=1&refresh=1&t=${cacheBust}`);
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            throw new Error(data.error || "Model generation failed");
-          }
-          const blob = await res.blob();
-          clearCurrentModel();
-          currentModelUrl = URL.createObjectURL(blob);
-
-          loadModelToViewer(
-            baseViewer,
-            currentModelUrl,
-            loadToken,
-            () => {
-              modelLoading.classList.add("hidden");
-              modelPlaceholder.classList.add("hidden");
-            },
-            () => {
-              modelLoading.classList.add("hidden");
-              modelPlaceholder.textContent = "Unable to load roof model.";
-              modelPlaceholder.classList.remove("hidden");
-            }
-          );
-
-        } catch (err) {
-          try {
-            const fallbackRes = await fetch(`/backend/static/roof_model.glb?t=${Date.now()}`);
-            if (fallbackRes.ok) {
-              const blob = await fallbackRes.blob();
-              clearCurrentModel();
-              currentModelUrl = URL.createObjectURL(blob);
-              loadModelToViewer(
-                baseViewer,
-                currentModelUrl,
-                loadToken,
-                () => {
-                  modelLoading.classList.add("hidden");
-                  modelPlaceholder.classList.add("hidden");
-                },
-                () => {
-                  modelLoading.classList.add("hidden");
-                  modelPlaceholder.textContent = "Unable to load roof model.";
-                  modelPlaceholder.classList.remove("hidden");
-                }
-              );
-              return;
-            }
-          } catch (fallbackErr) {
-            // ignore fallback errors
-          }
-          modelLoading.classList.add("hidden");
-          modelPlaceholder.textContent = "Model unavailable: " + err.message;
-          modelPlaceholder.classList.remove("hidden");
-        }
+        return;
       }
 
       async function loadDatasets() {
@@ -1918,6 +1078,24 @@
         }
       }
 
+      function showCaptureImages(project) {
+        const wrap = document.getElementById('captureImages');
+        const roofImg = document.getElementById('captureRoof');
+        const modelImg = document.getElementById('captureModel');
+        if (!wrap || !roofImg || !modelImg) return;
+        const roofPath = project?.capture_image_path;
+        const modelPath = project?.capture_model_path;
+        if (roofPath || modelPath) {
+          roofImg.src = roofPath || '';
+          roofImg.parentElement.style.display = roofPath ? '' : 'none';
+          modelImg.src = modelPath || '';
+          modelImg.parentElement.style.display = modelPath ? '' : 'none';
+          wrap.style.display = '';
+        } else {
+          wrap.style.display = 'none';
+        }
+      }
+
       function selectCard(card) {
         document.querySelectorAll(".dataset-card").forEach(c => c.classList.remove("selected"));
         card.classList.add("selected");
@@ -1927,14 +1105,19 @@
         if (btnEstimate) btnEstimate.disabled = false;
         document.getElementById("btnDel").disabled = false;
         document.getElementById("selectedInfo").textContent = "Selected: " + (currentProject?.name || "Untitled");
-        if (sizingSection) sizingSection.classList.remove("visible");
         sizingData = null;
         lastIrradiationData = null;
+        lastPvOutputData = null;
         if (reportSection) reportSection.classList.remove("visible");
 
         document.getElementById("chartSection").classList.remove("visible");
+        const pvOutputSection = document.getElementById("pvOutputSection");
+        if (pvOutputSection) pvOutputSection.classList.remove("visible");
         selectedRoofIndices.clear();
         loadProjectModel(selectedId);
+
+        // Show capture images
+        showCaptureImages(currentProject);
 
         // Ensure full roof polygons are loaded
         if (!currentProject?.roofs || currentProject.roofs.every(r => !(r.polygon && r.polygon.length))) {
@@ -1962,12 +1145,10 @@
         const chartSection = document.getElementById("chartSection");
         const chartLoading = document.getElementById("chartLoading");
         const chartError = document.getElementById("chartError");
-        const chartSummary = document.getElementById("chartSummary");
 
         chartSection.classList.add("visible");
         chartLoading.classList.remove("hidden");
         chartError.style.display = "none";
-        chartSummary.innerHTML = "";
 
         const roofIndicesParam = getSelectedIndicesParam();
 
@@ -1983,60 +1164,31 @@
           lastIrradiationData = data;
           chartLoading.classList.add("hidden");
 
-          // Determine label for chart
-          const isAllRoofs = roofIndicesParam === "all";
-          const selectedCount = data.selected_count || (currentProject?.roofs?.length || 0);
-          let chartLabel;
-          if (isAllRoofs) {
-            chartLabel = `All Roofs (${data.roof_count})`;
-          } else {
-            chartLabel = `${selectedCount} Roofs Selected`;
-          }
+          // Build multi-roof chart
+          updateChart(data);
 
-          // Update chart
-          const chartColor = getSelectedRoofColor();
-          updateChart(data.monthly_kwh_m2, chartLabel, chartColor);
-
-          // Update summary stats
-          let summaryHtml = `
-            <div class="summary-stat">
-              <div class="summary-stat-value">${data.annual_kwh_m2.toFixed(1)}</div>
-              <div class="summary-stat-label">Annual (kWh/m²)</div>
-            </div>
-            <div class="summary-stat">
-              <div class="summary-stat-value">${data.daily_avg_kwh_m2.toFixed(2)}</div>
-              <div class="summary-stat-label">Daily Avg (kWh/m²/day)</div>
-            </div>
-            <div class="summary-stat">
-              <div class="summary-stat-value">${data.total_energy_annual_kwh.toFixed(0)}</div>
-              <div class="summary-stat-label">Total Energy (kWh/year)</div>
-            </div>
-            <div class="summary-stat">
-              <div class="summary-stat-value">${data.total_area_m2.toFixed(1)}</div>
-              <div class="summary-stat-label">Total Area (m²)</div>
-            </div>
-          `;
-
-          // Show per-roof details if available
-          if (data.per_roof && data.per_roof.length > 0 && !isAllRoofs) {
-            const perRoofHtml = data.per_roof.map(r => {
+          // Update roof table
+          if (irradiationRoofTable) {
+            const rows = (data.per_roof || []).map(r => {
               const roof = getRoofByIndex(r.index) || { index: r.index };
               const displayIndex = getRoofDisplayIndex(roof, 0);
-              if (r.error) {
-                return `<div class="summary-stat" style="border-color: var(--error);">
-                  <div class="summary-stat-value" style="color: var(--error);">Error</div>
-                  <div class="summary-stat-label">Roof ${displayIndex}</div>
-                </div>`;
-              }
-              return `<div class="summary-stat">
-                <div class="summary-stat-value">${r.annual.toFixed(0)}</div>
-                <div class="summary-stat-label">Roof ${displayIndex} (kWh/m²/y)</div>
-              </div>`;
+              const color = getRoofColorRgb(roof);
+              const tilt = (roof.user_tilt || roof.tilt || 15).toFixed(0);
+              const az = (roof.user_azimuth || roof.azimuth || 180).toFixed(0);
+              const area = (roof.area || 0).toFixed(1);
+              const annual = Number(r.annual || 0).toFixed(0);
+              return `<tr>
+                <td><span class="roof-badge" style="background:${rgbToRgba(color, 0.18)}; color:#111;">Roof ${displayIndex}</span></td>
+                <td>${tilt}</td>
+                <td>${az}</td>
+                <td>${area}</td>
+                <td>${annual}</td>
+              </tr>`;
             }).join("");
-            summaryHtml += perRoofHtml;
+            irradiationRoofTable.querySelector("tbody").innerHTML = rows || `<tr><td colspan="5">No data</td></tr>`;
           }
 
-          chartSummary.innerHTML = summaryHtml;
+          // Summary stats removed as requested
           // sizing can now run
           const btnEstimate = document.getElementById("btnEstimate");
           if (btnEstimate) btnEstimate.disabled = false;
@@ -2049,40 +1201,35 @@
         }
       }
 
-      function renderSizing(data) {
-        if (!sizingSummary || !sizingBreakdown || !sizingNote || !sizingInstalled) return;
-        console.info("[Sizing] renderSizing called");
-        const c = data.consumption || {};
-        const s = data.sizing || {};
-        const i = data.irradiation || {};
+      async function loadPvOutputData(systemKwp) {
+        if (!selectedId) return null;
+        const kwp = Number(systemKwp) || 0;
+        if (!kwp) return null;
+        const pvOutputSection = document.getElementById("pvOutputSection");
+        const pvOutputLoading = document.getElementById("pvOutputLoading");
+        const pvOutputError = document.getElementById("pvOutputError");
+        if (pvOutputSection) pvOutputSection.classList.add("visible");
+        if (pvOutputLoading) pvOutputLoading.classList.remove("hidden");
+        if (pvOutputError) pvOutputError.style.display = "none";
+        const roofIndicesParam = getSelectedIndicesParam();
+        const url = `/api/projects/${selectedId}/pvoutput?roof_indices=${roofIndicesParam}&system_kwp=${kwp}&loss=14`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) {
+          if (pvOutputLoading) pvOutputLoading.classList.add("hidden");
+          if (pvOutputError) {
+            pvOutputError.style.display = "block";
+            pvOutputError.textContent = "Error: " + (data.error || "Failed to fetch PV output");
+          }
+          throw new Error(data.error || "Failed to fetch PV output");
+        }
+        if (pvOutputLoading) pvOutputLoading.classList.add("hidden");
+        lastPvOutputData = data;
+        return data;
+      }
 
-        sizingSummary.innerHTML = `
-          <div class="summary-stat">
-            <div class="summary-stat-value">${(c.daytime_kwh || 0).toFixed(2)}</div>
-            <div class="summary-stat-label">Daytime kWh/day</div>
-          </div>
-          <div class="summary-stat">
-            <div class="summary-stat-value">${(c.total_daily_kwh || 0).toFixed(2)}</div>
-            <div class="summary-stat-label">Total kWh/day</div>
-          </div>
-          <div class="summary-stat">
-            <div class="summary-stat-value">${(s.system_kwp || 0).toFixed(2)}</div>
-            <div class="summary-stat-label">System kWp</div>
-          </div>
-          <div class="summary-stat">
-            <div class="summary-stat-value">${s.panel_count || 0}</div>
-            <div class="summary-stat-label">Panels (${s.panel_watt || 0}W)</div>
-          </div>
-        `;
-
-        sizingBreakdown.innerHTML = "";
-
-        sizingInstalled.innerHTML = "";
-
-        sizingNote.textContent = s.self_consumption_note || "";
-        // Apply panel overlay on the 3D model viewer
-        applyPanelOverlay(baseViewer);
-        renderReport();
+      function renderSizing() {
+        return;
       }
 
       function buildCashflows(params) {
@@ -2127,9 +1274,9 @@
       function updateEnergyChart(monthlyLoad, monthlyPV, monthlySelf, monthlyExport) {
         const ctx = document.getElementById("energyChart").getContext("2d");
         const datasets = [
-          { label: "Load", data: monthlyLoad, backgroundColor: "rgba(55, 65, 81, 0.35)" },
-          { label: "Self-consumed", data: monthlySelf, backgroundColor: "rgba(28, 79, 110, 0.7)" },
-          { label: "Export", data: monthlyExport, backgroundColor: "rgba(16, 185, 129, 0.6)" }
+          { label: "Load", data: monthlyLoad, backgroundColor: "rgba(55, 65, 81, 0.35)", borderRadius: 3 },
+          { label: "Self-consumed", data: monthlySelf, backgroundColor: "rgba(28, 79, 110, 0.7)", borderRadius: 3 },
+          { label: "Export", data: monthlyExport, backgroundColor: "rgba(16, 185, 129, 0.6)", borderRadius: 3 }
         ];
 
         if (energyChart) {
@@ -2146,18 +1293,32 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: { legend: { position: "top" } },
-            scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+            scales: {
+              x: { stacked: false },
+              y: {
+                stacked: false,
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Energy [kWh]",
+                  font: { family: "'JetBrains Mono', monospace", size: 12, weight: '600' },
+                  color: "#1f272d"
+                }
+              }
+            }
           }
         });
       }
 
-      function updateCashflowChart(cumulative) {
+      function updateCashflowChart(cumulative, currency) {
         const ctx = document.getElementById("cashflowChart").getContext("2d");
         const labels = cumulative.map((_, i) => `Y${i + 1}`);
+        const yLabel = `Cumulative Cashflow [${currency || ''}]`;
 
         if (cashflowChart) {
           cashflowChart.data.labels = labels;
           cashflowChart.data.datasets[0].data = cumulative;
+          cashflowChart.options.scales.y.title.text = yLabel;
           cashflowChart.update();
           return;
         }
@@ -2178,21 +1339,33 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                title: {
+                  display: true,
+                  text: yLabel,
+                  font: { family: "'JetBrains Mono', monospace", size: 12, weight: '600' },
+                  color: "#1f272d"
+                }
+              }
+            }
           }
         });
       }
 
-      function updateBillChart(baseline, post) {
+      function updateBillChart(baseline, post, currency) {
         const ctx = document.getElementById("billChart").getContext("2d");
         const datasets = [
           { label: "Baseline Bill", data: baseline, backgroundColor: "rgba(55, 65, 81, 0.35)" },
           { label: "Post‑PV Bill", data: post, backgroundColor: "rgba(16, 185, 129, 0.6)" }
         ];
+        const yLabel = `Monthly Bill [${currency || ''}]`;
 
         if (billChart) {
           billChart.data.labels = MONTH_LABELS;
           billChart.data.datasets = datasets;
+          billChart.options.scales.y.title.text = yLabel;
           billChart.update();
           return;
         }
@@ -2204,22 +1377,124 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: { legend: { position: "top" } },
-            scales: { y: { beginAtZero: true } }
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: yLabel,
+                  font: { family: "'JetBrains Mono', monospace", size: 12, weight: '600' },
+                  color: "#1f272d"
+                }
+              }
+            }
+          }
+        });
+      }
+
+      function updateSelfConsumptionChart(selfConsumed, exported, selfRatio) {
+        const ctx = document.getElementById("selfConsumptionChart").getContext("2d");
+        const pct = (selfRatio * 100).toFixed(0);
+        const titleText = `${pct}% Self-Consumed`;
+
+        if (selfConsumptionChart) {
+          selfConsumptionChart.data.datasets[0].data = [selfConsumed, exported];
+          selfConsumptionChart.options.plugins.title.text = titleText;
+          selfConsumptionChart.update();
+          return;
+        }
+
+        selfConsumptionChart = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: ["Self-Consumed [kWh]", "Exported [kWh]"],
+            datasets: [{
+              data: [selfConsumed, exported],
+              backgroundColor: ["rgba(28, 79, 110, 0.75)", "rgba(16, 185, 129, 0.65)"],
+              borderColor: ["rgba(28, 79, 110, 0.95)", "rgba(16, 185, 129, 0.9)"],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: titleText,
+                font: { family: "'JetBrains Mono', monospace", size: 14, weight: '700' },
+                color: "#1f272d",
+                padding: { bottom: 10 }
+              },
+              legend: {
+                position: "bottom",
+                labels: {
+                  font: { family: "'JetBrains Mono', monospace", size: 12 },
+                  color: "#334155",
+                  padding: 16
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: c => ` ${c.label}: ${Math.round(c.parsed).toLocaleString()} kWh`
+                }
+              }
+            }
+          }
+        });
+      }
+
+      function updatePvOutputChart(monthlyPV) {
+        const ctx = document.getElementById("pvOutputChart").getContext("2d");
+        const dataset = [{
+          label: "PV Output (kWh)",
+          data: monthlyPV,
+          backgroundColor: "rgba(28, 79, 110, 0.65)",
+          borderColor: "rgba(28, 79, 110, 0.95)",
+          borderWidth: 1,
+          borderRadius: 4
+        }];
+
+        if (pvOutputChart) {
+          pvOutputChart.data.labels = MONTH_LABELS;
+          pvOutputChart.data.datasets = dataset;
+          pvOutputChart.update();
+          return;
+        }
+
+        pvOutputChart = new Chart(ctx, {
+          type: "bar",
+          data: { labels: MONTH_LABELS, datasets: dataset },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "PV Output [kWh]",
+                  font: { family: "'JetBrains Mono', monospace", size: 12, weight: '600' },
+                  color: "#1f272d"
+                }
+              },
+              x: { title: { display: false } }
+            }
           }
         });
       }
 
       async function renderReport() {
         if (!reportSection || !reportSummary || !currentProject || !sizingData || !lastIrradiationData) return;
+        if (!lastPvOutputData) return;
 
         const currency = getProjectCurrency();
         const tariff = currentProject?.tariff?.price ?? currentProject?.tariff_price ?? 0;
         const exportPrice = currentProject?.grid_export?.price ?? currentProject?.grid_export_price ?? 0;
-        const annualLoad = currentProject?.bill?.annual_kwh
-          ?? (currentProject?.bill?.monthly_kwh ? currentProject.bill.monthly_kwh * 12 : null)
-          ?? (sizingData?.consumption?.total_daily_kwh ? sizingData.consumption.total_daily_kwh * 365 : 0);
+        const annualLoad = (sizingData?.consumption?.total_daily_kwh ? sizingData.consumption.total_daily_kwh * 365 : 0);
 
-        const annualPV = sizingData?.sizing?.annual_production_kwh || 0;
+        const annualPV = lastPvOutputData?.annual_kwh || sizingData?.sizing?.annual_production_kwh || 0;
         const selfRatio = sizingData?.sizing?.self_consumption_ratio || 0;
         const selfConsumed = annualPV * selfRatio;
         const exported = Math.max(0, annualPV - selfConsumed);
@@ -2282,39 +1557,26 @@
         const payback = annualSavings > 0 ? capex / annualSavings : 0;
 
         reportSummary.innerHTML = `
-          <div class="report-card"><div class="report-card-value">${(sizingData?.sizing?.system_kwp || 0).toFixed(2)} kWp</div><div class="report-card-label">System Size</div></div>
-          <div class="report-card"><div class="report-card-value">${Math.round(annualPV).toLocaleString()}</div><div class="report-card-label">Annual PV (kWh)</div></div>
-          <div class="report-card"><div class="report-card-value">${(selfRatio * 100).toFixed(0)}%</div><div class="report-card-label">Self‑Consumption</div></div>
-          <div class="report-card"><div class="report-card-value">${formatCurrency(annualSavings, currency)}</div><div class="report-card-label">Annual Savings</div></div>
-          <div class="report-card"><div class="report-card-value">${payback ? payback.toFixed(1) : "-"}</div><div class="report-card-label">Payback (yrs)</div></div>
-          <div class="report-card"><div class="report-card-value">${formatCurrency(npv, currency)}</div><div class="report-card-label">NPV</div></div>
-          <div class="report-card"><div class="report-card-value">${(irr * 100).toFixed(1)}%</div><div class="report-card-label">IRR</div></div>
-          <div class="report-card"><div class="report-card-value">${formatCurrency(capex, currency)}</div><div class="report-card-label">Total Capex</div></div>
-          <div class="report-card"><div class="report-card-value">${formatCurrency(lcoe, currency)}/kWh</div><div class="report-card-label">LCOE</div></div>
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Topic</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Self‑Consumption</td><td>PV used onsite</td><td>${(selfRatio * 100).toFixed(0)}</td><td>%</td></tr>
+              <tr><td>Annual Savings</td><td>Baseline bill minus post‑PV bill</td><td>${formatCurrency(annualSavings, currency)}</td><td>${currency}/year</td></tr>
+              <tr><td>Payback</td><td>Years to recover total capex</td><td>${payback ? payback.toFixed(1) : "-"}</td><td>years</td></tr>
+              <tr><td>NPV</td><td>Net present value of cashflows</td><td>${formatCurrency(npv, currency)}</td><td>${currency}</td></tr>
+              <tr><td>IRR</td><td>Rate where NPV equals zero</td><td>${(irr * 100).toFixed(1)}</td><td>%</td></tr>
+              <tr><td>Total Capex</td><td>Hardware + BOS/installation</td><td>${formatCurrency(capex, currency)}</td><td>${currency}</td></tr>
+              <tr><td>LCOE</td><td>Levelized cost of PV energy</td><td>${formatCurrency(lcoe, currency)}</td><td>${currency}/kWh</td></tr>
+            </tbody>
+          </table>
         `;
-
-        if (roofImage && roofImageEmpty) {
-          const roofSrc = currentProject?.capture_image_path;
-          if (roofSrc) {
-            roofImage.src = roofSrc;
-            roofImage.style.display = "block";
-            roofImageEmpty.style.display = "none";
-          } else {
-            roofImage.style.display = "none";
-            roofImageEmpty.style.display = "flex";
-          }
-        }
-        if (modelImage && modelImageEmpty) {
-          const modelSrc = currentProject?.capture_model_path;
-          if (modelSrc) {
-            modelImage.src = modelSrc;
-            modelImage.style.display = "block";
-            modelImageEmpty.style.display = "none";
-          } else {
-            modelImage.style.display = "none";
-            modelImageEmpty.style.display = "flex";
-          }
-        }
 
         const panelUnitCost = panelCount > 0 ? panelCost / panelCount : 0;
         const bomRows = [];
@@ -2347,15 +1609,14 @@
           <tbody>${bomRows.join("")}</tbody>
         `;
 
-        const monthlyIrr = lastIrradiationData?.monthly_kwh_m2 || [];
-        const monthSum = monthlyIrr.reduce((a, b) => a + b, 0) || 1;
-        const monthlyPV = monthlyIrr.map(v => annualPV * (v / monthSum));
+        const monthlyPV = (lastPvOutputData?.monthly_kwh || []).slice(0, 12);
         const monthlyLoad = Array(12).fill(annualLoad / 12);
         const monthlySelf = monthlyPV.map(v => v * selfRatio);
         const monthlyExport = monthlyPV.map((v, i) => Math.max(0, v - monthlySelf[i]));
 
         updateEnergyChart(monthlyLoad, monthlyPV, monthlySelf, monthlyExport);
-        updateCashflowChart(cash.cumulative);
+        updateCashflowChart(cash.cumulative, currency);
+        updatePvOutputChart(monthlyPV);
 
         const monthlyBaselineBill = monthlyLoad.map(v => v * tariff);
         const monthlyPostBill = monthlyLoad.map((v, i) => {
@@ -2364,34 +1625,23 @@
           const exportKwh = Math.max(0, monthlyPV[i] - self);
           return grid * tariff - exportKwh * exportPrice;
         });
-        updateBillChart(monthlyBaselineBill, monthlyPostBill);
+        updateBillChart(monthlyBaselineBill, monthlyPostBill, currency);
+        updateSelfConsumptionChart(selfConsumed, exported, selfRatio);
 
-        if (selfGaugeValue && selfGaugeFill) {
-          const pct = Math.max(0, Math.min(100, selfRatio * 100));
-          selfGaugeValue.textContent = `${pct.toFixed(0)}%`;
-          selfGaugeFill.style.width = `${pct}%`;
-          if (selfGaugeNote) {
-            selfGaugeNote.textContent = `${selfConsumed.toFixed(0)} kWh used onsite out of ${annualPV.toFixed(0)} kWh produced`;
-          }
-        }
+        const pvKpiSystem = document.getElementById("pvKpiSystem");
+        const pvKpiAnnual = document.getElementById("pvKpiAnnual");
+        if (pvKpiSystem) pvKpiSystem.textContent = `${(sizingData?.sizing?.system_kwp || 0).toFixed(2)} kWp`;
+        if (pvKpiAnnual) pvKpiAnnual.textContent = `${Math.round(annualPV).toLocaleString()} kWh`;
 
         reportAssumptions.textContent =
-          `Assumptions: no shading, degradation ${(degradation * 100).toFixed(1)}%/yr, O&M 1% of capex/yr, discount ${(discountRate * 100).toFixed(1)}%, inverter replace Y${inverterReplaceYear}, battery replace Y${batteryReplaceYear}.`;
+          `Assumptions: no shading, system losses 14% (PR 0.86), degradation ${(degradation * 100).toFixed(1)}%/yr, O&M 1% of capex/yr, discount ${(discountRate * 100).toFixed(1)}%, inverter replace Y${inverterReplaceYear}, battery replace Y${batteryReplaceYear}.`;
 
         reportSubtitle.textContent = `Project "${currentProject?.name || "Untitled"}" · Currency ${currency}`;
         reportSection.classList.add("visible");
       }
 
       async function loadSizingData() {
-        if (!selectedId || !sizingSection || !sizingLoading || !sizingError) return;
-        sizingSection.classList.add("visible");
-        sizingLoading.classList.remove("hidden");
-        sizingError.style.display = "none";
-        if (sizingSummary) sizingSummary.innerHTML = "";
-        if (sizingBreakdown) sizingBreakdown.innerHTML = "";
-        if (sizingInstalled) sizingInstalled.innerHTML = "";
-        if (sizingNote) sizingNote.textContent = "";
-
+        if (!selectedId) return;
         const roofIndicesParam = getSelectedIndicesParam();
         try {
           const missingPolys = !currentProject?.roofs ||
@@ -2411,57 +1661,95 @@
             throw new Error(data.error || "Failed to compute sizing");
           }
           sizingData = data;
-          sizingLoading.classList.add("hidden");
           renderSizing(data);
+          await loadPvOutputData(data?.sizing?.system_kwp || 0);
+          renderReport();
         } catch (err) {
-          sizingLoading.classList.add("hidden");
-          sizingError.style.display = "block";
-          sizingError.textContent = "Error: " + err.message;
+          alert("Sizing failed: " + err.message);
         }
       }
 
       // Create or update the bar chart
-      function updateChart(monthlyData, label, colorRgb) {
-        const ctx = document.getElementById("irradiationChart").getContext("2d");
+      // Technical old-school palette for per-roof datasets
+      const ROOF_CHART_COLORS = [
+        [220, 60, 60],    // red
+        [60, 160, 60],    // green
+        [50, 90, 180],    // blue
+        [200, 160, 30],   // gold
+        [160, 50, 180],   // purple
+        [30, 170, 170],   // teal
+      ];
+      const ALL_ROOF_COLOR = [40, 40, 40]; // dark grey for weighted avg
 
-        const bgColor = rgbToRgba(colorRgb, 0.8);
-        const borderColor = rgbToRgba(colorRgb, 1);
+      function updateChart(data) {
+        const ctx = document.getElementById("irradiationChart").getContext("2d");
+        const perRoof = data.per_roof || [];
+        const datasets = [];
+
+        // Per-roof bar datasets
+        perRoof.forEach((r, i) => {
+          if (r.error) return;
+          const roof = getRoofByIndex(r.index) || { index: r.index };
+          const displayIdx = getRoofDisplayIndex(roof, i);
+          const c = ROOF_CHART_COLORS[i % ROOF_CHART_COLORS.length];
+          datasets.push({
+            label: `Roof ${displayIdx}`,
+            data: r.monthly,
+            backgroundColor: rgbToRgba(c, 0.7),
+            borderColor: rgbToRgba(c, 1),
+            borderWidth: 1,
+            borderRadius: 0,
+            order: 2
+          });
+        });
+
+        // Weighted-average line (All Roofs)
+        datasets.push({
+          label: `All Roofs (avg)`,
+          data: data.monthly_kwh_m2,
+          type: 'line',
+          borderColor: rgbToRgba(ALL_ROOF_COLOR, 0.9),
+          backgroundColor: rgbToRgba(ALL_ROOF_COLOR, 0.1),
+          borderWidth: 2,
+          borderDash: [6, 3],
+          pointRadius: 3,
+          pointStyle: 'rectRot',
+          fill: false,
+          tension: 0.1,
+          order: 1,
+          hidden_from_legend: true
+        });
 
         if (irradiationChart) {
-          irradiationChart.data.datasets[0].data = monthlyData;
-          irradiationChart.data.datasets[0].label = label;
-          irradiationChart.data.datasets[0].backgroundColor = bgColor;
-          irradiationChart.data.datasets[0].borderColor = borderColor;
+          irradiationChart.data.datasets = datasets;
           irradiationChart.update();
           return;
         }
 
         irradiationChart = new Chart(ctx, {
           type: "bar",
-          data: {
-            labels: MONTH_LABELS,
-            datasets: [{
-              label: label,
-              data: monthlyData,
-              backgroundColor: bgColor,
-              borderColor: borderColor,
-              borderWidth: 1,
-              borderRadius: 4
-            }]
-          },
+          data: { labels: MONTH_LABELS, datasets },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
               legend: {
                 display: true,
-                position: "top"
+                position: "top",
+                labels: {
+                  font: { family: "'JetBrains Mono', monospace", size: 11 },
+                  color: "#334155",
+                  padding: 12,
+                  usePointStyle: true,
+                  pointStyleWidth: 14,
+                  filter: (item, chartData) => !chartData.datasets[item.datasetIndex]?.hidden_from_legend
+                }
               },
               tooltip: {
+                titleFont: { family: "'JetBrains Mono', monospace", size: 12 },
+                bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
                 callbacks: {
-                  label: function(context) {
-                    return context.parsed.y.toFixed(1) + " kWh/m²";
-                  }
+                  label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} kWh/m²`
                 }
               }
             },
@@ -2470,14 +1758,23 @@
                 beginAtZero: true,
                 title: {
                   display: true,
-                  text: "Irradiation (kWh/m²)"
-                }
+                  text: "Irradiation [kWh/m²]",
+                  font: { family: "'JetBrains Mono', monospace", size: 12, weight: '600' },
+                  color: "#1f272d"
+                },
+                ticks: {
+                  font: { family: "'JetBrains Mono', monospace", size: 11 },
+                  color: "#5f6971"
+                },
+                grid: { color: "rgba(0,0,0,0.08)", lineWidth: 1 }
               },
               x: {
-                title: {
-                  display: true,
-                  text: "Month"
-                }
+                title: { display: false },
+                ticks: {
+                  font: { family: "'JetBrains Mono', monospace", size: 11 },
+                  color: "#5f6971"
+                },
+                grid: { color: "rgba(0,0,0,0.04)" }
               }
             }
           }
@@ -2490,16 +1787,6 @@
           if (!selectedId) return;
           await loadIrradiationData();
           await loadSizingData();
-        });
-      }
-
-      if (btnExportPdf) {
-        btnExportPdf.addEventListener("click", () => {
-          if (reportSection && reportSection.classList.contains("visible")) {
-            window.print();
-          } else {
-            alert("Generate the report first.");
-          }
         });
       }
 
@@ -2522,14 +1809,44 @@
         }
       });
 
-      // Event: Logout
-      document.getElementById("logoutLink").addEventListener("click", (e) => {
-        e.preventDefault();
-        sessionStorage.removeItem(AUTH_KEY);
-        sessionStorage.removeItem(USER_KEY);
-        localStorage.removeItem("solar_wizard_session");
-        window.location.href = "/login";
-      });
+      // Event: Login/Logout depending on session (top bar button mirrored)
+      (function() {
+        const AUTH_KEY = "solar_demo_auth";
+        const USER_KEY = "solar_auth_user";
+        const isGuest = !(sessionStorage.getItem(AUTH_KEY) && sessionStorage.getItem(USER_KEY));
+        const topBtn = document.getElementById("topAuthBtn");
+        if (topBtn) {
+          if (isGuest) {
+            topBtn.textContent = "Login";
+            topBtn.onclick = () => { window.location.href = "/login"; };
+          } else {
+            topBtn.textContent = "Logout";
+            topBtn.onclick = (e) => {
+              e.preventDefault();
+              sessionStorage.removeItem(AUTH_KEY);
+              sessionStorage.removeItem(USER_KEY);
+              localStorage.removeItem("solar_wizard_session");
+              window.location.href = "/login";
+            };
+          }
+        }
+        const link = document.getElementById("logoutLink");
+        if (link) {
+          if (isGuest) {
+            link.textContent = "Login";
+            link.href = "/login";
+          } else {
+            link.textContent = "Logout";
+            link.addEventListener("click", (e) => {
+              e.preventDefault();
+              sessionStorage.removeItem(AUTH_KEY);
+              sessionStorage.removeItem(USER_KEY);
+              localStorage.removeItem("solar_wizard_session");
+              window.location.href = "/login";
+            });
+          }
+        }
+      })();
 
       loadDatasets();
     })();

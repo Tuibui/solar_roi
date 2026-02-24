@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Solar ROI Calculator - App</title>
+  <title>SUNSCOPE - App</title>
   <script>window.CESIUM_BASE_URL = "/Build/Cesium/";</script>
   <link rel="stylesheet" href="/Build/Cesium/Widgets/widgets.css" />
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -23,23 +23,30 @@
     (function() {
       const AUTH_KEY = "solar_demo_auth";
       if (!sessionStorage.getItem(AUTH_KEY)) {
-        window.location.replace("/login");
+        // Allow viewing workspace; button will show Login instead of Logout
+        window.isGuest = true;
+      } else {
+        window.isGuest = false;
       }
     })();
   </script>
 
   <div class="top-strip">
-    <img src="/static/images/kosen_logo.png" alt="Kosen">
-    <img src="/static/images/cesium_logo.png" alt="Cesium">
+    <div class="top-strip-left">
+      <img src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="SUNSCOPE" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 52px; width: auto;">
+    </div>
+    <div class="top-strip-right">
+      <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
+      <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
+      <button id="topAuthBtn" class="top-auth-btn">Login</button>
+    </div>
   </div>
 
   <div class="sub-strip">
     <div class="sub-strip-left">
-      <div class="sub-strip-title">Solar ROI Calculator</div>
-      <a href="/app" class="active">User information</a>
-      <a href="/calculate">Calculation</a>
+      <a href="/app" class="active">Workspace</a>
+      <a href="/calculate">Analysis</a>
     </div>
-    <a href="#" id="logoutLink" class="sub-strip-logout">Logout</a>
   </div>
 
   <div id="wizardOverlay">
@@ -48,12 +55,17 @@
 
   <!-- Command Tab Bar -->
   <div id="commandBar" class="command-bar">
-    <button class="command-bar-tab" data-tab="earth"><span class="tab-icon">🌍</span> EARTH</button>
-    <button class="command-bar-tab" data-tab="add-panel"><span class="tab-icon">⊞</span> Add Panel</button>
-    <button class="command-bar-tab" data-tab="project-detail"><span class="tab-icon">📋</span> Project Detail</button>
-    <button class="command-bar-tab" data-tab="inverter"><span class="tab-icon">⚡</span> Inverter</button>
-    <button class="command-bar-tab" data-tab="battery"><span class="tab-icon">🔋</span> Battery</button>
-    <button class="command-bar-tab save-tab" data-tab="save"><span class="tab-icon">💾</span> Save Project</button>
+    <div class="command-bar-left">
+      <button class="command-bar-tab" data-tab="earth"><span class="tab-icon">🌍</span></button>
+      <button class="command-bar-tab" data-tab="add-panel">Add Panel</button>
+      <button class="command-bar-tab" data-tab="project-detail">Project Detail</button>
+      <button class="command-bar-tab" data-tab="inverter">Inverter</button>
+      <button class="command-bar-tab" data-tab="battery">Battery</button>
+    </div>
+    <div class="command-bar-right">
+      <button class="command-bar-tab ghost-tab" data-tab="open">Open Project</button>
+      <button class="command-bar-tab save-tab" data-tab="save">Save Project</button>
+    </div>
   </div>
 
   <!-- Map Mode (hidden by default, shown via EARTH tab) -->
@@ -126,17 +138,10 @@
                     <option value="pump|750">Water Pump (750W)</option>
                     <option value="custom">+ Custom...</option>
                   </select>
-                  <button class="btn-small" style="padding: 6px 12px; background: #1a5276; color: white; border: none;" id="btnAddAppliance" type="button">+</button>
+                  <button class="btn-small primary" id="btnAddAppliance" type="button">+</button>
                 </div>
               </div>
               <div id="wizardAppliancesList" class="appliances-list"></div>
-            </div>
-            <div class="form-section">
-              <h3 class="form-section-title">Monthly Electric Bill</h3>
-              <div class="form-group">
-                <label for="wizardMonthlyKwh">Monthly Usage (kWh/month)</label>
-                <input type="number" id="wizardMonthlyKwh" step="1" placeholder="e.g., 500">
-              </div>
             </div>
             <div class="form-section">
               <h3 class="form-section-title">Electricity Price</h3>
@@ -178,15 +183,11 @@
         <div class="dock-content" id="dockInverter">
           <div class="dock-form-body">
             <div class="form-section">
-              <h3 class="form-section-title">Add Inverter</h3>
+              <h3 class="form-section-title">Search Inverter</h3>
               <div class="form-group">
-                <div style="display: flex; gap: 6px;">
-                  <select id="splitInverterSelect" style="flex: 1;">
-                    <option value="">-- Select Inverter --</option>
-                  </select>
-                  <button class="btn-small" style="padding: 6px 12px; background: #1a5276; color: white; border: none;" id="btnAddInverter" type="button">Add</button>
-                </div>
+                <input type="text" id="splitInverterSearch" placeholder="Search brand, model, kW..." autocomplete="off" spellcheck="false">
               </div>
+              <div id="splitInverterSearchList" class="appliances-list"></div>
             </div>
             <div class="form-section">
               <h3 class="form-section-title">Installed Inverters</h3>
@@ -199,15 +200,11 @@
         <div class="dock-content" id="dockBattery">
           <div class="dock-form-body">
             <div class="form-section">
-              <h3 class="form-section-title">Add Battery</h3>
+              <h3 class="form-section-title">Search Battery</h3>
               <div class="form-group">
-                <div style="display: flex; gap: 6px;">
-                  <select id="splitBatterySelect" style="flex: 1;">
-                    <option value="">-- Select Battery --</option>
-                  </select>
-                  <button class="btn-small" style="padding: 6px 12px; background: #1a5276; color: white; border: none;" id="btnAddBattery" type="button">Add</button>
-                </div>
+                <input type="text" id="splitBatterySearch" placeholder="Search brand, model, kWh..." autocomplete="off" spellcheck="false">
               </div>
+              <div id="splitBatterySearchList" class="appliances-list"></div>
             </div>
             <div class="form-section">
               <h3 class="form-section-title">Installed Batteries</h3>
@@ -224,6 +221,10 @@
 
       <div class="split-viewer-wrap">
         <div id="splitModelHost"></div>
+
+        <div class="live-price-overlay live-price-min" id="livePriceBox">
+          <span id="livePriceTotal">฿0.00</span>
+        </div>
 
         <!-- XYZ Triad (bottom-left orientation indicator) -->
         <div class="viewport-triad" id="viewportTriad"></div>
@@ -243,6 +244,26 @@
     </div>
     <!-- Right panel hidden (content relocated to left dock + command bar) -->
     <div class="split-right" id="splitRight" style="display:none;"></div>
+  </div>
+
+  <!-- Save Popup -->
+  <div class="save-popup hidden" id="savePopup" role="status" aria-live="polite">
+    <div class="save-popup-card">
+      <div class="save-popup-title" id="savePopupTitle">Project Saved</div>
+      <div class="save-popup-body" id="savePopupBody"></div>
+      <button class="save-popup-close" id="savePopupClose" type="button">Close</button>
+    </div>
+  </div>
+
+  <!-- Open Project Modal -->
+  <div class="opm-overlay hidden" id="openProjectOverlay" role="dialog" aria-modal="true" aria-label="Open Project">
+    <div class="opm-modal">
+      <div class="opm-header">
+        <span class="opm-title">Open Project</span>
+        <button class="opm-close" id="openProjectClose" aria-label="Close">&#x2715;</button>
+      </div>
+      <div class="opm-body" id="openProjectBody"></div>
+    </div>
   </div>
 
   
@@ -272,6 +293,7 @@
     function createViewer(host, options = {}) {
       const bgColor = options.bgColor || 0xffffff;
       const gridColor = options.gridColor || 0xcccccc;
+      const showGrid = options.showGrid !== false;
       const w = host.clientWidth || 400;
       const h = host.clientHeight || 400;
 
@@ -290,6 +312,28 @@
       controls.enableDamping = true;
       controls.dampingFactor = 0.12;
 
+      // Lightweight "infinite-like" CAD grid:
+      // keep fixed-size helpers centered under camera on X/Z so it feels infinite.
+      let gridGroup = null;
+      if (showGrid) {
+        const majorGrid = new THREE.GridHelper(200, 40, 0x8f9599, gridColor);
+        const minorGrid = new THREE.GridHelper(200, 200, 0xc4c9cd, 0xc4c9cd);
+        [majorGrid, minorGrid].forEach((g) => {
+          g.position.y = -0.01;
+          g.material.transparent = true;
+          g.material.depthWrite = false;
+          g.renderOrder = -1;
+        });
+        majorGrid.material.opacity = 0.45;
+        minorGrid.material.opacity = 0.2;
+        gridGroup = new THREE.Group();
+        gridGroup.name = 'cad-grid';
+        gridGroup.userData.keepInScene = true;
+        gridGroup.add(minorGrid);
+        gridGroup.add(majorGrid);
+        scene.add(gridGroup);
+      }
+
       
 
       const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -303,6 +347,11 @@
       function animate() {
         animId = requestAnimationFrame(animate);
         controls.update();
+        if (gridGroup) {
+          const snap = 5; // snap center to reduce jitter while orbiting/zooming
+          gridGroup.position.x = Math.round(camera.position.x / snap) * snap;
+          gridGroup.position.z = Math.round(camera.position.z / snap) * snap;
+        }
         renderer.render(scene, camera);
         for (const fn of _animHooks) fn();
       }
@@ -495,6 +544,9 @@
       panelPlacer.onPanelDeleted = (roofIndex) => {
         if (window.updateTreePanelsForRoof) window.updateTreePanelsForRoof(roofIndex);
       };
+      panelPlacer.onPanelsChanged = () => {
+        if (window.refreshLivePrice) window.refreshLivePrice();
+      };
 
       console.log('[PanelPlacer] Initialized');
       return panelPlacer;
@@ -540,15 +592,20 @@
   </script>
   <script>
     (function() {
-      const logoutLink = document.getElementById("logoutLink");
-      if (!logoutLink) return;
-      logoutLink.addEventListener("click", (event) => {
-        event.preventDefault();
-        sessionStorage.removeItem("solar_demo_auth");
-        sessionStorage.removeItem("solar_auth_user");
-        localStorage.removeItem("solar_wizard_session");
-        window.location.href = "/login";
-      });
+      const btn = document.getElementById("topAuthBtn");
+      if (window.isGuest) {
+        btn.textContent = "Login";
+        btn.onclick = () => { window.location.href = "/login"; };
+      } else {
+        btn.textContent = "Logout";
+        btn.onclick = (event) => {
+          event.preventDefault();
+          sessionStorage.removeItem("solar_demo_auth");
+          sessionStorage.removeItem("solar_auth_user");
+          localStorage.removeItem("solar_wizard_session");
+          window.location.href = "/login";
+        };
+      }
     })();
   </script>
 </body>

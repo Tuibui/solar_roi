@@ -1,186 +1,328 @@
 /* ============================================
-   AUTH PAGES - Professional, Technical Style
+   AUTH PAGES — Technical Old-School
+   Shared by login.html & register.html
+   Uses --steel-* and --accent from base.css
    ============================================ */
 
-.auth-page {
+/* ── Page body ── */
+body.login-page,
+body.register-page {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: linear-gradient(180deg, #c9ced3 0%, #dde1e5 100%);
+  color: #1d242a;
+  position: relative;
+  overflow-x: hidden;
 }
 
-/* Main Area - Centered card */
-.auth-main {
-  flex: 1;
+body.login-page::before,
+body.register-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(15, 30, 40, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 30, 40, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+body.login-page::after,
+body.register-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.45), transparent 55%),
+              radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.25), transparent 45%);
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+}
+
+/* ── Main area ── */
+.login-main,
+.register-main {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--sp-6) var(--sp-4);
-  background: var(--bg-surface);
+  padding: 48px 24px 28px;
+  min-height: calc(100vh - 110px);
+}
+
+/* ── Shell grid ── */
+.login-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(320px, 420px);
+  gap: 24px;
+  width: min(920px, 92vw);
+}
+
+.register-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(340px, 460px);
+  gap: 24px;
+  width: min(980px, 92vw);
+}
+
+/* ── Brief sidebar ── */
+.login-brief,
+.register-brief {
+  background: linear-gradient(180deg, #e8ebee 0%, #d7dbe0 100%);
+  border: 1px solid var(--steel-500);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 var(--steel-300), 0 12px 24px rgba(20, 30, 40, 0.18);
+  padding: 20px;
   position: relative;
 }
 
-/* Subtle grid pattern */
-.auth-main::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(10, 32, 45, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(10, 32, 45, 0.05) 1px, transparent 1px);
-  background-size: 24px 24px;
-  pointer-events: none;
+.brief-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--steel-700);
+  text-transform: uppercase;
+  margin-bottom: 10px;
 }
 
-/* Auth Card */
-.auth-card {
-  width: 100%;
-  max-width: 380px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 18px 36px rgba(15, 39, 53, 0.12);
-  position: relative;
-  z-index: 1;
+.brief-panel {
+  background: #f5f7f9;
+  border: 1px solid var(--steel-400);
+  border-radius: 4px;
+  padding: 16px;
+  box-shadow: inset 0 1px 0 #ffffff;
 }
 
-/* Card Header */
-.auth-card .card-header {
-  background: linear-gradient(135deg, #0f2a3a 0%, #132f42 70%);
-  padding: var(--sp-3) var(--sp-4);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+.brief-panel h2 {
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: #1a232b;
 }
 
-.auth-logos {
+.brief-panel p {
+  font-size: 12px;
+  color: var(--steel-700);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.spec-list {
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.spec-list li {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  margin-bottom: var(--sp-2);
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--steel-300);
+  padding-bottom: 6px;
 }
 
-.auth-logos img {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.12);
-  padding: 2px;
+.spec-key {
+  color: var(--steel-700);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
 }
 
-.auth-title {
-  font-size: var(--text-lg);
+.spec-value {
+  color: #1b2329;
   font-weight: 600;
-  color: #f1f5f9;
-  margin-bottom: 2px;
+  text-align: right;
 }
 
-.auth-subtitle {
-  font-size: var(--text-xs);
-  color: rgba(241, 245, 249, 0.6);
+/* ── Auth panel (login / register card) ── */
+.login-panel,
+.register-panel {
+  background: linear-gradient(180deg, #f8fafb 0%, #e6eaee 100%);
+  border: 1px solid var(--steel-500);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 #ffffff, 0 18px 28px rgba(15, 25, 33, 0.22);
+  overflow: hidden;
 }
 
-/* Card Body */
-.auth-card .card-body {
-  padding: var(--sp-4);
-  background: var(--bg-card);
+.panel-header {
+  background: linear-gradient(180deg, #dfe4e8 0%, #c4cad1 100%);
+  border-bottom: 1px solid var(--steel-500);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-/* Form Inputs */
-.auth-form .form-group {
-  margin-bottom: var(--sp-3);
+.panel-header .panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #1c242a;
 }
 
-.auth-form .form-group label {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  margin-bottom: var(--sp-1);
+.panel-header .panel-tag {
+  font-size: 11px;
+  color: var(--steel-700);
+  border: 1px solid var(--steel-400);
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: #eef1f4;
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.panel-body {
+  padding: 22px;
+  background: #f7f9fb;
+}
+
+/* ── Form styles ── */
+.login-form .form-group,
+.register-form .form-group {
+  margin-bottom: 16px;
+}
+
+.login-form label,
+.register-form label {
   display: block;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--steel-700);
+  margin-bottom: 6px;
 }
 
-.auth-form .form-group input {
+.login-form input,
+.register-form input {
   width: 100%;
-  padding: var(--sp-2) var(--sp-3);
-  font-size: var(--text-base);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-sm);
-  background: #fff;
-  color: var(--text-primary);
-  transition: border-color 0.1s ease;
+  padding: 12px 12px;
+  font-size: 13px;
+  font-family: var(--font-family);
+  border: 1px solid var(--steel-500);
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1a232b;
+  box-shadow: inset 0 1px 2px rgba(10, 20, 28, 0.08);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.auth-form .form-group input::placeholder {
-  color: rgba(90, 104, 116, 0.6);
-}
-
-.auth-form .form-group input:focus {
-  border-color: var(--accent);
+.login-form input:focus,
+.register-form input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent-subtle);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(28, 79, 110, 0.18);
 }
 
-/* Actions */
-.auth-actions {
-  margin-top: var(--sp-4);
-}
-
-.auth-actions button,
-.auth-actions .btn-primary {
-  width: 100%;
-  padding: var(--sp-2) var(--sp-4);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.1s ease;
-}
-
-.auth-actions button:hover,
-.auth-actions .btn-primary:hover {
-  background: var(--accent-hover);
-}
-
-/* Note */
-.auth-note {
-  margin-top: var(--sp-3);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  text-align: center;
-}
-
-/* Links */
-.auth-links {
-  margin-top: var(--sp-3);
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.auth-links a {
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.auth-links a:hover {
-  text-decoration: underline;
-}
-
-/* Error message in auth */
-.auth-error {
-  padding: var(--sp-2) var(--sp-3);
-  background: rgba(180, 35, 24, 0.08);
-  border: 1px solid var(--error);
-  border-radius: var(--radius-sm);
-  color: var(--error);
-  font-size: var(--text-sm);
-  margin-bottom: var(--sp-3);
+/* ── Error messages ── */
+.login-error,
+.register-error {
+  padding: 10px 12px;
+  background: #fff3f3;
+  border: 1px solid #c44747;
+  border-radius: 4px;
+  color: #9c2f2f;
+  font-size: 12px;
+  margin-bottom: 14px;
   display: none;
 }
 
-.auth-error.show {
+.login-error.show,
+.register-error.show {
   display: block;
+}
+
+/* ── Action buttons ── */
+.login-actions,
+.register-actions {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.login-btn,
+.register-btn {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-family: var(--font-family);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f6f8fa;
+  background: linear-gradient(180deg, #2b5875 0%, #1f3f57 100%);
+  border: 1px solid #1f3f57;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 6px 10px rgba(15, 25, 33, 0.18);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.login-btn:hover,
+.register-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 14px rgba(15, 25, 33, 0.22);
+}
+
+.login-btn:active,
+.register-btn:active {
+  transform: translateY(0);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* ── Footer links ── */
+.login-footer,
+.register-footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--steel-700);
+}
+
+.login-footer a,
+.register-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.login-footer a:hover,
+.register-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ── Status bar ── */
+.login-status,
+.register-status {
+  position: relative;
+  z-index: 2;
+  padding: 8px 24px 16px;
+  font-size: 11px;
+  color: var(--steel-700);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--steel-400);
+  background: linear-gradient(180deg, #dfe3e7 0%, #c6ccd2 100%);
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+/* ── Responsive ── */
+@media (max-width: 920px) {
+  .login-shell,
+  .register-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .login-main,
+  .register-main {
+    padding: 32px 20px 20px;
+  }
+
+  .login-status,
+  .register-status {
+    flex-direction: column;
+    gap: 6px;
+  }
 }

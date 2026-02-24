@@ -63,9 +63,10 @@
 }
 
 .toolbar-btn.active {
-  background: #e67e22 !important;
+  background: linear-gradient(180deg, #2b5875 0%, #1f3f57 100%) !important;
   color: white !important;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  border-color: #1f3f57 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .toolbar-btn:disabled {

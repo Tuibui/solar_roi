@@ -7,61 +7,80 @@
   <link rel="stylesheet" href="/static/css/base.css">
   <link rel="stylesheet" href="/static/css/auth.css">
 </head>
-<body class="auth-page">
-
+<body class="register-page">
   <div class="top-strip">
-    <img src="/static/images/kosen_logo.png" alt="Kosen">
-    <img src="/static/images/cesium_logo.png" alt="Cesium">
+    <div class="top-strip-left">
+      <img src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="SUNSCOPE" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 52px; width: auto;">
+    </div>
+    <div class="top-strip-right">
+      <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
+      <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
+      <button id="topAuthBtn" class="top-auth-btn">Login</button>
+    </div>
   </div>
 
   <div class="sub-strip">
     <div class="sub-strip-left">
-      <div class="sub-strip-title">Solar ROI Calculator</div>
-      <a href="/app">User information</a>
-      <a href="/calculate">Calculation</a>
+      <a href="/app">Workspace</a>
+      <a href="/calculate">Analysis</a>
     </div>
-    <a href="#" id="logoutLink" class="sub-strip-logout">Logout</a>
   </div>
 
-  <main class="auth-main">
-    <div class="auth-card">
-      <div class="card-header">
-        <div class="auth-logos">
-          <img src="/static/images/kosen_logo.png" alt="Kosen logo">
-          <img src="/static/images/cesium_logo.png" alt="Cesium logo">
+  <main class="register-main">
+    <section class="register-shell">
+      <aside class="register-brief">
+        <div class="brief-title">Enrollment Brief</div>
+        <div class="brief-panel">
+          <h2>Operator Provisioning</h2>
+          <p>New operator profiles are linked to project workspaces, panel libraries, and energy analytics. Provide your credentials to activate a session profile.</p>
+          <ul class="spec-list">
+            <li><span class="spec-key">Access</span><span class="spec-value">Controlled</span></li>
+            <li><span class="spec-key">Role</span><span class="spec-value">Engineering User</span></li>
+            <li><span class="spec-key">Provision</span><span class="spec-value">Instant</span></li>
+            <li><span class="spec-key">Security</span><span class="spec-value">Enabled</span></li>
+          </ul>
         </div>
-        <div class="auth-title">Create Account</div>
-        <div class="auth-subtitle">Get started with Solar ROI Calculator</div>
-      </div>
-      <div class="card-body">
-        <div class="auth-error" id="authError"></div>
-        <form id="registerForm" class="auth-form">
-          <div class="form-group">
-            <label for="regName">Full Name</label>
-            <input type="text" id="regName" name="name" placeholder="Your name" required>
-          </div>
-          <div class="form-group">
-            <label for="regEmail">Email</label>
-            <input type="email" id="regEmail" name="email" placeholder="name@email.com" required>
-          </div>
-          <div class="form-group">
-            <label for="regPassword">Password</label>
-            <input type="password" id="regPassword" name="password" placeholder="Min. 6 characters" required>
-          </div>
-          <div class="form-group">
-            <label for="regConfirm">Confirm Password</label>
-            <input type="password" id="regConfirm" name="confirmPassword" placeholder="Repeat password" required>
-          </div>
-          <div class="auth-actions">
-            <button type="submit" class="btn-primary">Create Account</button>
-          </div>
-        </form>
-        <div class="auth-links">
-          Already have an account? <a href="/login">Sign in</a>
+      </aside>
+
+      <div class="register-panel">
+        <div class="panel-header">
+          <div class="panel-title">Create Operator Profile</div>
+          <div class="panel-tag">Revision 2.6</div>
+        </div>
+        <div class="panel-body">
+          <div class="register-error" id="authError"></div>
+          <form id="registerForm" class="register-form">
+            <div class="form-group">
+              <label for="regName">Operator Name</label>
+              <input type="text" id="regName" name="name" placeholder="Full name" required>
+            </div>
+            <div class="form-group">
+              <label for="regEmail">Email Address</label>
+              <input type="email" id="regEmail" name="email" placeholder="name@email.com" required>
+            </div>
+            <div class="form-group">
+              <label for="regPassword">Access Key</label>
+              <input type="password" id="regPassword" name="password" placeholder="Min. 6 characters" required>
+            </div>
+            <div class="form-group">
+              <label for="regConfirm">Confirm Access Key</label>
+              <input type="password" id="regConfirm" name="confirmPassword" placeholder="Repeat password" required>
+            </div>
+            <div class="register-actions">
+              <button type="submit" class="register-btn">Provision Profile</button>
+              <div class="register-footer">Already registered? <a href="/login">Sign in</a></div>
+            </div>
+          </form>
         </div>
       </div>
-    </div>
+    </section>
   </main>
+
+  <div class="register-status">
+    <span>System: Nominal</span>
+    <span>Console: SOLAR-ROI / v2.6</span>
+    <span>Security: Active</span>
+  </div>
 
   <script>
     (function() {
