@@ -1,0 +1,26 @@
+# ── Web framework ──────────────────────────────────────────────────────────────
+Flask==3.0.0
+flask-cors==4.0.0
+Werkzeug>=3.0.0
+
+# ── Database ───────────────────────────────────────────────────────────────────
+Flask-SQLAlchemy>=3.1.0
+Flask-Migrate>=4.0.0          # Alembic-based schema migrations
+psycopg2-binary>=2.9.0        # PostgreSQL driver (production)
+# SQLite is built into Python — no extra package needed (development)
+
+# ── Environment / config ───────────────────────────────────────────────────────
+python-dotenv>=1.0.0          # Load .env files
+
+# ── Solar / scientific ─────────────────────────────────────────────────────────
+numpy>=1.26.0
+trimesh[easy]>=4.0.0          # 3D mesh / GLB generation
+pvlib>=0.10.4                 # Solar position calculations
+pandas>=2.1.0
+
+# ── Geo / HTTP ─────────────────────────────────────────────────────────────────
+requests>=2.31.0
+geocoder>=1.38.1
+
+# ── Production server ──────────────────────────────────────────────────────────
+gunicorn>=21.0.0              # WSGI server for Linux hosting
