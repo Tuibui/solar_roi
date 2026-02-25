@@ -1,6 +1,9 @@
 // Global Configuration
 const CONFIG = {
-  API_BASE: "http://127.0.0.1:8000",
+  // Auto-detect: ถ้ารันบน localhost ใช้ port 8000, ถ้าอยู่บน production ใช้ URL เดียวกับหน้าเว็บ
+  API_BASE: (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://127.0.0.1:8000"
+    : window.location.origin,
   CESIUM_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjlhYmYzYy01NjEzLTQwYzQtODZhZS1iODkzNzY0Yzc5ZTUiLCJpZCI6MzY1MjY5LCJpYXQiOjE3NzEwNjg1NDJ9.hdXdQ2lEfBO7KZGgWCIT-CQeXvswa5Jt218h1vQuIGY",
   STATE_KEY: "cesium_state"
 };
