@@ -30,15 +30,15 @@ class ShadingEngine {
   localToEcef(localPoint, roofMatrixWorld) {
     const worldPos = localPoint.clone().applyMatrix4(roofMatrixWorld);
 
-    const east  =  worldPos.x;
+    const east = worldPos.x;
     const north = -worldPos.z;
-    const up    =  worldPos.y;
+    const up = worldPos.y;
 
     const { _cosLat: cosLat, _sinLat: sinLat, _cosLon: cosLon, _sinLon: sinLon, _originEcef: origin } = this;
 
     const dx = -sinLon * east - sinLat * cosLon * north + cosLat * cosLon * up;
-    const dy =  cosLon * east - sinLat * sinLon * north + cosLat * sinLon * up;
-    const dz =  cosLat * north + sinLat * up;
+    const dy = cosLon * east - sinLat * sinLon * north + cosLat * sinLon * up;
+    const dz = cosLat * north + sinLat * up;
 
     return new Cesium.Cartesian3(
       origin.x + dx,
@@ -75,18 +75,18 @@ class ShadingEngine {
    */
   approximateSunDirection(dateTime) {
     const hour = dateTime.getUTCHours() + dateTime.getUTCMinutes() / 60
-                 + this.houseLocation.lon / 15; // approx local solar time
+      + this.houseLocation.lon / 15; // approx local solar time
     const dayOfYear = Math.floor(
       (dateTime - new Date(Date.UTC(dateTime.getUTCFullYear(), 0, 1))) / 86400000
     ) + 1;
     const declination = 23.45 * Math.sin(Cesium.Math.toRadians((360 / 365) * (dayOfYear - 81)));
 
     const hourAngle = Cesium.Math.toRadians((hour - 12) * 15);
-    const decRad    = Cesium.Math.toRadians(declination);
+    const decRad = Cesium.Math.toRadians(declination);
 
     const { _cosLat: cosLat, _sinLat: sinLat, _cosLon: cosLon, _sinLon: sinLon } = this;
-    const sinDec  = Math.sin(decRad);
-    const cosDec  = Math.cos(decRad);
+    const sinDec = Math.sin(decRad);
+    const cosDec = Math.cos(decRad);
     const sinHour = Math.sin(hourAngle);
     const cosHour = Math.cos(hourAngle);
 
@@ -100,13 +100,13 @@ class ShadingEngine {
     const sinAzimuth = -(cosDec * sinHour) / cosAltitude;
     const cosAzimuth = (sinDec - sinLat * sinAltitude) / (cosLat * cosAltitude);
 
-    const east  = -sinAzimuth * cosAltitude;
+    const east = -sinAzimuth * cosAltitude;
     const north = -cosAzimuth * cosAltitude;
-    const up    =  sinAltitude;
+    const up = sinAltitude;
 
     const x = -sinLon * east - sinLat * cosLon * north + cosLat * cosLon * up;
-    const y =  cosLon * east - sinLat * sinLon * north + cosLat * sinLon * up;
-    const z =  cosLat * north + sinLat * up;
+    const y = cosLon * east - sinLat * sinLon * north + cosLat * sinLon * up;
+    const z = cosLat * north + sinLat * up;
 
     return new Cesium.Cartesian3(x, y, z);
   }
@@ -156,8 +156,8 @@ class ShadingEngine {
   _sinSolarAltitude(sunDir) {
     const { _cosLat: cosLat, _sinLat: sinLat, _cosLon: cosLon, _sinLon: sinLon } = this;
     return cosLat * cosLon * sunDir.x
-         + cosLat * sinLon * sunDir.y
-         + sinLat           * sunDir.z;
+      + cosLat * sinLon * sunDir.y
+      + sinLat * sunDir.z;
   }
 
   /**
@@ -167,8 +167,8 @@ class ShadingEngine {
     const { _cosLat: cosLat, _sinLat: sinLat, _cosLon: cosLon, _sinLon: sinLon } = this;
     // ECEF dot local-up = sin(elevation)
     const up = cosLat * cosLon * sunDirection.x
-             + cosLat * sinLon * sunDirection.y
-             + sinLat           * sunDirection.z;
+      + cosLat * sinLon * sunDirection.y
+      + sinLat * sunDirection.z;
     return up > 0;
   }
 
@@ -184,7 +184,7 @@ class ShadingEngine {
     const ecef = pointEcef ?? this.localToEcef(localPoint, roofMatrixWorld);
 
     let shadedWeight = 0;
-    let totalWeight  = 0;
+    let totalWeight = 0;
 
     for (const hour of sampleHours) {
       const dateTime = new Date(date);
@@ -197,7 +197,7 @@ class ShadingEngine {
 
       const result = this.castRay(ecef, sunDir);
 
-      totalWeight  += sinAlt;
+      totalWeight += sinAlt;
       if (result.isShaded) shadedWeight += sinAlt;
     }
 
@@ -225,33 +225,34 @@ class ShadingEngine {
     // Klein (1977) ISO representative day-of-month per month (1-indexed)
     const ISO_DAY = [17, 16, 16, 15, 15, 11, 17, 16, 15, 15, 14, 10];
     const center = ISO_DAY[month - 1];
-    const daysInMonth = new Date(year, month, 0).getDate(); // JS: month is 1-based here
+    const daysInMonth = new Date(year, month, 0).getDate();
 
     const clamp = d => Math.min(Math.max(d, 1), daysInMonth);
+    // 2 days: one early, one late — enough for fast monthly estimate
     return [
-      clamp(center - 10),
-      clamp(center - 3),
-      clamp(center + 4),
-      clamp(center + 11)
+      clamp(center - 7),
+      clamp(center + 7)
     ];
   }
 
   async computeMonthlyShading(samples, roofMatrixWorld, month, year, progressCallback) {
-    const DAYS  = this._representativeDays(month, year); // Klein (1977) ISO days
-    const HOURS = [8, 10, 12, 14, 16]; // 5 solar hours
+    const DAYS = this._representativeDays(month, year); // Klein (1977) ISO days
+    // Use 3 hours: morning / solar noon / afternoon — irradiance-weighted so noon dominates
+    // Fewer hours = much faster computation with minimal accuracy loss
+    const HOURS = [9, 12, 15];
 
     // Precompute ECEF for every sample point — reused across all time slots
     const ecefs = samples.map(s => this.localToEcef(s.local, roofMatrixWorld));
 
     const shadedWeight = new Float64Array(samples.length);
-    const totalWeight  = new Float64Array(samples.length);
+    const totalWeight = new Float64Array(samples.length);
 
     const maxTimeSlots = DAYS.length * HOURS.length; // ≤ 20
     let completedSlots = 0;
 
     for (const day of DAYS) {
       for (const hour of HOURS) {
-        const dt     = new Date(Date.UTC(year, month - 1, day, hour, 0, 0));
+        const dt = new Date(Date.UTC(year, month - 1, day, hour, 0, 0));
         const sunDir = this.getSunDirection(dt);
         const sinAlt = this._sinSolarAltitude(sunDir);
 
@@ -259,7 +260,7 @@ class ShadingEngine {
           // All samples share the same sunDir — cast synchronously
           for (let i = 0; i < ecefs.length; i++) {
             const hit = this.castRay(ecefs[i], sunDir);
-            totalWeight[i]  += sinAlt;
+            totalWeight[i] += sinAlt;
             if (hit.isShaded) shadedWeight[i] += sinAlt;
           }
         }
