@@ -14,9 +14,11 @@ BASE_DIR          = os.path.dirname(__file__)            # backend/
 FRONTEND_DIR      = os.path.dirname(BASE_DIR)            # cesium-local/
 TEMPLATE_DIR      = os.path.join(FRONTEND_DIR, "templates")
 STATIC_DIR_FRONTEND = os.path.join(FRONTEND_DIR, "static")
-# On Vercel, filesystem is read-only; use /tmp for generated files
+# On Vercel/Render, use /tmp for generated files (writable in both cloud envs)
 IS_VERCEL  = os.environ.get("VERCEL", "0") == "1"
-STATIC_DIR = "/tmp" if IS_VERCEL else os.path.join(BASE_DIR, "static")  # generated files
+IS_RENDER  = bool(os.environ.get("RENDER"))     # Render sets RENDER=true
+IS_CLOUD   = IS_VERCEL or IS_RENDER
+STATIC_DIR = "/tmp" if IS_CLOUD else os.path.join(BASE_DIR, "static")  # generated files
 
 # ── Generated file paths ───────────────────────────────────────────────────────
 DATABASE_PATH = os.path.join(BASE_DIR, "solar.db")      # SQLite dev database
