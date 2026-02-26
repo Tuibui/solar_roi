@@ -6,22 +6,22 @@
 class ShadingController {
   constructor(options = {}) {
     this.options = {
-      gridSize: 20,
+      gridSize: 8,   // 8×8 = 81 samples (was 20→441); fast + accurate enough
       month: new Date().getMonth() + 1, // Current month
       year: new Date().getFullYear(),
       ...options
     };
-    
+
     this.cesiumViewer = null;
     this.osmBuildings = null;
     this.shadingEngine = null;
     this.visualizer = null;
     this.roofSampler = null;
-    
+
     this.isComputing = false;
     this.currentResults = null;
     this.houseLocation = null;
-    
+
     this.container = null;
     this.onProgress = null;
     this.onComplete = null;
@@ -60,7 +60,7 @@ class ShadingController {
       // ── Reuse existing viewer — zero extra GPU cost ──────────────────────
       this.cesiumViewer = viewer;
       this.osmBuildings = osmBuildings || null;
-      this._ownsViewer  = false;
+      this._ownsViewer = false;
       console.log('[ShadingController] Reusing existing Cesium viewer');
 
     } else {
@@ -166,11 +166,11 @@ class ShadingController {
         resolve();
         return;
       }
-      
+
       const checkInterval = 100;
-      const maxWait = 30000;
+      const maxWait = 8000;  // 8 s max — longer waits don't help; start computing
       let waited = 0;
-      
+
       const check = () => {
         if (this.osmBuildings.allTilesLoaded) {
           setTimeout(() => {
@@ -179,17 +179,17 @@ class ShadingController {
           }, 1000);
           return;
         }
-        
+
         waited += checkInterval;
         if (waited >= maxWait) {
           console.warn('[ShadingController] Timeout waiting for tiles, proceeding anyway');
           resolve();
           return;
         }
-        
+
         setTimeout(check, checkInterval);
       };
-      
+
       check();
     });
   }
@@ -201,55 +201,55 @@ class ShadingController {
     if (this.isComputing) {
       throw new Error('Shading computation already in progress');
     }
-    
+
     if (!this.shadingEngine) {
       throw new Error('Controller not initialized');
     }
-    
+
     this.isComputing = true;
     this.currentResults = null;
-    
+
     try {
       console.log(`[ShadingController] Starting single-time shading analysis for ${dateTime}`);
       const targetMesh = this._resolveMesh(roofMesh);
-      
+
       // Sample roof
       this.roofSampler = new RoofSampler(targetMesh, {
         gridSize: this.options.gridSize
       });
-      
+
       const samples = this.roofSampler.sample();
-      
+
       if (samples.length === 0) {
         throw new Error('No samples generated from roof mesh');
       }
-      
+
       console.log(`[ShadingController] Generated ${samples.length} samples`);
-      
+
       // Compute shading at specific time
       const startTime = performance.now();
-      
+
       const results = await this.shadingEngine.computeShading(
         samples,
         targetMesh.matrixWorld,
         dateTime,
         progressCallback
       );
-      
+
       // Convert isShaded boolean to shadingRatio for consistent visualization
       const normalizedResults = results.map(r => ({
         ...r,
         shadingRatio: r.isShaded ? 1 : 0
       }));
-      
+
       const duration = ((performance.now() - startTime) / 1000).toFixed(2);
-      
+
       const shadedCount = normalizedResults.filter(r => r.isShaded).length;
-      
+
       console.log(`[ShadingController] Single-time analysis complete in ${duration}s: ${shadedCount}/${normalizedResults.length} points shaded`);
-      
+
       this.currentResults = normalizedResults;
-      
+
       return {
         results: normalizedResults,
         stats: {
@@ -261,7 +261,7 @@ class ShadingController {
           analysisTime: dateTime.toISOString()
         }
       };
-      
+
     } finally {
       this.isComputing = false;
     }
@@ -274,35 +274,35 @@ class ShadingController {
     if (this.isComputing) {
       throw new Error('Shading computation already in progress');
     }
-    
+
     if (!this.shadingEngine) {
       throw new Error('Controller not initialized');
     }
-    
+
     this.isComputing = true;
     this.currentResults = null;
-    
+
     try {
       console.log(`[ShadingController] Starting monthly shading analysis for ${this.options.month}/${this.options.year}`);
       const roofMeshResolved = this._resolveMesh(roofMesh);
       roofMesh = roofMeshResolved;
-      
+
       // Sample roof
       this.roofSampler = new RoofSampler(roofMesh, {
         gridSize: this.options.gridSize
       });
-      
+
       const samples = this.roofSampler.sample();
-      
+
       if (samples.length === 0) {
         throw new Error('No samples generated from roof mesh');
       }
-      
+
       console.log(`[ShadingController] Generated ${samples.length} samples`);
-      
+
       // Compute monthly shading
       const startTime = performance.now();
-      
+
       const results = await this.shadingEngine.computeMonthlyShading(
         samples,
         roofMesh.matrixWorld,
@@ -310,17 +310,17 @@ class ShadingController {
         this.options.year,
         progressCallback
       );
-      
+
       const duration = ((performance.now() - startTime) / 1000).toFixed(2);
-      
+
       // Calculate statistics
       const avgShading = results.reduce((sum, r) => sum + (r.shadingRatio || 0), 0) / results.length;
       const heavilyShaded = results.filter(r => (r.shadingRatio || 0) > 0.5).length;
-      
+
       console.log(`[ShadingController] Analysis complete in ${duration}s: ${(avgShading * 100).toFixed(1)}% avg shading`);
-      
+
       this.currentResults = results;
-      
+
       return {
         results,
         stats: {
@@ -332,7 +332,7 @@ class ShadingController {
           duration: duration
         }
       };
-      
+
     } finally {
       this.isComputing = false;
     }
@@ -373,7 +373,7 @@ class ShadingController {
    */
   async computeAnnualShading(roofMesh, progressCallback = null) {
     if (this.isComputing) throw new Error('Shading computation already in progress');
-    if (!this.shadingEngine)  throw new Error('Controller not initialized');
+    if (!this.shadingEngine) throw new Error('Controller not initialized');
 
     this.isComputing = true;
     this.currentResults = null;
@@ -386,17 +386,17 @@ class ShadingController {
       const samples = this.roofSampler.sample();
       if (samples.length === 0) throw new Error('No samples generated from roof mesh');
 
-      const year        = this.options.year;
-      const MONTHS      = 12;
+      const year = this.options.year;
+      const MONTHS = 12;
       // 4 representative days × 5 hours × samples = total ray casts
-      const monthOps    = samples.length * 4;
-      const totalOps    = monthOps * MONTHS;
+      const monthOps = samples.length * 4;
+      const totalOps = monthOps * MONTHS;
 
       console.log(`[ShadingController] Annual shading: ${samples.length} samples × 12 months (${totalOps} ray casts)`);
       const startTime = performance.now();
 
       const monthlyResults = []; // length 12 — each entry is array of per-sample results
-      const monthlyStats   = []; // length 12 — summary per month
+      const monthlyStats = []; // length 12 — summary per month
 
       for (let m = 1; m <= MONTHS; m++) {
         const monthResults = await this.shadingEngine.computeMonthlyShading(
@@ -433,19 +433,19 @@ class ShadingController {
       });
 
       const annualAvg = annualResults.reduce((s, r) => s + r.shadingRatio, 0) / annualResults.length;
-      const duration  = ((performance.now() - startTime) / 1000).toFixed(2);
+      const duration = ((performance.now() - startTime) / 1000).toFixed(2);
 
       console.log(`[ShadingController] Annual analysis done in ${duration}s — avg shading ${(annualAvg * 100).toFixed(1)}%`);
 
       this.currentResults = annualResults;
 
       return {
-        results:       annualResults,
+        results: annualResults,
         monthlyResults,
         monthlyStats,
         stats: {
-          totalSamples:   annualResults.length,
-          avgShading:     annualAvg,
+          totalSamples: annualResults.length,
+          avgShading: annualAvg,
           avgShadingPercent: (annualAvg * 100).toFixed(1),
           monthlyShading: monthlyStats.map(m => m.avgShading), // [jan…dec]
           duration
@@ -462,16 +462,16 @@ class ShadingController {
    */
   visualize(threeScene, results = null) {
     const data = results || this.currentResults;
-    
+
     if (!data || data.length === 0) {
       console.warn('[ShadingController] No results to visualize');
       return null;
     }
-    
+
     if (!this.visualizer) {
       this.visualizer = new ShadingVisualizer(threeScene);
     }
-    
+
     // Find roof mesh in scene (largest mesh)
     let roofMesh = null;
     let maxVertices = 0;
@@ -484,13 +484,13 @@ class ShadingController {
         }
       }
     });
-    
+
     if (roofMesh) {
       console.log('[ShadingController] Creating heatmap on mesh:', roofMesh.name || 'unnamed');
       this.visualizer.createHeatmap(roofMesh, data);
       return this.visualizer;
     }
-    
+
     console.warn('[ShadingController] No roof mesh found for visualization');
     return null;
   }
@@ -567,9 +567,9 @@ class ShadingController {
     }
 
     this.osmBuildings = null;
-    this.roofSampler  = null;
+    this.roofSampler = null;
     this.currentResults = null;
-    this._ownsViewer  = false;
+    this._ownsViewer = false;
 
     console.log('[ShadingController] Destroyed');
   }

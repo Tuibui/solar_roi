@@ -2,14 +2,14 @@
     "version": 2,
     "builds": [
         {
-            "src": "solar_roi/src/cesium-local/api/index.py",
+            "src": "src/cesium-local/api/index.py",
             "use": "@vercel/python"
         }
     ],
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "solar_roi/src/cesium-local/api/index.py"
+            "dest": "src/cesium-local/api/index.py"
         }
     ]
 }

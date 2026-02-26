@@ -69,7 +69,19 @@ async function analyzeRoofs(boundaries) {
       body: JSON.stringify({ roofs })
     });
 
-    const data = await response.json();
+    // Safely parse JSON — backend may return an HTML error page on crash
+    let data;
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.error('Non-JSON response from backend:', text);
+      hideOverlay();
+      alert(`Backend error (HTTP ${response.status}): Server returned unexpected response. Check backend logs.`);
+      setStatus("Failed", "#f55");
+      return null;
+    }
 
     if (!response.ok) {
       hideOverlay();
@@ -81,9 +93,20 @@ async function analyzeRoofs(boundaries) {
     setStatus("Analysis complete");
     return data;
 
-  } catch(err) {
+  } catch (err) {
     console.error("API Error:", err);
-    alert("Backend connection failed");
+    hideOverlay();
+    const isNetworkError = err.message === "Failed to fetch" || err.message.includes("NetworkError");
+    if (isNetworkError) {
+      alert(
+        "⚠️ Cannot reach the backend server.\n\n" +
+        "If you are on Render free tier, the server may be waking up (takes ~30 seconds). " +
+        "Please wait a moment and try again.\n\n" +
+        "Error: " + err.message
+      );
+    } else {
+      alert("Backend connection failed: " + err.message);
+    }
     setStatus("Error", "#f55");
     return null;
   }
@@ -96,7 +119,7 @@ async function loadRoofData() {
     const data = await res.json();
     roofDataCache = data.roofs || [];
     return data;
-  } catch(e) {
+  } catch (e) {
     console.error("Failed to load roof data:", e);
     roofDataCache = [];
     return null;

@@ -57,12 +57,19 @@ def analyze():
                 roof
             )
 
-        stats = build_glb_from_roofs(
-            roofs,
-            OUT_PATH,
-            roof_thickness=roof_thickness,
-            join_threshold=join_threshold
-        )
+        try:
+            stats = build_glb_from_roofs(
+                roofs,
+                OUT_PATH,
+                roof_thickness=roof_thickness,
+                join_threshold=join_threshold
+            )
+        except ImportError as e:
+            current_app.logger.error("Missing dependency for mesh building: %s", e, exc_info=True)
+            return jsonify({"error": f"Server missing library: {str(e)}. Check backend logs."}), 500
+        except RuntimeError as e:
+            current_app.logger.error("Mesh build failed: %s", e, exc_info=True)
+            return jsonify({"error": f"Roof mesh build failed: {str(e)}"}), 500
 
         save_stats(stats)
 
@@ -73,6 +80,7 @@ def analyze():
         })
 
     except Exception as e:
+        current_app.logger.error("Analyze error: %s", e, exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
