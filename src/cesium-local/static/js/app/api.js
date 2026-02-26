@@ -96,7 +96,17 @@ async function analyzeRoofs(boundaries) {
   } catch (err) {
     console.error("API Error:", err);
     hideOverlay();
-    alert("Backend connection failed: " + err.message);
+    const isNetworkError = err.message === "Failed to fetch" || err.message.includes("NetworkError");
+    if (isNetworkError) {
+      alert(
+        "⚠️ Cannot reach the backend server.\n\n" +
+        "If you are on Render free tier, the server may be waking up (takes ~30 seconds). " +
+        "Please wait a moment and try again.\n\n" +
+        "Error: " + err.message
+      );
+    } else {
+      alert("Backend connection failed: " + err.message);
+    }
     setStatus("Error", "#f55");
     return null;
   }
