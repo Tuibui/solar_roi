@@ -1,11 +1,7 @@
 // Global Configuration
-const RENDER_BACKEND_URL = "https://solar-roi-ufo4.onrender.com";
-
 const CONFIG = {
-  // Use the current origin when served from a local dev server (Flask on 5000 or 8000)
-  API_BASE: (["127.0.0.1", "localhost"].includes(window.location.hostname) && ["5000", "8000"].includes(window.location.port))
-    ? window.location.origin
-    : RENDER_BACKEND_URL,
+  // Always use current origin — on Render, frontend & backend are the same service
+  API_BASE: window.location.origin,
   CESIUM_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjlhYmYzYy01NjEzLTQwYzQtODZhZS1iODkzNzY0Yzc5ZTUiLCJpZCI6MzY1MjY5LCJpYXQiOjE3NzEwNjg1NDJ9.hdXdQ2lEfBO7KZGgWCIT-CQeXvswa5Jt218h1vQuIGY",
   STATE_KEY: "cesium_state"
 };
