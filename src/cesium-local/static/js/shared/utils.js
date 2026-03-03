@@ -2,12 +2,15 @@
 
 // UI Helpers
 function showOverlay(msg = "Generating...") {
-  document.getElementById("overlayMsg").textContent = msg;
-  document.getElementById("overlay").style.display = "flex";
+  const msgEl = document.getElementById("overlayMsg");
+  const el = document.getElementById("overlay");
+  if (msgEl) msgEl.textContent = msg;
+  if (el) el.style.display = "flex";
 }
 
 function hideOverlay() {
-  document.getElementById("overlay").style.display = "none";
+  const el = document.getElementById("overlay");
+  if (el) el.style.display = "none";
 }
 
 function setStatus(msg, color = "#0f0") {

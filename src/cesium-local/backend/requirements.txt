@@ -15,6 +15,7 @@ python-dotenv>=1.0.0          # Load .env files
 # ── Solar / scientific ─────────────────────────────────────────────────────────
 numpy>=1.26.0
 trimesh>=4.0.0                 # 3D mesh / GLB generation (no heavy extras)
+networkx>=3.0                  # Required by trimesh for fix_normals/repair
 pvlib>=0.10.4                 # Solar position calculations
 pandas>=2.1.0
 
