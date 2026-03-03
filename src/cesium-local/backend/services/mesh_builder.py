@@ -30,13 +30,38 @@ def _remove_duplicate_points(region, eps=1e-6):
 
 
 def _ensure_ccw_xy(region):
+    """Ensure CCW winding in XZ ground plane (Y-up coordinate system)."""
     if len(region) < 3:
         return region
-    x, y = region[:, 0], region[:, 1]
-    area = 0.5 * np.sum(x[:-1] * y[1:] - x[1:] * y[:-1])
+    x, z = region[:, 0], region[:, 2]
+    area = 0.5 * np.sum(x[:-1] * z[1:] - x[1:] * z[:-1])
     if area < 0:
         region = region[::-1]
     return region
+
+
+def _enu_to_threejs_matrix(lat_deg, lon_deg):
+    """Combined ECEF→ENU→Three.js(Y-up) rotation matrix.
+
+    Maps (ECEF - origin) to Three.js coordinates where:
+      X = East, Y = Up, Z = -North (i.e. South is +Z / toward camera)
+
+    This preserves geographic orientation: a roof facing south in real life
+    will face south (+Z) in the 3D view.
+    """
+    lat = np.radians(lat_deg)
+    lon = np.radians(lon_deg)
+    sl, cl = np.sin(lat), np.cos(lat)
+    sn, cn = np.sin(lon), np.cos(lon)
+
+    # Row 0: East direction in ECEF
+    # Row 1: Up direction in ECEF
+    # Row 2: -North direction in ECEF (= South)
+    return np.array([
+        [-sn,     cn,      0  ],
+        [ cl*cn,  cl*sn,   sl ],
+        [ sl*cn,  sl*sn,  -cl ],
+    ])
 
 
 def _compute_alignment_rotation(roof_positions):
@@ -122,7 +147,7 @@ def _solidify(mesh, thickness=0.25, direction=-1.0):
     if mesh is None or mesh.faces.shape[0] == 0:
         return None
     top = mesh.vertices
-    bottom = top + np.array([0, 0, direction * thickness])
+    bottom = top + np.array([0, direction * thickness, 0])
     verts = np.vstack([top, bottom])
     off = len(top)
     edges = mesh.edges_unique
@@ -409,22 +434,9 @@ def build_glb_from_roofs(roofs, out_path, roof_thickness=0.25,
         roof_positions, snap_diag = _snap_vertices_across_roofs(
             roof_positions, tol=join_threshold)
 
-    # Rotate for visualisation
-    R = _compute_alignment_rotation(roof_positions)
+    # Rotate ECEF→ENU→Three.js(Y-up) preserving geographic orientation
+    R = _enu_to_threejs_matrix(house_lat, house_lon)
     roof_positions_rotated = _apply_rotation(roof_positions, R)
-
-    # Stabilize yaw so multi-plane roofs don't appear rotated 90°
-    if len(roof_positions_rotated) == 2:
-        # Hard-code 90° correction for 2-plane roofs
-        Rz_fix = _rotation_z(-np.pi / 2.0)
-        R = Rz_fix @ R
-        roof_positions_rotated = _apply_rotation(roof_positions, R)
-    else:
-        yaw = _compute_planar_yaw(roof_positions_rotated)
-        if abs(yaw) > 1e-6:
-            Rz = _rotation_z(-yaw)
-            R = Rz @ R
-            roof_positions_rotated = _apply_rotation(roof_positions, R)
 
     parts = []
     roof_infos = []

@@ -1,0 +1,17 @@
+Brand,Model,Solar panel size (mm),Solar panel type,Solar panel efficiency,Solar panel wattage (W),Cost (¥)
+Trina Solar,Vertex S 410W,~1722x1134x30,Mono Half-cell,~21.0%,410,65001
+Trina Solar,Vertex S 540W,~2278x1134x35,Mono Half-cell,~21.2%,540,85001
+Sharp,ND-R250A5,1652x994x46,Polycrystalline silicon,15.20%,250,44800
+REC,Alpha Pure-R 430W,~1722x1134x30,Heterojunction,~21.9%,430,85001
+Q CELLS,Q.TRON M-G2.4+ 430,~1722x1134x30,Mono (HJT / Heterojunction),20%+,430,112000
+Q CELLS,Q.MAXX Duo ML 440,~1722x1134x30,Mono Half-cell,~21.1%,440,70001
+Q CELLS,Q.PEAK DUO BLK ML 450,~1722x1134x30,Mono Half-cell,~21.4%,450,75001
+Panasonic,HIT 243W,1580x812x35,Mono (HIT / Heterojunction),19.10%,243,15840
+Panasonic,EverVolt 380W,~1722x1134x30,Heterojunction (HIT),~20.8%,380,90001
+LONGi,LR5-54HPH-425M (Hi-MO 5m),1722x1134x30,Mono (Half-cell),21.80%,425,69000
+LONGi,LR6-66HPH-530M (Hi-MO 6),~2278x1134x35,Mono Half-cell,~21.8%,530,85001
+Jinko Solar,Tiger Pro 545W,~2278x1134x35,Mono (Half-cell),~21.0%,545,75000
+Jinko Solar,Tiger Neo N-type 630W,~2384x1134x35,N-Type Mono HC,~22.7%,630,110001
+JA Solar,JAM72S30-610/MR,~2278x1134x35,Mono Half-cell,~21.5%,610,95001
+Canadian Solar,HiKu6 610W,~2278x1134x35,Mono Half-cell,~21.8%,610,95001
+A Solar,JAM72S30-550/MR,~2278x1134x35,Mono (Half-cell),~21.0%,550,80000

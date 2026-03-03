@@ -477,8 +477,7 @@
         const maxDim = Math.max(size.x, size.y, size.z);
         model.scale.setScalar(5 / (maxDim || 1));
         
-        // Roof: lay flat with base parallel to ground, facing UP
-        model.rotation.x = Math.PI / 2;
+        // Backend outputs Y-up ENU coordinates — no rotation needed
         
         model.updateMatrixWorld(true);
         const groundedBox = new THREE.Box3().setFromObject(model);

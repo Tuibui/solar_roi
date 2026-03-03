@@ -121,7 +121,7 @@
         <section class="report-section" id="reportSection">
           <div class="report-header">
             <div>
-              <div class="report-title">ROI Report (No Shading)</div>
+              <div class="report-title" id="reportTitle">ROI Report</div>
               <div class="report-subtitle" id="reportSubtitle">Select a project and calculate sizing to generate the report.</div>
             </div>
             <div class="report-actions"></div>
@@ -676,13 +676,10 @@
             }
           });
 
-          // Lay roof flat: rotate +90° around X axis (facing DOWNWARD - user confirmed)
-          viewer.root.rotation.x = Math.PI / 2;
-          // Align to grid: ensure roof edge is colinear with grid line
+          // Backend outputs Y-up ENU coords — align principal axis to grid
           const yaw = getPrincipalYaw(viewer.root);
           const snapAngle = Math.round(yaw / (Math.PI / 2)) * (Math.PI / 2);
-          // Consistent downward orientation: always add PI to flip upside down
-          viewer.root.rotation.z = snapAngle - yaw + Math.PI;
+          viewer.root.rotation.y = snapAngle - yaw;
 
           viewer.scene.add(viewer.root);
 
@@ -1633,8 +1630,13 @@
         if (pvKpiSystem) pvKpiSystem.textContent = `${(sizingData?.sizing?.system_kwp || 0).toFixed(2)} kWp`;
         if (pvKpiAnnual) pvKpiAnnual.textContent = `${Math.round(annualPV).toLocaleString()} kWh`;
 
+        const shadingPct = sizingData?.shading_ratio != null ? Math.round(sizingData.shading_ratio * 100) : 100;
+        const shadingNote = shadingPct >= 100 ? 'no shading applied' : `usable area ${shadingPct}% (shading)`;
+        const reportTitle = document.getElementById("reportTitle");
+        if (reportTitle) reportTitle.textContent = shadingPct >= 100 ? 'ROI Report' : `ROI Report (${shadingPct}% Usable)`;
+
         reportAssumptions.textContent =
-          `Assumptions: no shading, system losses 14% (PR 0.86), degradation ${(degradation * 100).toFixed(1)}%/yr, O&M 1% of capex/yr, discount ${(discountRate * 100).toFixed(1)}%, inverter replace Y${inverterReplaceYear}, battery replace Y${batteryReplaceYear}.`;
+          `Assumptions: ${shadingNote}, system losses 14% (PR 0.86), degradation ${(degradation * 100).toFixed(1)}%/yr, O&M 1% of capex/yr, discount ${(discountRate * 100).toFixed(1)}%, inverter replace Y${inverterReplaceYear}, battery replace Y${batteryReplaceYear}.`;
 
         reportSubtitle.textContent = `Project "${currentProject?.name || "Untitled"}" · Currency ${currency}`;
         reportSection.classList.add("visible");

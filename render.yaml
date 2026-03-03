@@ -2,8 +2,8 @@ services:
   - type: web
     name: solar-roi
     runtime: python
-    rootDir: solar_roi/src/cesium-local
-    buildCommand: pip install -r backend/requirements.txt
+    rootDir: src/cesium-local
+    buildCommand: pip install -r backend/requirements.txt && flask db upgrade
     startCommand: gunicorn "backend:create_app()" --workers 2 --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
@@ -12,6 +12,8 @@ services:
         fromDatabase:
           name: solar-roi-db
           property: connectionString
+      - key: FLASK_APP
+        value: backend
       - key: CESIUM_ION_TOKEN
         sync: false
       - key: GOOGLE_MAPS_API_KEY

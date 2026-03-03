@@ -1,12 +1,14 @@
 /**
- * ShadingEngine - Computes solar shading using Cesium ray casting against OSM buildings
+ * ShadingEngine - Computes solar shading using Cesium ray casting against 3D tiles
  * Monthly aggregation version - computes average shading over representative days
  */
 
 class ShadingEngine {
   constructor(cesiumViewer, osmTileset, houseLocation) {
     this.viewer = cesiumViewer;
-    this.osmTileset = osmTileset;
+    // OSM tileset is EXCLUDED from ray picks (low-res, inaccurate).
+    // Rays are cast against Google Photorealistic 3D Tiles (actual buildings).
+    this.excludeTileset = osmTileset;
     this.houseLocation = houseLocation;
     this.batchSize = 50;
 
@@ -113,34 +115,31 @@ class ShadingEngine {
 
   /**
    * Cast ray from roof point toward sun — synchronous, uses current frame geometry.
-   * Requires tiles to already be loaded (allTilesLoaded awaited by caller).
-   * Fix #1: replaced async pickFromRayMostDetailed (1 GPU render pass/call) with
-   *         sync pickFromRay (uses already-rendered frame, ~100× faster per ray).
+   * Excludes OSM buildings (low-res); casts against Google Photorealistic 3D Tiles.
+   * Uses geodetic "up" offset to avoid self-intersection with roof surface.
    */
   castRay(pointEcef, sunDirection) {
-    // If no OSM tileset, assume no shading
-    if (!this.osmTileset) {
-      return { isShaded: false, noTileset: true };
-    }
-
-    // Offset ray origin along sun direction to avoid self-intersection with roof surface
-    const offset = Cesium.Cartesian3.multiplyByScalar(sunDirection, 1.5, new Cesium.Cartesian3());
-    const origin = Cesium.Cartesian3.add(pointEcef, offset, new Cesium.Cartesian3());
+    // Offset above roof surface using geodetic "up" to avoid self-intersection
+    const up = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(pointEcef, new Cesium.Cartesian3());
+    const upOffset = Cesium.Cartesian3.multiplyByScalar(up, 0.5, new Cesium.Cartesian3());
+    const origin = Cesium.Cartesian3.add(pointEcef, upOffset, new Cesium.Cartesian3());
 
     const ray = new Cesium.Ray(origin, sunDirection);
 
     try {
-      const result = this.viewer.scene.pickFromRay(ray, []);
+      // Exclude OSM buildings (low-res/inaccurate); pick against Google 3D tiles
+      const excludeList = this.excludeTileset ? [this.excludeTileset] : [];
+      const result = this.viewer.scene.pickFromRay(ray, excludeList);
 
       if (!result || !result.object) {
         return { isShaded: false };
       }
 
-      const isOsmHit = result.object.tileset === this.osmTileset;
-      const isValidHit = result.distance > 0.5;
+      // Ignore close hits (self-intersection with own building roof surface)
+      const isValidHit = result.distance > 2.0;
 
       return {
-        isShaded: isOsmHit && isValidHit,
+        isShaded: isValidHit,
         distance: result.distance
       };
     } catch (error) {
@@ -331,7 +330,7 @@ class ShadingEngine {
 
   destroy() {
     this.viewer = null;
-    this.osmTileset = null;
+    this.excludeTileset = null;
   }
 }
 

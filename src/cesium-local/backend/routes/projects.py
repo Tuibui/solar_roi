@@ -648,7 +648,13 @@ def get_sizing(project_id):
             selected_roofs = [r for r in roof_data if r.get("index") in selected_indices]
 
         appliances_payload = [a.to_dict() for a in appliances]
-        shading_ratio = 1.0
+
+        # Compute effective shading ratio from project settings
+        if project.shading_method == 'level':
+            level_map = {'none': 1.0, 'low': 0.9, 'partial': 0.7, 'medium': 0.7, 'high': 0.4}
+            shading_ratio = level_map.get(project.shading_level, 0.8)
+        else:
+            shading_ratio = float(project.shading_ratio if project.shading_ratio is not None else 0.8)
 
         sizing_result = size_pv_system(
             appliances_payload,
@@ -661,6 +667,7 @@ def get_sizing(project_id):
             "success": True,
             "roof_indices": "all" if selected_indices is None else selected_indices,
             "location": {"lat": lat, "lon": lon},
+            "shading_ratio": shading_ratio,
         }
         response.update(sizing_result)
 

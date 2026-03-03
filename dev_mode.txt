@@ -1,0 +1,25 @@
+Windows (copy/paste only)
+```
+cd C:\path\to\solar_roi\src\cesium-local
+py -3 -m venv backend\venv
+backend\venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
+copy .env.example .env
+notepad .env   # ใส่ SECRET_KEY, CESIUM_ION_TOKEN, GOOGLE_MAPS_API_KEY
+$env:FLASK_APP='backend'
+python -m flask --app backend db upgrade
+python -m flask --app backend run --debug
+```
+
+ไทย (สั่งวางได้เลย)
+```
+cd C:\path\to\solar_roi\src\cesium-local
+py -3 -m venv backend\venv
+backend\venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
+copy .env.example .env
+notepad .env   # ใส่ SECRET_KEY, CESIUM_ION_TOKEN, GOOGLE_MAPS_API_KEY
+$env:FLASK_APP='backend'
+python -m flask --app backend db upgrade
+python -m flask --app backend run --debug
+```
