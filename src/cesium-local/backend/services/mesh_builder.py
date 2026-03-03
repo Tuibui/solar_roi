@@ -242,7 +242,7 @@ def _rect_inside_polygon(cx, cy, w, h, angle, polygon):
     return all(_point_in_polygon_2d(c, polygon) for c in corners)
 
 
-def _find_max_inscribed_rectangle(polygon_2d, num_angles=36, num_samples=20):
+def _find_max_inscribed_rectangle(polygon_2d, num_angles=12, num_samples=8):
     polygon = np.array(polygon_2d)
     if len(polygon) < 3:
         return None
@@ -263,8 +263,8 @@ def _find_max_inscribed_rectangle(polygon_2d, num_angles=36, num_samples=20):
                 cy = min_y + bbox_h * (yi + 0.5) / num_samples
                 if not _point_in_polygon_2d((cx, cy), polygon):
                     continue
-                for w_scale in np.linspace(0.1, 1.0, 10):
-                    for h_scale in np.linspace(0.1, 1.0, 10):
+                for w_scale in np.linspace(0.1, 1.0, 5):
+                    for h_scale in np.linspace(0.1, 1.0, 5):
                         w = bbox_w * w_scale
                         h = bbox_h * h_scale
                         if _rect_inside_polygon(cx, cy, w, h, angle, polygon):
