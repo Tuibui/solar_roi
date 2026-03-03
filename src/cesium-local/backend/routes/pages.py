@@ -48,9 +48,3 @@ def contact():
 @pages_bp.route("/Build/<path:filename>")
 def serve_build(filename):
     return send_from_directory(f"{FRONTEND_DIR}/Build", filename)
-
-
-@pages_bp.route("/backend/static/<path:filename>")
-def serve_backend_static(filename):
-    """Serve backend-generated artifacts (GLB, stats)."""
-    return send_from_directory(STATIC_DIR, filename)

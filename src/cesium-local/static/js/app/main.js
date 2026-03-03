@@ -15,6 +15,8 @@ let cesiumMap = null;
 let mapMode = null;
 let splitView = null;
 let splitViewer = null;  // Three.js viewer instance
+let lastModelFile = 'roof_model.glb'; // updated after each analyze run
+let scatterGeneration = 0; // incremented on each clearSplitScene to cancel stale scatter
 const MODE_KEY = "solar_ui_mode";
 window.UIState = UIState;
 const DEMO_INVERTERS = [
@@ -1005,6 +1007,7 @@ function resizeCesium() {
 // ============ THREE.JS VIEWER FOR SPLIT VIEW ============
 function clearSplitScene() {
   if (!splitViewer) return;
+  scatterGeneration++;  // invalidate any in-flight scatter from prior analyze
   const scene = splitViewer.scene;
   const toRemove = [];
   scene.traverse((obj) => {
@@ -1070,11 +1073,12 @@ function initSplitViewer() {
     const pid = wizard?.sessionData?.projectId;
     const ts = Date.now();
     // Use the API route for saved projects — it generates the GLB on demand if missing.
-    // Fall back to the shared roof_model.glb for fresh (unsaved) analyses.
+    // Fall back to the latest analyze-generated GLB for fresh (unsaved) analyses.
+    const modelFile = lastModelFile || 'roof_model.glb';
     const primaryUrl = (pid && !isNaN(pid))
       ? `/api/projects/${pid}/model?lite=1&t=${ts}`
-      : `/backend/static/roof_model.glb?t=${ts}`;
-    const fallbackUrl = `/backend/static/roof_model.glb?t=${ts}`;
+      : `/backend/static/${modelFile}?t=${ts}`;
+    const fallbackUrl = `/backend/static/${modelFile}?t=${ts}`;
     const roofIndex = wizard && wizard.selectedGeometryRoofIndex != null ? wizard.selectedGeometryRoofIndex : 0;
 
     const loadWithFallback = (url, triedFallback = false) => {
@@ -1147,6 +1151,7 @@ async function runBoundaryScatter(roofIndex, options = {}) {
   if (boundaryScatterBusy) return;
 
   if (!splitViewer || !wizard) return;
+  const gen = scatterGeneration;  // capture current generation
   const boundaries = getBoundaries();
   const boundary = boundaries && boundaries[roofIndex] ? boundaries[roofIndex] : null;
   if (!boundary || boundary.length < 3) {
@@ -1174,6 +1179,7 @@ async function runBoundaryScatter(roofIndex, options = {}) {
     }
 
     const osm = await ensureOsmBuildings();
+    if (gen !== scatterGeneration) return; // stale — scene was cleared
     if (!osm) {
       console.log('[Scatter] OSM not loaded (casting against Google 3D tiles only)');
     }
@@ -1238,6 +1244,7 @@ async function runBoundaryScatter(roofIndex, options = {}) {
       console.log('[Scatter] Shading compute start');
       {
         const result = await computeShadingCounts(samplePointsEcef, viewer, osm, times, houseLocation);
+        if (gen !== scatterGeneration) return; // stale — new analyze started
         counts = result.counts;
         usedSamples = result.usedSamples;
       }
@@ -1255,6 +1262,7 @@ async function runBoundaryScatter(roofIndex, options = {}) {
 
       {
         const result = await computeShadingCounts(samplePointsEcef, viewer, osm, times, houseLocation);
+        if (gen !== scatterGeneration) return; // stale — new analyze started
         counts = result.counts;
         usedSamples = result.usedSamples;
       }
@@ -1952,6 +1960,9 @@ async function onAnalyzeRoof() {
     if (!data || !data.stats) {
       throw new Error('Analysis returned no data');
     }
+
+    // Remember the freshly generated GLB filename (unique per analyze run)
+    lastModelFile = data.file || 'roof_model.glb';
 
     const roofs = data.stats.roofs.map((roofInfo, i) => ({
       ...roofInfo,
