@@ -16,7 +16,18 @@ branch_labels = None
 depends_on = None
 
 
+def _table_exists(name):
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"
+    ), {"t": name})
+    return result.scalar()
+
+
 def upgrade():
+    if _table_exists('users'):
+        return
+
     op.create_table('users',
         sa.Column('id', sa.Integer(), primary_key=True),
         sa.Column('username', sa.String(80), unique=True, nullable=False),
