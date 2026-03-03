@@ -394,11 +394,16 @@ def get_project_model(project_id):
         model_path = os.path.join(STATIC_DIR, model_name)
 
         if not refresh and os.path.exists(model_path):
-            return send_from_directory(
+            resp = send_from_directory(
                 STATIC_DIR,
                 model_name,
-                mimetype="model/gltf-binary"
+                mimetype="model/gltf-binary",
+                max_age=0
             )
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+            return resp
 
         build_glb_from_roofs(
             roof_polygons,
@@ -409,11 +414,16 @@ def get_project_model(project_id):
             compute_panels=not lite
         )
 
-        return send_from_directory(
+        resp = send_from_directory(
             STATIC_DIR,
             model_name,
-            mimetype="model/gltf-binary"
+            mimetype="model/gltf-binary",
+            max_age=0
         )
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
 
     except Exception as e:
         current_app.logger.error(

@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request, send_from_directory, current_app
 import geocoder
 import os
 
+import time
+
 from ..config import OUT_FILE, OUT_PATH, STATIC_DIR
 from ..services.mesh_builder import build_glb_from_roofs
 from ..services.storage import load_stats, save_stats
@@ -11,7 +13,17 @@ system_bp = Blueprint("system", __name__)
 
 @system_bp.route("/backend/static/<path:filename>")
 def serve_static(filename):
-    return send_from_directory(STATIC_DIR, filename, mimetype="model/gltf-binary")
+    resp = send_from_directory(
+        STATIC_DIR,
+        filename,
+        mimetype="model/gltf-binary",
+        max_age=0
+    )
+    # Prevent browsers/three.js loader from serving stale GLB after re-analyze
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 
 @system_bp.route("/health")
@@ -57,10 +69,15 @@ def analyze():
                 roof
             )
 
+        # Unique filename per analysis run to avoid browser caches or stale files
+        ts_suffix = int(time.time() * 1000)
+        file_name = f"roof_model_{ts_suffix}.glb"
+        out_path = os.path.join(STATIC_DIR, file_name)
+
         try:
             stats = build_glb_from_roofs(
                 roofs,
-                OUT_PATH,
+                out_path,
                 roof_thickness=roof_thickness,
                 join_threshold=join_threshold
             )
@@ -71,11 +88,13 @@ def analyze():
             current_app.logger.error("Mesh build failed: %s", e, exc_info=True)
             return jsonify({"error": f"Roof mesh build failed: {str(e)}"}), 500
 
+        # Attach model filename to stats for downstream consumers
+        stats["model_file"] = file_name
         save_stats(stats)
 
         return jsonify({
             "success": True,
-            "file": OUT_FILE,
+            "file": file_name,
             "stats": stats
         })
 
