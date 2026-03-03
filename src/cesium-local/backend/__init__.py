@@ -12,7 +12,7 @@ from flask import Flask
 from flask_cors import CORS
 
 from .config import (
-    DATABASE_URL, SECRET_KEY,
+    DATABASE_URL, SECRET_KEY, IS_CLOUD,
     STATIC_DIR, STATIC_DIR_FRONTEND, TEMPLATE_DIR,
 )
 from .extensions import db, migrate
@@ -46,9 +46,10 @@ def create_app(config_overrides: dict = None):
     # ── Ensure generated-file directories exist ────────────────────────────────
     os.makedirs(STATIC_DIR, exist_ok=True)
 
-    # ── Create tables (dev shortcut — production uses `flask db upgrade`) ──────
-    with app.app_context():
-        db.create_all()
+    # ── Create tables (dev only — production uses `flask db upgrade`) ─────────
+    if not IS_CLOUD:
+        with app.app_context():
+            db.create_all()
 
     # ── Routes ─────────────────────────────────────────────────────────────────
     register_blueprints(app)
