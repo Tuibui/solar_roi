@@ -2,9 +2,9 @@
 const RENDER_BACKEND_URL = "https://solar-roi-ufo4.onrender.com";
 
 const CONFIG = {
-  // Use local Flask server if running on port 8000, otherwise use Render backend
-  API_BASE: (window.location.hostname === "127.0.0.1" && window.location.port === "8000")
-    ? "http://127.0.0.1:8000"
+  // Use the current origin when served from a local dev server (Flask on 5000 or 8000)
+  API_BASE: (["127.0.0.1", "localhost"].includes(window.location.hostname) && ["5000", "8000"].includes(window.location.port))
+    ? window.location.origin
     : RENDER_BACKEND_URL,
   CESIUM_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3ZjlhYmYzYy01NjEzLTQwYzQtODZhZS1iODkzNzY0Yzc5ZTUiLCJpZCI6MzY1MjY5LCJpYXQiOjE3NzEwNjg1NDJ9.hdXdQ2lEfBO7KZGgWCIT-CQeXvswa5Jt218h1vQuIGY",
   STATE_KEY: "cesium_state"

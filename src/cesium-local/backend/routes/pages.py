@@ -1,6 +1,6 @@
 from flask import Blueprint, redirect, render_template, send_from_directory, url_for
 
-from ..config import FRONTEND_DIR, STATIC_DIR
+from ..config import FRONTEND_DIR
 
 pages_bp = Blueprint("pages", __name__)
 
