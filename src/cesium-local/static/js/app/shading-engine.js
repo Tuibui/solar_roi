@@ -127,10 +127,13 @@ class ShadingEngine {
     const ray = new Cesium.Ray(origin, sunDirection);
 
     try {
-      // pickFromRayMostDetailed forces tile loading along the ray path.
-      // Sync pickFromRay misses buildings whose tiles aren't in GPU memory.
       const excludeList = this.excludeTileset ? [this.excludeTileset] : [];
-      const result = await this.viewer.scene.pickFromRayMostDetailed(ray, excludeList);
+      const RAY_TIMEOUT = 8000;
+      let timer;
+      const result = await Promise.race([
+        this.viewer.scene.pickFromRayMostDetailed(ray, excludeList),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('ray_timeout')), RAY_TIMEOUT); })
+      ]).finally(() => clearTimeout(timer));
 
       if (!result || !result.object) {
         return { isShaded: false };
@@ -144,6 +147,7 @@ class ShadingEngine {
         distance: result.distance
       };
     } catch (error) {
+      if (error.message === 'ray_timeout') console.warn('[ShadingEngine] Ray timed out');
       return { isShaded: false, error: true };
     }
   }

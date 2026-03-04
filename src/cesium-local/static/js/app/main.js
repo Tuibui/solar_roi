@@ -1610,8 +1610,9 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
     usedSamples += 1;
     let shadedInPass = 0;
 
-    for (let i = 0; i < pointsEcef.length; i += 100) {
-      const batch = pointsEcef.slice(i, i + 100);
+    const BATCH = 25; // smaller batches avoid overwhelming tile server
+    for (let i = 0; i < pointsEcef.length; i += BATCH) {
+      const batch = pointsEcef.slice(i, i + BATCH);
       const results = await Promise.all(batch.map(p => castRay(viewer, osmTileset, p, sunDir)));
       results.forEach((res, idx) => {
         if (res) {
@@ -1622,7 +1623,7 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
       // Update gauge: 55-95% range for shading phase
       if (window.GaugeOverlay) {
         const timeFrac = timeIdx / totalTimes;
-        const batchFrac = Math.min(i + 100, pointsEcef.length) / pointsEcef.length;
+        const batchFrac = Math.min(i + BATCH, pointsEcef.length) / pointsEcef.length;
         const overall = (timeFrac + batchFrac / totalTimes);
         GaugeOverlay.setProgress(0.55 + overall * 0.40);
       }
@@ -1638,6 +1639,16 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
   return { counts, usedSamples };
 }
 
+const RAY_TIMEOUT_MS = 8000; // 8s per ray — prevents infinite hang
+
+function withTimeout(promise, ms) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('ray_timeout')), ms); })
+  ]).finally(() => clearTimeout(timer));
+}
+
 async function castRay(viewer, osmTileset, pointEcef, sunDirection) {
   // Offset above roof surface using geodetic "up" to avoid self-intersection
   const up = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(pointEcef, new Cesium.Cartesian3());
@@ -1646,18 +1657,15 @@ async function castRay(viewer, osmTileset, pointEcef, sunDirection) {
 
   const ray = new Cesium.Ray(origin, sunDirection);
   try {
-    // Cast against Google 3D photorealistic tiles (all real buildings).
-    // Exclude OSM buildings (low-res, often incomplete).
     const excludeList = osmTileset ? [osmTileset] : [];
-
-    // pickFromRayMostDetailed forces Cesium to load 3D tiles along the ray
-    // before picking. The sync pickFromRay misses buildings whose tiles
-    // aren't in memory (camera not facing that direction).
-    const result = await viewer.scene.pickFromRayMostDetailed(ray, excludeList);
+    const result = await withTimeout(
+      viewer.scene.pickFromRayMostDetailed(ray, excludeList),
+      RAY_TIMEOUT_MS
+    );
     if (!result || !result.object) return false;
-    // Ignore close hits (self-intersection with own building roof surface)
     return result.distance > 2.0;
   } catch (e) {
+    if (e.message === 'ray_timeout') console.warn('[Shading] Ray timed out, treating as unshaded');
     return false;
   }
 }
