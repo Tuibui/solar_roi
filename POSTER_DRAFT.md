@@ -200,7 +200,7 @@ steepest-descent direction, then compute the bearing:
 
 $$\mathbf{d} = \mathbf{g} - (\mathbf{g} \cdot \hat{\mathbf{n}})\,\hat{\mathbf{n}}, \qquad \mathbf{g} = [0,\, 0,\, -1]$$
 
-$$\alpha_{\text{azimuth}} = \operatorname{atan2}\!\bigl(\mathbf{d} \cdot \hat{\mathbf{e}}_E,\; \mathbf{d} \cdot \hat{\mathbf{e}}_N\bigr) \bmod 360° $$
+$$\alpha_{\text{azimuth}} = \text{atan2}\!\bigl(\mathbf{d} \cdot \hat{\mathbf{e}}_E,\; \mathbf{d} \cdot \hat{\mathbf{e}}_N\bigr) \bmod 360° $$
 
 | Convention | Value |
 |------------|-------|
