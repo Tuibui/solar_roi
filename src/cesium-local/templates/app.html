@@ -51,14 +51,15 @@
 
   <div id="wizardOverlay">
     <div class="gauge-panel">
-      <div class="gauge-phase" id="gaugePhase">ANALYZING ROOF...</div>
+      <div class="gauge-header">
+        <span class="gauge-phase" id="gaugePhase">> ANALYZING ROOF_</span>
+        <span class="gauge-time" id="gaugeTime">T+0.0s</span>
+      </div>
       <div class="gauge-bar-track">
         <div class="gauge-bar-fill" id="gaugeBarFill"></div>
       </div>
-      <div class="gauge-stats">
-        <span class="gauge-pct" id="gaugePct">0%</span>
-        <span class="gauge-time" id="gaugeTime">0.0 s</span>
-      </div>
+      <div class="gauge-pct" id="gaugePct">[  0%]</div>
+      <div class="gauge-log" id="gaugeLog"></div>
     </div>
   </div>
 
@@ -292,7 +293,7 @@
   <script src="/static/js/app/inputs.js?v=20260226"></script>
   <script src="/static/js/app/wizard.js?v=20260226"></script>
   <script src="/static/js/app/project-tree.js?v=20260226"></script>
-  <script src="/static/js/app/gauge-overlay.js?v=20260304"></script>
+  <script src="/static/js/app/gauge-overlay.js?v=20260304b"></script>
   <script src="/static/js/app/main.js?v=20260304"></script>
   <script src="/static/js/app/panel-placer.js?v=20260226"></script>
   <script type="module">

@@ -1309,6 +1309,7 @@ async function runBoundaryScatter(roofIndex, options = {}) {
 
     if (waitForShading) {
       console.log('[Scatter] Computing final scatter for roof', roofIndex + 1);
+      if (window.GaugeOverlay) GaugeOverlay.log('Processing roof ' + (roofIndex + 1) + ' — ' + samplePointsEcef.length + ' sample points');
       let renderedFallback = false;
       let fallbackTimer = null;
       if (!finalOnly) {
@@ -1359,8 +1360,9 @@ async function runBoundaryScatter(roofIndex, options = {}) {
   } finally {
     if (finishOverlay) {
       GaugeOverlay.setProgress(1);
-      GaugeOverlay.setPhase('Done');
-      setTimeout(() => GaugeOverlay.hide(), 500);
+      GaugeOverlay.setPhase('COMPLETE');
+      GaugeOverlay.log('All operations finished');
+      setTimeout(() => GaugeOverlay.hide(), 800);
     }
     boundaryScatterBusy = false;
   }
@@ -1382,8 +1384,9 @@ async function runAllBoundaryScatter(options = {}) {
 
   if (options.finishOverlay) {
     GaugeOverlay.setProgress(1);
-    GaugeOverlay.setPhase('Done');
-    setTimeout(() => GaugeOverlay.hide(), 500);
+    GaugeOverlay.setPhase('COMPLETE');
+    GaugeOverlay.log('All operations finished');
+    setTimeout(() => GaugeOverlay.hide(), 800);
   }
 }
 
@@ -1616,27 +1619,34 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
   let usedSamples = 0;
   const totalTimes = times.length;
   let timeIdx = 0;
+  let totalTimeouts = 0;
+
+  if (window.GaugeOverlay) {
+    GaugeOverlay.log('Raycast config: ' + pointsEcef.length + ' pts × ' + totalTimes + ' sun positions');
+    GaugeOverlay.log('Batch size: 25 rays | Timeout: 8s/ray');
+  }
 
   for (const time of times) {
     const sunDir = getSunDirection(time, houseLocation);
     if (!isSunAboveHorizon(sunDir, houseLocation)) {
+      if (window.GaugeOverlay) GaugeOverlay.log('Sun @' + time.getHours() + ':00 — below horizon, skip');
       console.log('[Shading] Sun below horizon at', time.getHours() + ':00, skipping');
       timeIdx++;
       continue;
     }
 
+    if (window.GaugeOverlay) GaugeOverlay.log('Casting rays — sun @' + time.getHours() + ':00h ...');
     usedSamples += 1;
     let shadedInPass = 0;
+    let batchTimeouts = 0;
 
-    const BATCH = 25; // smaller batches avoid overwhelming tile server
+    const BATCH = 25;
     for (let i = 0; i < pointsEcef.length; i += BATCH) {
       const batch = pointsEcef.slice(i, i + BATCH);
       const results = await Promise.all(batch.map(p => castRay(viewer, osmTileset, p, sunDir)));
       results.forEach((res, idx) => {
-        if (res) {
-          counts[i + idx] += 1;
-          shadedInPass++;
-        }
+        if (res === 'timeout') { batchTimeouts++; totalTimeouts++; }
+        else if (res) { counts[i + idx] += 1; shadedInPass++; }
       });
       // Update gauge: 55-95% range for shading phase
       if (window.GaugeOverlay) {
@@ -1648,11 +1658,18 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
 
+    if (window.GaugeOverlay) {
+      GaugeOverlay.log('  → ' + shadedInPass + '/' + pointsEcef.length + ' shaded' + (batchTimeouts ? ' (' + batchTimeouts + ' timeouts)' : ''));
+    }
     console.log(`[Shading] ${time.getHours()}:00 → ${shadedInPass}/${pointsEcef.length} points shaded`);
     timeIdx++;
   }
 
   const totalShaded = counts.filter(c => c > 0).length;
+  if (window.GaugeOverlay) {
+    GaugeOverlay.log('Complete: ' + totalShaded + '/' + pointsEcef.length + ' pts shaded (' + usedSamples + ' sun samples)');
+    if (totalTimeouts > 0) GaugeOverlay.log('Warning: ' + totalTimeouts + ' rays timed out (treated as unshaded)');
+  }
   console.log(`[Shading] Summary: ${usedSamples} valid sun samples, ${totalShaded}/${pointsEcef.length} points have some shading`);
   return { counts, usedSamples };
 }
@@ -1683,7 +1700,7 @@ async function castRay(viewer, osmTileset, pointEcef, sunDirection) {
     if (!result || !result.object) return false;
     return result.distance > 2.0;
   } catch (e) {
-    if (e.message === 'ray_timeout') console.warn('[Shading] Ray timed out, treating as unshaded');
+    if (e.message === 'ray_timeout') return 'timeout';
     return false;
   }
 }
@@ -2052,8 +2069,9 @@ async function onAnalyzeRoof() {
     return;
   }
 
-  GaugeOverlay.show('Analyzing roof...');
+  GaugeOverlay.show('ROOF ANALYSIS');
   GaugeOverlay.setIndeterminate();
+  GaugeOverlay.log('Sending roof geometry to server...');
 
   let deferOverlayHide = false;
   try {
@@ -2063,14 +2081,20 @@ async function onAnalyzeRoof() {
     }
 
     GaugeOverlay.setProgress(0.5);
+    GaugeOverlay.log('Server response OK — ' + (data.stats.roofs || []).length + ' roof(s) detected');
 
     // Remember the freshly generated GLB filename (unique per analyze run)
     lastModelFile = data.file || 'roof_model.glb';
+    GaugeOverlay.log('3D model generated: ' + lastModelFile);
 
     const roofs = data.stats.roofs.map((roofInfo, i) => ({
       ...roofInfo,
       polygon: wizard.convertBoundaryToLatLon(boundaries[i] || [])
     }));
+
+    roofs.forEach((r, i) => {
+      GaugeOverlay.log('Roof ' + (i+1) + ': area=' + (r.area||0).toFixed(1) + 'm² tilt=' + (r.tilt||0).toFixed(1) + '°');
+    });
 
     wizard.setRoofs(roofs);
     window.lastAnalysisStats = data.stats || null;
@@ -2086,9 +2110,11 @@ async function onAnalyzeRoof() {
         data.stats.house_lon,
         wizard.sessionData.step1.location.address || 'Analyzed Location'
       );
+      GaugeOverlay.log('Location: ' + data.stats.house_lat.toFixed(4) + ', ' + data.stats.house_lon.toFixed(4));
     }
 
     renderMapMode();
+    GaugeOverlay.log('Capturing roof snapshot...');
 
     // Capture cropped roof image from Cesium view (before leaving map mode)
     try {
@@ -2108,8 +2134,9 @@ async function onAnalyzeRoof() {
 
     // Defer overlay until scatter is computed in split view
     deferOverlayHide = true;
-    GaugeOverlay.setPhase('Computing shading...');
+    GaugeOverlay.setPhase('SHADING RAYCAST');
     GaugeOverlay.setProgress(0.55);
+    GaugeOverlay.log('Entering shading phase — raycasting against 3D tiles...');
     window.pendingScatter = {
       mode: 'all',
       waitForShading: true,
