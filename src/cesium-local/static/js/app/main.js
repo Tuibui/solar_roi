@@ -1008,6 +1008,7 @@ function resizeCesium() {
 function clearSplitScene() {
   if (!splitViewer) return;
   scatterGeneration++;  // invalidate any in-flight scatter from prior analyze
+  _tilesPreloaded = false; // re-preload for new location
   const scene = splitViewer.scene;
   const toRemove = [];
   scene.traverse((obj) => {
@@ -1147,10 +1148,17 @@ function populateSplitForm() {
 let boundaryScatterBusy = false;
 
 /**
- * Pre-load surrounding 3D tiles by rendering from multiple camera angles.
+ * Pre-load surrounding 3D tiles by rendering from opposite camera angles.
  * Primes the tile cache so pickFromRayMostDetailed is faster.
+ * Skips if already preloaded for this location.
  */
+let _tilesPreloaded = false;
 async function preloadTilesForShading(viewer, houseLocation) {
+  if (_tilesPreloaded) {
+    console.log('[Shading] Tiles already preloaded, skipping');
+    return;
+  }
+
   const googleTiles = typeof getGoogleTiles === 'function' ? getGoogleTiles() : null;
   if (!googleTiles) {
     console.log('[Shading] No Google 3D tiles to preload');
@@ -1167,35 +1175,23 @@ async function preloadTilesForShading(viewer, houseLocation) {
   const lon = houseLocation.lon;
   const lat = houseLocation.lat;
   const alt = (houseLocation.height || 0) + 150;
-
-  // Look from 4 cardinal directions toward the house + straight down
-  const offsets = [
-    [0.002, 0], [-0.002, 0], [0, 0.002], [0, -0.002]
-  ];
   const target = Cesium.Cartesian3.fromDegrees(lon, lat, houseLocation.height || 0);
 
-  for (const [dLon, dLat] of offsets) {
-    const eye = Cesium.Cartesian3.fromDegrees(lon + dLon, lat + dLat, alt);
+  // 2 opposite directions — enough to load surrounding building tiles
+  for (const [dLon, dLat] of [[0.002, 0], [-0.002, 0]]) {
     viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(
       Math.atan2(dLon, dLat), Cesium.Math.toRadians(-35), 250
     ));
     viewer.scene.requestRender();
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 250));
   }
 
-  // Top-down view
-  viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(lon, lat, alt + 200)
-  });
-  viewer.scene.requestRender();
-  await new Promise(r => setTimeout(r, 400));
-
-  // Wait for tiles to settle
+  // Wait for tiles to settle (max 2s)
   const start = Date.now();
-  while (Date.now() - start < 5000) {
+  while (Date.now() - start < 2000) {
     if (googleTiles.tilesLoaded) break;
     viewer.scene.requestRender();
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 200));
   }
 
   googleTiles.maximumScreenSpaceError = savedSSE;
@@ -1203,6 +1199,7 @@ async function preloadTilesForShading(viewer, houseLocation) {
     destination: savedPos,
     orientation: { direction: savedDir, up: savedUp }
   });
+  _tilesPreloaded = true;
   console.log('[Shading] Tile preload complete');
 }
 
@@ -1276,7 +1273,7 @@ async function runBoundaryScatter(roofIndex, options = {}) {
     }
 
     // Downsample if too dense
-    const maxPoints = 300;
+    const maxPoints = 100;
     let samplePointsEcef = pointsEcef;
     let sampleLocalPoints = localPoints;
     if (pointsEcef.length > maxPoints) {
@@ -1390,7 +1387,7 @@ function findRoofMesh(scene) {
 function buildKeyTimes() {
   const times = [];
   const base = new Date();
-  const hours = [8, 10, 12, 14, 16];
+  const hours = [9, 12, 15]; // 3 key hours — irradiance-weighted so noon dominates
   for (const h of hours) {
     const t = new Date(base);
     t.setHours(h, 0, 0, 0);
@@ -1613,8 +1610,8 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
     usedSamples += 1;
     let shadedInPass = 0;
 
-    for (let i = 0; i < pointsEcef.length; i += 50) {
-      const batch = pointsEcef.slice(i, i + 50);
+    for (let i = 0; i < pointsEcef.length; i += 100) {
+      const batch = pointsEcef.slice(i, i + 100);
       const results = await Promise.all(batch.map(p => castRay(viewer, osmTileset, p, sunDir)));
       results.forEach((res, idx) => {
         if (res) {
@@ -1625,7 +1622,7 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
       // Update gauge: 55-95% range for shading phase
       if (window.GaugeOverlay) {
         const timeFrac = timeIdx / totalTimes;
-        const batchFrac = Math.min(i + 50, pointsEcef.length) / pointsEcef.length;
+        const batchFrac = Math.min(i + 100, pointsEcef.length) / pointsEcef.length;
         const overall = (timeFrac + batchFrac / totalTimes);
         GaugeOverlay.setProgress(0.55 + overall * 0.40);
       }
