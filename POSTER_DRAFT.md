@@ -155,33 +155,113 @@ $$H_{\text{annual}} = \sum_{m=1}^{12} H_m$$
 
 $$\text{PSH} = \frac{H_{\text{annual}}}{365} \quad \text{[Peak Sun Hours / day]}$$
 
-### 3.2 Shading Simulation (Ray Casting)
+### 3.2 3D Roof Model Generation (GLB)
+
+> ※ Insert pipeline diagram: ECEF vertices → ENU → Three.js → Trimesh → GLB
+
+User-traced roof polygons (ECEF coordinates) are converted into a
+downloadable **glTF Binary (GLB)** solid model via a 4-stage pipeline:
+
+| Stage | Operation | Detail |
+|-------|-----------|--------|
+| 1. Coordinate transform | ECEF → ENU → Three.js | Rotation matrix preserves geographic orientation (south-facing stays south) |
+| 2. Triangulation | Fan triangulation | Vertices deduplicated (1 × 10⁻⁶ m), snapped across roofs (0.01 m tolerance), CCW winding enforced |
+| 3. Solidification | Extrude 0.25 m | Top face + offset bottom face (reversed winding) + rectangular side quads; normals auto-fixed |
+| 4. GLB export | Trimesh → glTF 2.0 | Each roof → named node (`roof_0`, `roof_1`, …), color-coded; `doubleSided: true` patched into all materials |
+
+$$\mathbf{R}_{\text{ENU}} = \begin{bmatrix} -\sin\lambda & \cos\lambda & 0 \\ -\sin\varphi\cos\lambda & -\sin\varphi\sin\lambda & \cos\varphi \\ \cos\varphi\cos\lambda & \cos\varphi\sin\lambda & \sin\varphi \end{bmatrix}$$
+
+where $\varphi$ = latitude, $\lambda$ = longitude of the roof centroid.
+
+**Panel fitting (optional):** A maximum inscribed rectangle is found via
+grid sampling (8 × 8 grid, 12 rotation angles) within each roof's 2D
+projection, returning width, height, area, and corner coordinates for
+PV panel layout.
+
+
+### 3.3 Roof Tilt & Azimuth Computation
+
+> ※ Insert diagram: ENU frame with normal vector, tilt angle, and azimuth
+
+Tilt and azimuth are derived from the **best-fit plane normal** of each
+roof polygon in the local **ENU (East-North-Up)** coordinate frame.
+
+**Step 1 — Best-fit normal (SVD):**
+Center the $n$ roof vertices and compute SVD on the centered matrix.
+The last row of $V^T$ gives the plane normal $\hat{\mathbf{n}}$; flip
+so $n_z > 0$ (upward-pointing).
+
+**Step 2 — Tilt:**
+$$\theta_{\text{tilt}} = \arccos\!\bigl(\hat{n}_z\bigr) \quad [°]$$
+
+**Step 3 — Azimuth (downslope direction):**
+Project the gravity vector onto the roof plane to obtain the
+steepest-descent direction, then compute the bearing:
+
+$$\mathbf{d} = \mathbf{g} - (\mathbf{g} \cdot \hat{\mathbf{n}})\,\hat{\mathbf{n}}, \qquad \mathbf{g} = [0,\, 0,\, -1]$$
+
+$$\alpha_{\text{azimuth}} = \operatorname{atan2}\!\bigl(\mathbf{d} \cdot \hat{\mathbf{e}}_E,\; \mathbf{d} \cdot \hat{\mathbf{e}}_N\bigr) \bmod 360° $$
+
+| Convention | Value |
+|------------|-------|
+| 0° | North |
+| 90° | East |
+| 180° | South |
+| 270° | West |
+| Flat roof (tilt ≤ 5°) | Azimuth = N/A |
+
+**Opposite-roof correction:** Roof pairs with $\hat{\mathbf{n}}_i \cdot \hat{\mathbf{n}}_j < -0.85$
+are detected as opposite faces; their azimuths are aligned (± 180°) and
+tilt/area values averaged.
+
+
+### 3.4 Shading Simulation (Ray Casting)
 
 > ※ Insert ray-casting concept diagram
 
-For $N$ uniformly sampled roof points, at 3 representative solar hours
-per month (**09:00, 12:00, 15:00 JST**):
+**Roof sampling:** $N = 256$ points per roof, distributed via **area-weighted
+CDF** over triangulated faces. A cumulative distribution of triangle areas
+is built, then each sample is placed by binary-searching the CDF and
+generating a random barycentric point within the selected triangle.
+This ensures larger facets receive proportionally more samples.
 
-1. Compute sun direction vector from **Cesium solar ephemeris**
-2. Offset sample point **+0.5 m** along roof normal (avoid self-hit)
-3. Fire async ray via `scene.pickFromRayMostDetailed()`
-4. Ray hits **Google 3D Tile** at distance > 2 m → **shaded**
+**Sun position:** Computed via **Cesium's Simon 1994 planetary ephemeris**
+(ICRF → ECEF transform). Fallback: simplified Solar Position Algorithm
+using declination and hour angle.
 
-$$\eta_{\text{shading}} = 1 - \frac{N_{\text{shaded}}}{N_{\text{total}}} \quad \text{per month}$$
+**Per-ray procedure:**
+
+1. Compute sun direction $\hat{\mathbf{s}}$ from ephemeris for the given timestamp
+2. Offset sample point **+0.5 m** along geodetic surface normal (avoids self-intersection)
+3. Fire async ray via `scene.pickFromRayMostDetailed(ray, excludeList)`
+4. Exclude low-resolution OSM tileset; test only **Google Photorealistic 3D Tiles**
+5. Hit at distance > 2.0 m → **shaded**; 8-second timeout prevents hangs on unloaded tiles
+
+**Monthly computation (irradiance-weighted):**
+For each month, **2 representative days** (Klein/ISO 1977, ± 7 days from center)
+are sampled at **3 hours** (09:00, 12:00, 15:00), yielding 6 time slots.
+Each slot is weighted by $\sin(\alpha)$ where $\alpha$ is the solar altitude:
+
+$$\text{shading ratio}_i = \frac{\displaystyle\sum_{t} w_t \cdot S_{i,t}}{\displaystyle\sum_{t} w_t}, \quad w_t = \sin(\alpha_t), \quad S_{i,t} \in \{0,1\}$$
+
+$$\eta_{\text{shading}} = 1 - \overline{\text{shading ratio}} \quad \text{per month}$$
 
 | Parameter | Value |
 |-----------|-------|
-| Sample points / roof | 100 (uniform grid) |
-| Sun positions / month | 3 (09:00, 12:00, 15:00) |
+| Sample points / roof | 256 (area-weighted CDF) |
+| Representative days / month | 2 (Klein ISO 1977) |
+| Sun positions / day | 3 (09:00, 12:00, 15:00) |
+| Weighting | sin(solar altitude) — irradiance-proportional |
 | Ray offset | 0.5 m geodetic up |
-| Min hit distance | 2.0 m |
-| Tile preload | 2 camera angles, 2 s settle |
+| Min hit distance | 2.0 m (reject self-intersection) |
+| Ray timeout | 8 seconds |
+| Tile exclusion | OSM buildings excluded; Google 3D Tiles only |
 
 **Key innovation:** `pickFromRayMostDetailed` (async) forces
 tile LOD loading along each ray path, solving the problem of
 synchronous raycasting missing unloaded buildings.
 
-### 3.3 PV System Sizing
+### 3.5 PV System Sizing
 
 $$P_{\text{target}} = \frac{E_{\text{daytime}}}{\text{PSH} \times \text{PR}}$$
 
@@ -194,7 +274,7 @@ $$P_{\text{target}} = \frac{E_{\text{daytime}}}{\text{PSH} \times \text{PR}}$$
 Panel count derived from roof area constraint:
 $$N_{\text{panels}} = \min\!\left(\left\lceil \frac{P_{\text{target}}}{P_{\text{panel}}}\right\rceil,\; \left\lfloor \frac{A_{\text{roof}}}{A_{\text{panel}}}\right\rfloor\right)$$
 
-### 3.4 Financial Model (25-Year DCF)
+### 3.6 Financial Model (25-Year DCF)
 
 $$E_y = E_{\text{annual}} \times (1 - d)^{y} \qquad d = 0.7\%\text{/year}$$
 
