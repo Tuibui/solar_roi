@@ -52,10 +52,13 @@ def create_app(config_overrides: dict = None):
     if not IS_CLOUD:
         with app.app_context():
             db.create_all()
-
-    # ── Seed equipment catalog (idempotent — only inserts if tables empty) ────
-    with app.app_context():
-        seed_catalog()
+            seed_catalog()
+    else:
+        # Cloud: seed at first request (tables created by flask db upgrade)
+        @app.before_request
+        def _seed_once():
+            app.before_request_funcs[None].remove(_seed_once)
+            seed_catalog()
 
     # ── Routes ─────────────────────────────────────────────────────────────────
     register_blueprints(app)
