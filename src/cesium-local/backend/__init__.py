@@ -17,6 +17,7 @@ from .config import (
 )
 from .extensions import db, migrate
 from .routes import register_blueprints
+from .seed import seed_catalog
 
 
 def create_app(config_overrides: dict = None):
@@ -50,6 +51,7 @@ def create_app(config_overrides: dict = None):
     if not IS_CLOUD:
         with app.app_context():
             db.create_all()
+            seed_catalog()
 
     # ── Routes ─────────────────────────────────────────────────────────────────
     register_blueprints(app)

@@ -210,6 +210,98 @@ class Roof(db.Model):
         }
 
 
+class SolarPanel(db.Model):
+    """Solar panel product catalog"""
+    __tablename__ = 'solar_panels'
+
+    id = db.Column(db.Integer, primary_key=True)
+    brand = db.Column(db.String(100), nullable=False, index=True)
+    model = db.Column(db.String(200), nullable=False)
+    power_w = db.Column(db.Integer, nullable=False)
+    efficiency = db.Column(db.Float, nullable=False)
+    voc = db.Column(db.Float)      # open-circuit voltage
+    isc = db.Column(db.Float)      # short-circuit current
+    vmp = db.Column(db.Float)      # max-power voltage
+    imp = db.Column(db.Float)      # max-power current
+    length_mm = db.Column(db.Integer)
+    width_mm = db.Column(db.Integer)
+    weight_kg = db.Column(db.Float)
+    price_usd = db.Column(db.Float)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'brand': self.brand,
+            'model': self.model,
+            'power_w': self.power_w,
+            'efficiency': self.efficiency,
+            'voc': self.voc,
+            'isc': self.isc,
+            'vmp': self.vmp,
+            'imp': self.imp,
+            'length_mm': self.length_mm,
+            'width_mm': self.width_mm,
+            'weight_kg': self.weight_kg,
+            'price_usd': self.price_usd,
+        }
+
+
+class Inverter(db.Model):
+    """Inverter product catalog"""
+    __tablename__ = 'inverters'
+
+    id = db.Column(db.Integer, primary_key=True)
+    brand = db.Column(db.String(100), nullable=False, index=True)
+    model = db.Column(db.String(200), nullable=False)
+    power_kw = db.Column(db.Float, nullable=False)
+    max_dc_voltage = db.Column(db.Integer)
+    mppt_count = db.Column(db.Integer)
+    efficiency = db.Column(db.Float)
+    phase = db.Column(db.String(10))   # 'single' or 'three'
+    price_usd = db.Column(db.Float)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'brand': self.brand,
+            'model': self.model,
+            'power_kw': self.power_kw,
+            'max_dc_voltage': self.max_dc_voltage,
+            'mppt_count': self.mppt_count,
+            'efficiency': self.efficiency,
+            'phase': self.phase,
+            'price_usd': self.price_usd,
+        }
+
+
+class Battery(db.Model):
+    """Battery product catalog"""
+    __tablename__ = 'batteries'
+
+    id = db.Column(db.Integer, primary_key=True)
+    brand = db.Column(db.String(100), nullable=False, index=True)
+    model = db.Column(db.String(200), nullable=False)
+    capacity_kwh = db.Column(db.Float, nullable=False)
+    voltage = db.Column(db.Integer)
+    chemistry = db.Column(db.String(20))
+    cycle_life = db.Column(db.Integer)
+    max_discharge_kw = db.Column(db.Float)
+    price_usd = db.Column(db.Float)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'brand': self.brand,
+            'model': self.model,
+            'capacity_kwh': self.capacity_kwh,
+            'voltage': self.voltage,
+            'chemistry': self.chemistry,
+            'cycle_life': self.cycle_life,
+            'max_discharge_kw': self.max_discharge_kw,
+            'price_usd': self.price_usd,
+        }
+
+
 class Appliance(db.Model):
     """Appliance model for energy consumption"""
     __tablename__ = 'appliances'
