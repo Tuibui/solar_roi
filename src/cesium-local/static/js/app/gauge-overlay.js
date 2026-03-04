@@ -1,107 +1,75 @@
 /**
- * GaugeOverlay — Retro technical gauge for analysis progress.
+ * GaugeOverlay — Simple horizontal progress bar with real-time elapsed timer.
  *
  * Usage:
- *   GaugeOverlay.show('ANALYZING ROOF', 'PHASE 1 / 2');
- *   GaugeOverlay.setProgress(0.45);          // 0-1 determinate
- *   GaugeOverlay.setIndeterminate();          // sweeping needle
- *   GaugeOverlay.setPhase('COMPUTING SHADING', 'PHASE 2 / 2');
- *   GaugeOverlay.setLed(2, 'active');         // 1-4: dim | active | amber
+ *   GaugeOverlay.show('Analyzing roof...');
+ *   GaugeOverlay.setProgress(0.45);     // 0-1, determinate
+ *   GaugeOverlay.setIndeterminate();     // sliding bar
+ *   GaugeOverlay.setPhase('Computing shading...');
  *   GaugeOverlay.hide();
  */
 const GaugeOverlay = (() => {
-  let needle, pctEl, phaseEl, subEl, overlay;
-  let ticks;
+  let overlay, fill, pctEl, phaseEl, timeEl;
+  let startTime = 0;
+  let timerRAF = 0;
 
   function els() {
-    if (needle) return;
+    if (overlay) return;
     overlay = document.getElementById('wizardOverlay');
-    needle  = document.getElementById('gaugeNeedle');
+    fill    = document.getElementById('gaugeBarFill');
     pctEl   = document.getElementById('gaugePct');
     phaseEl = document.getElementById('gaugePhase');
-    subEl   = document.getElementById('gaugeSub');
-    ticks   = document.getElementById('gaugeTicks');
-    _drawTicks();
+    timeEl  = document.getElementById('gaugeTime');
   }
 
-  function _drawTicks() {
-    if (!ticks || ticks.childNodes.length > 0) return;
-    // 21 ticks from 0 to 100 (every 5%), major every 20%
-    for (let i = 0; i <= 20; i++) {
-      const angle = (i / 20) * 180;      // 0°..180° arc
-      const rad = (angle - 180) * Math.PI / 180;
-      const cx = 130, cy = 140, r = 100;
-      const cos = Math.cos(rad), sin = Math.sin(rad);
-      const isMajor = i % 4 === 0;
-      const r1 = r - (isMajor ? 14 : 9);
-      const r2 = r - 3;
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', cx + cos * r1);
-      line.setAttribute('y1', cy + sin * r1);
-      line.setAttribute('x2', cx + cos * r2);
-      line.setAttribute('y2', cy + sin * r2);
-      if (isMajor) {
-        line.setAttribute('stroke', '#aab');
-        line.setAttribute('stroke-width', '2');
-      }
-      ticks.appendChild(line);
-    }
+  function _tickTimer() {
+    if (!startTime) return;
+    const sec = ((performance.now() - startTime) / 1000).toFixed(1);
+    if (timeEl) timeEl.textContent = sec + ' s';
+    timerRAF = requestAnimationFrame(_tickTimer);
   }
 
-  /** Rotate needle to a 0-1 fraction */
-  function _setNeedleAngle(frac) {
-    if (!needle) return;
-    needle.classList.remove('sweeping');
-    const deg = frac * 180;
-    needle.setAttribute('x2', 130 + Math.cos((deg - 180) * Math.PI / 180) * 95);
-    needle.setAttribute('y2', 140 + Math.sin((deg - 180) * Math.PI / 180) * 95);
-  }
-
-  function show(phase, sub) {
+  function show(phase) {
     els();
     overlay.style.display = 'flex';
-    phaseEl.textContent = phase || 'INITIALIZING...';
-    subEl.textContent = sub || 'STANDBY';
-    pctEl.textContent = '---';
-    _setNeedleAngle(0);
-    // Reset LEDs
-    for (let i = 1; i <= 4; i++) setLed(i, 'dim');
+    phaseEl.textContent = phase || 'Processing...';
+    pctEl.textContent = '0%';
+    fill.style.width = '0%';
+    fill.classList.remove('indeterminate');
+    startTime = performance.now();
+    if (timeEl) timeEl.textContent = '0.0 s';
+    cancelAnimationFrame(timerRAF);
+    _tickTimer();
   }
 
   function hide() {
     els();
-    needle.classList.remove('sweeping');
+    cancelAnimationFrame(timerRAF);
+    startTime = 0;
     overlay.style.display = 'none';
   }
 
   function setIndeterminate() {
     els();
-    pctEl.textContent = '---';
-    needle.classList.add('sweeping');
+    fill.classList.add('indeterminate');
+    fill.style.width = '';
+    pctEl.textContent = '—';
   }
 
   function setProgress(frac) {
     els();
     frac = Math.max(0, Math.min(1, frac));
-    needle.classList.remove('sweeping');
-    _setNeedleAngle(frac);
-    pctEl.textContent = Math.round(frac * 100).toString().padStart(3, ' ');
+    fill.classList.remove('indeterminate');
+    fill.style.width = (frac * 100).toFixed(1) + '%';
+    pctEl.textContent = Math.round(frac * 100) + '%';
   }
 
-  function setPhase(phase, sub) {
+  function setPhase(phase) {
     els();
     if (phase) phaseEl.textContent = phase;
-    if (sub !== undefined) subEl.textContent = sub;
   }
 
-  function setLed(n, state) {
-    els();
-    const led = document.getElementById('gaugeLed' + n);
-    if (!led) return;
-    led.className = 'gauge-led gauge-led--' + (state || 'dim');
-  }
-
-  return { show, hide, setIndeterminate, setProgress, setPhase, setLed };
+  return { show, hide, setIndeterminate, setProgress, setPhase };
 })();
 
 window.GaugeOverlay = GaugeOverlay;

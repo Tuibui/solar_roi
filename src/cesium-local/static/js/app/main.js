@@ -1344,10 +1344,8 @@ async function runBoundaryScatter(roofIndex, options = {}) {
   } finally {
     if (finishOverlay) {
       GaugeOverlay.setProgress(1);
-      GaugeOverlay.setLed(3, 'active');
-      GaugeOverlay.setLed(4, 'active');
-      GaugeOverlay.setPhase('ANALYSIS COMPLETE', 'ALL SYSTEMS NOMINAL');
-      setTimeout(() => GaugeOverlay.hide(), 600);
+      GaugeOverlay.setPhase('Done');
+      setTimeout(() => GaugeOverlay.hide(), 500);
     }
     boundaryScatterBusy = false;
   }
@@ -1369,10 +1367,8 @@ async function runAllBoundaryScatter(options = {}) {
 
   if (options.finishOverlay) {
     GaugeOverlay.setProgress(1);
-    GaugeOverlay.setLed(3, 'active');
-    GaugeOverlay.setLed(4, 'active');
-    GaugeOverlay.setPhase('ANALYSIS COMPLETE', 'ALL SYSTEMS NOMINAL');
-    setTimeout(() => GaugeOverlay.hide(), 600);
+    GaugeOverlay.setPhase('Done');
+    setTimeout(() => GaugeOverlay.hide(), 500);
   }
 }
 
@@ -2033,8 +2029,7 @@ async function onAnalyzeRoof() {
     return;
   }
 
-  GaugeOverlay.show('ANALYZING ROOF GEOMETRY', 'PHASE 1 / 2');
-  GaugeOverlay.setLed(1, 'active');
+  GaugeOverlay.show('Analyzing roof...');
   GaugeOverlay.setIndeterminate();
 
   let deferOverlayHide = false;
@@ -2045,7 +2040,6 @@ async function onAnalyzeRoof() {
     }
 
     GaugeOverlay.setProgress(0.5);
-    GaugeOverlay.setLed(2, 'active');
 
     // Remember the freshly generated GLB filename (unique per analyze run)
     lastModelFile = data.file || 'roof_model.glb';
@@ -2091,8 +2085,7 @@ async function onAnalyzeRoof() {
 
     // Defer overlay until scatter is computed in split view
     deferOverlayHide = true;
-    GaugeOverlay.setPhase('COMPUTING SHADING', 'PHASE 2 / 2');
-    GaugeOverlay.setLed(3, 'amber');
+    GaugeOverlay.setPhase('Computing shading...');
     GaugeOverlay.setProgress(0.55);
     window.pendingScatter = {
       mode: 'all',
