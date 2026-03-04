@@ -1343,8 +1343,11 @@ async function runBoundaryScatter(roofIndex, options = {}) {
     console.warn('Boundary scatter failed:', err);
   } finally {
     if (finishOverlay) {
-      const overlay = document.getElementById('wizardOverlay');
-      if (overlay) overlay.style.display = 'none';
+      GaugeOverlay.setProgress(1);
+      GaugeOverlay.setLed(3, 'active');
+      GaugeOverlay.setLed(4, 'active');
+      GaugeOverlay.setPhase('ANALYSIS COMPLETE', 'ALL SYSTEMS NOMINAL');
+      setTimeout(() => GaugeOverlay.hide(), 600);
     }
     boundaryScatterBusy = false;
   }
@@ -1365,8 +1368,11 @@ async function runAllBoundaryScatter(options = {}) {
   }
 
   if (options.finishOverlay) {
-    const overlay = document.getElementById('wizardOverlay');
-    if (overlay) overlay.style.display = 'none';
+    GaugeOverlay.setProgress(1);
+    GaugeOverlay.setLed(3, 'active');
+    GaugeOverlay.setLed(4, 'active');
+    GaugeOverlay.setPhase('ANALYSIS COMPLETE', 'ALL SYSTEMS NOMINAL');
+    setTimeout(() => GaugeOverlay.hide(), 600);
   }
 }
 
@@ -1597,11 +1603,14 @@ function toGlbLocalPoints(pointsEcef) {
 async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, houseLocation) {
   const counts = new Array(pointsEcef.length).fill(0);
   let usedSamples = 0;
+  const totalTimes = times.length;
+  let timeIdx = 0;
 
   for (const time of times) {
     const sunDir = getSunDirection(time, houseLocation);
     if (!isSunAboveHorizon(sunDir, houseLocation)) {
       console.log('[Shading] Sun below horizon at', time.getHours() + ':00, skipping');
+      timeIdx++;
       continue;
     }
 
@@ -1617,10 +1626,18 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
           shadedInPass++;
         }
       });
+      // Update gauge: 55-95% range for shading phase
+      if (window.GaugeOverlay) {
+        const timeFrac = timeIdx / totalTimes;
+        const batchFrac = Math.min(i + 50, pointsEcef.length) / pointsEcef.length;
+        const overall = (timeFrac + batchFrac / totalTimes);
+        GaugeOverlay.setProgress(0.55 + overall * 0.40);
+      }
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
 
     console.log(`[Shading] ${time.getHours()}:00 → ${shadedInPass}/${pointsEcef.length} points shaded`);
+    timeIdx++;
   }
 
   const totalShaded = counts.filter(c => c > 0).length;
@@ -2010,17 +2027,15 @@ function renderMapMode() {
 }
 
 async function onAnalyzeRoof() {
-  const overlay = document.getElementById('wizardOverlay');
-  const overlayMsg = document.getElementById('wizardOverlayMsg');
-
   const boundaries = getBoundaries();
   if (!boundaries || boundaries.length === 0) {
     alert('Please draw a roof boundary first');
     return;
   }
 
-  overlay.style.display = 'flex';
-  overlayMsg.textContent = 'Analyzing roof...';
+  GaugeOverlay.show('ANALYZING ROOF GEOMETRY', 'PHASE 1 / 2');
+  GaugeOverlay.setLed(1, 'active');
+  GaugeOverlay.setIndeterminate();
 
   let deferOverlayHide = false;
   try {
@@ -2028,6 +2043,9 @@ async function onAnalyzeRoof() {
     if (!data || !data.stats) {
       throw new Error('Analysis returned no data');
     }
+
+    GaugeOverlay.setProgress(0.5);
+    GaugeOverlay.setLed(2, 'active');
 
     // Remember the freshly generated GLB filename (unique per analyze run)
     lastModelFile = data.file || 'roof_model.glb';
@@ -2073,7 +2091,9 @@ async function onAnalyzeRoof() {
 
     // Defer overlay until scatter is computed in split view
     deferOverlayHide = true;
-    overlayMsg.textContent = 'Computing shading...';
+    GaugeOverlay.setPhase('COMPUTING SHADING', 'PHASE 2 / 2');
+    GaugeOverlay.setLed(3, 'amber');
+    GaugeOverlay.setProgress(0.55);
     window.pendingScatter = {
       mode: 'all',
       waitForShading: true,
@@ -2087,7 +2107,7 @@ async function onAnalyzeRoof() {
     alert('Error analyzing roof. Please try again.');
   } finally {
     if (!deferOverlayHide) {
-      overlay.style.display = 'none';
+      GaugeOverlay.hide();
     }
   }
 }
