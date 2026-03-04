@@ -67,6 +67,24 @@ allows users to:
 
 > All from a browser — **no installation, no cost, no site visit.**
 
+### NAPROCK PROCON 2026 — Themed Section Fit
+
+**Theme:** "Solving Environmental Issues Using ICT" (Hanoi, Mar 8–9, 2026)
+
+| Rubric Criterion | Evidence in SunScope |
+|------------------|----------------------|
+| Originality | First web tool that traces roofs on **Google Photorealistic 3D Tiles** with async ray-cast shading |
+| Usefulness | Quantifies solar ROI to accelerate clean-energy adoption by homeowners and installers |
+| Usability | Single-page workflow, undo/redo tracing, catalog search, clear 6-step guided flow |
+| Technical skills | CesiumJS + Three.js 3D editing, ray-based shading solver, Flask/SQL back end, PVGIS integration |
+| Manual creation ability | Draft **operation manual + program source list** prepared for submission (English) |
+| Presentation skills | English poster + live demo; concise 3-minute walkthrough aligned to contest format |
+
+**Demo readiness & compliance**
+- Fits booth constraint: laptop + optional tablet within **240×180×210 cm**, <500 W power draw; setup <40 minutes.
+- Works offline if venue Wi‑Fi degrades: cached 3D tiles + sample rooftops + local PVGIS responses.
+- Submission package: English slides, operation manual, program source list (GitHub), and source archive ready for upload.
+
 
 ---
 
