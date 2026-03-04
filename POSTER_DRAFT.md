@@ -1,458 +1,507 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # SunScope — Solar ROI Calculator
-# Academic Presentation Poster (Japanese Conference Format)
+# Academic Presentation Poster
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# Paper size: A1 Portrait (594 × 841 mm)
-# Tool: PowerPoint / Canva / Gamma.app / LaTeX (baposter)
-# Color: Dark navy (#0a1628) + Solar orange (#f59e0b) + White
+# Paper size : A0 Landscape (1189 × 841 mm / 46.8 × 33.1 in)
+# Orientation: Landscape (wider than tall)
+# Tool       : PowerPoint / Illustrator / LaTeX (baposter) / Canva
+# Reading    : Left → Right across 4 columns
 #
-# Japanese academic poster conventions:
-#   - Read top-left → bottom-right (Z-pattern)
-#   - Numbered sections with clear borders
-#   - Heavy use of figures/tables, concise text
-#   - Conclusion section should stand out
-#   - Acknowledgments section at the end
+# Professional poster conventions:
+#   - Clean column grid (4 columns, equal width ~270 mm each)
+#   - Minimal text, maximum figures and diagrams
+#   - Numbered sections with subtle dividers
+#   - High-contrast color palette for readability at 2 m distance
+#   - Title readable at 5 m; body text readable at 1.5 m
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 <!-- ================================================================== -->
 <!--                        HEADER BANNER                               -->
-<!--  Background: navy gradient, 3 logos                                -->
+<!--  Full-width banner — navy gradient — left: logos, center: title    -->
 <!-- ================================================================== -->
 
 # SunScope: Interactive 3D Solar ROI Calculation Platform
-## — Rooftop Solar Investment Analysis with Real-Time 3D Shading Simulation —
+## Rooftop Solar Investment Analysis with Real-Time Shading Simulation on Photorealistic 3D Tiles
 
 **○ Tui Bui**¹  
-¹ National Institute of Technology, Niihama College
+¹ Department of Computer Science, National Institute of Technology, Niihama College, Japan
 
-> Logo placement: [Kosen Logo] ——— [SunScope Logo] ——— [CesiumJS Logo]
-
-
----
-
-<!-- ================================================================== -->
-<!--                  1. RESEARCH BACKGROUND & PURPOSE                  -->
-<!-- ================================================================== -->
-
-## 1. Research Background & Purpose
-
-### Background
-
-Solar energy adoption is accelerating worldwide, yet homeowners and
-installers still lack accessible tools to **accurately estimate the
-return on investment (ROI)** for specific rooftop installations.
-
-### Problems with Existing Tools
-
-| Problem | Description |
-|---------|-------------|
-| **2D satellite images only** | Cannot accurately assess roof tilt and orientation |
-| **No shading analysis** | Ignores obstruction from surrounding buildings |
-| **Costly site surveys** | Requires on-site expert measurement |
-
-### Purpose of This Research
-
-Develop **SunScope**, a web-based platform that allows users to:
-1. **Trace roofs** directly on photorealistic 3D building tiles
-2. **Simulate shading** using physics-based ray casting
-3. **Calculate 25-year ROI** with scientific solar irradiance data
+> Logo bar: [Kosen LOGO] ―――― [☀ SunScope LOGO] ―――― [CesiumJS LOGO] ―――― [Google 3D Tiles LOGO]
 
 
 ---
 
+
 <!-- ================================================================== -->
-<!--                    2. SYSTEM ARCHITECTURE                          -->
+<!--                    COLUMN 1  (left)                                 -->
 <!-- ================================================================== -->
+
+## 1. Introduction
+
+### Research Background
+
+Global solar PV capacity surpassed **1.6 TW** in 2024, yet most
+homeowners and installers still rely on **2D satellite images** and
+manual site surveys to estimate rooftop solar viability.
+
+### Problem Statement
+
+| # | Problem | Impact |
+|---|---------|--------|
+| 1 | **Flat imagery** | Cannot measure roof tilt, orientation, or true area |
+| 2 | **No shading data** | Surrounding buildings block sunlight — ignored by existing tools |
+| 3 | **Expensive surveys** | On-site expert visits cost ¥50,000+ and take days |
+| 4 | **Fragmented workflow** | Separate tools for design, shading, sizing, and finance |
+
+### Objective
+
+Design and implement **SunScope** — a **single web platform** that
+allows users to:
+
+1. **Trace rooftops** on photorealistic 3D building models
+2. **Simulate shading** via physics-based ray casting against real geometry
+3. **Select equipment** from a searchable product catalog (300+ panels, 120+ inverters, 80+ batteries)
+4. **Calculate 25-year ROI** using scientific irradiance data (PVGIS)
+
+> All from a browser — **no installation, no cost, no site visit.**
+
+
+---
 
 ## 2. System Architecture
 
-> ※ Place architecture diagram here
+> ※ Architecture diagram (render as vector graphic on poster)
 
 ```
-┌──────────┐    ┌───────────────┐    ┌───────────┐    ┌────────────┐
-│  USER    │───▸│  FRONTEND     │───▸│  BACKEND  │───▸│  DATABASE  │
-│ Browser  │    │ CesiumJS      │    │ Flask     │    │ PostgreSQL │
-│          │◂───│ Three.js      │◂───│ Python    │    │            │
-│          │    │ Chart.js      │    │ Trimesh   │    │            │
-└──────────┘    └──────┬────────┘    └─────┬─────┘    └────────────┘
-                       │                   │
-                       ▼                   ▼
-                ┌──────────────┐   ┌───────────────┐
-                │ Google 3D   │   │  PVGIS API    │
-                │ Tiles API   │   │ (EU Commission)│
-                └──────────────┘   └───────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                         CLIENT  (Browser)                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  ┌─────────┐ │
+│  │  CesiumJS   │  │  Three.js   │  │ Chart.js   │  │ Vanilla │ │
+│  │  3D Globe   │  │  3D Editor  │  │ Charts     │  │   JS    │ │
+│  │  + Raycaster│  │  + Gizmos   │  │            │  │ Modules │ │
+│  └──────┬──────┘  └──────┬──────┘  └─────┬──────┘  └────┬────┘ │
+└─────────┼────────────────┼───────────────┼───────────────┼──────┘
+          │  REST API      │               │               │
+          ▼                ▼               ▼               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                       SERVER  (Flask / Gunicorn)                 │
+│  ┌───────────┐  ┌───────────┐  ┌──────────┐  ┌───────────────┐ │
+│  │ Geometry  │  │ Irradiance│  │  Sizing  │  │   Catalog     │ │
+│  │ + Trimesh │  │  + PVGIS  │  │  Engine  │  │   REST API    │ │
+│  │ GLB Build │  │  API v5.2 │  │          │  │ 500+ products │ │
+│  └─────┬─────┘  └─────┬─────┘  └────┬─────┘  └───────┬───────┘ │
+└────────┼──────────────┼─────────────┼─────────────────┼─────────┘
+         │              │             │                  │
+         ▼              ▼             ▼                  ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────────────────────┐
+│  PostgreSQL  │ │  PVGIS API   │ │  Google Photorealistic       │
+│  Database    │ │  (EU JRC)    │ │  3D Tiles API                │
+└──────────────┘ └──────────────┘ └──────────────────────────────┘
 ```
 
 ### Technology Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **3D Mapping** | CesiumJS + Google Photorealistic 3D Tiles |
-| **3D Modeling** | Three.js (display) + Trimesh (GLB generation) |
-| **Frontend** | Vanilla JavaScript, Chart.js |
-| **Backend** | Python 3, Flask 3.0, SQLAlchemy, Gunicorn |
-| **Database** | PostgreSQL (production) / SQLite (development) |
-| **Solar Data** | PVGIS API v5.2 (European Commission — free) |
-| **Hosting** | Render.com (Web Service + PostgreSQL) |
+| Layer | Technology | Role |
+|-------|-----------|------|
+| 3D Mapping | **CesiumJS 1.114** | Globe rendering, 3D Tiles streaming |
+| 3D Tiles | **Google Photorealistic 3D Tiles** | Real building geometry worldwide |
+| 3D Editor | **Three.js 0.161** | Panel placement, gizmos, GLB display |
+| Charting | **Chart.js 4.4** | Financial projections & energy charts |
+| Backend | **Flask 3.0 + SQLAlchemy** | REST API, business logic |
+| 3D Mesh | **Trimesh** | Roof polygon → GLB solid model |
+| Solar Data | **PVGIS API v5.2** | Monthly POA irradiation (free, no key) |
+| Database | **PostgreSQL** (prod) / SQLite (dev) | Users, projects, equipment catalog |
+| Hosting | **Render.com** | Web service + managed PostgreSQL |
 
 
 ---
 
-<!-- ================================================================== -->
-<!--                    3. KEY FEATURES                                  -->
-<!-- ================================================================== -->
-
-## 3. Key Features
-
-> ※ Layout as 2×3 grid cards with icons and screenshot thumbnails
-
-### 🗺️ 3D Interactive Roof Drawing
-Draw roof polygons directly on **Google Photorealistic 3D Tiles**.
-Trace real building geometry with point-and-click.
-Supports up to 6 roofs per analysis.
-
-### ☀️ Physics-Based Shading Analysis
-**Ray casting** against actual 3D building geometry.
-Monthly shading ratios (12 months × multiple sun positions).
-Accurate sun position via Cesium solar ephemeris.
-
-### 📐 CAD-Style Panel Placement
-**SolidWorks-inspired** interface:
-ghost placement, rotation gizmo, grid snap.
-Precise panel positioning on each roof surface.
-
-### 📊 25-Year Financial Model
-Complete ROI analysis:
-**NPV**, **IRR**, **Payback Period**, **LCOE**
-Includes degradation, replacement costs, and discount rate.
-
-### ⚡ Automatic System Sizing
-Auto-recommend optimal panel count, inverter, and battery
-based on roof area, electricity consumption, and shading.
-
-### 💾 Project Management
-User authentication, project save/load.
-Compare multiple scenarios for different configurations.
-
-
----
 
 <!-- ================================================================== -->
-<!--                    4. METHODOLOGY                                   -->
+<!--                    COLUMN 2  (center-left)                          -->
 <!-- ================================================================== -->
 
-## 4. Methodology
+## 3. Methodology
 
-### 4.1 Solar Irradiance Data
+### 3.1 Solar Irradiance Acquisition
 
-Obtained from the **PVGIS API** (Photovoltaic Geographical Information
-System) by the European Commission.
+Data sourced from **PVGIS** (Photovoltaic Geographical Information System,
+European Commission Joint Research Centre).
 
-- **Input:** Latitude, longitude, tilt angle, azimuth
-- **Output:** Monthly plane-of-array irradiation H_m (kWh/m²)
+- **Inputs:** latitude, longitude, tilt (°), azimuth (°)
+- **Output:** monthly plane-of-array irradiation $H_m$ (kWh/m²)
 
-$$
-H_{annual} = \sum_{m=1}^{12} H_m
-$$
+$$H_{\text{annual}} = \sum_{m=1}^{12} H_m$$
 
-$$
-PSH = \frac{H_{annual}}{365} \quad \text{[Peak Sun Hours per day]}
-$$
+$$\text{PSH} = \frac{H_{\text{annual}}}{365} \quad \text{[Peak Sun Hours / day]}$$
 
-### 4.2 PV System Sizing
+### 3.2 Shading Simulation (Ray Casting)
 
-$$
-P_{target} = \frac{E_{daytime}}{PSH \times PR}
-$$
+> ※ Insert ray-casting concept diagram
 
-| Symbol | Meaning | Value |
-|--------|---------|-------|
-| E_daytime | Daily daytime consumption | kWh/day |
-| PSH | Peak Sun Hours | hours/day |
-| PR | Performance Ratio | **0.86** (14% losses) |
+For $N$ uniformly sampled roof points, at 3 representative solar hours
+per month (**09:00, 12:00, 15:00 JST**):
 
-### 4.3 Annual Energy Output
+1. Compute sun direction vector from **Cesium solar ephemeris**
+2. Offset sample point **+0.5 m** along roof normal (avoid self-hit)
+3. Fire async ray via `scene.pickFromRayMostDetailed()`
+4. Ray hits **Google 3D Tile** at distance > 2 m → **shaded**
 
-$$
-E_{annual} = \sum_{m=1}^{12} E_m \quad \text{[kWh/year]}
-$$
+$$\eta_{\text{shading}} = 1 - \frac{N_{\text{shaded}}}{N_{\text{total}}} \quad \text{per month}$$
 
-System loss = 14% (wiring, inverter, temperature, mismatch)
+| Parameter | Value |
+|-----------|-------|
+| Sample points / roof | 100 (uniform grid) |
+| Sun positions / month | 3 (09:00, 12:00, 15:00) |
+| Ray offset | 0.5 m geodetic up |
+| Min hit distance | 2.0 m |
+| Tile preload | 2 camera angles, 2 s settle |
 
-### 4.4 Shading Simulation
+**Key innovation:** `pickFromRayMostDetailed` (async) forces
+tile LOD loading along each ray path, solving the problem of
+synchronous raycasting missing unloaded buildings.
 
-> ※ Place ray-casting concept diagram here
+### 3.3 PV System Sizing
 
-For each sample point on the roof surface:
+$$P_{\text{target}} = \frac{E_{\text{daytime}}}{\text{PSH} \times \text{PR}}$$
 
-1. Compute **sun position** (azimuth + elevation) at representative hours
-2. Cast a **ray from roof point toward the sun**
-3. Ray intersects **3D building** → point is **shaded**
-4. Aggregate result:
+| Symbol | Meaning | Default |
+|--------|---------|---------|
+| $E_{\text{daytime}}$ | Daily daytime load | from appliance schedules |
+| PSH | Peak Sun Hours | from PVGIS |
+| PR | Performance Ratio | 0.80 |
 
-$$
-\eta_{shading} = 1 - \frac{N_{shaded}}{N_{total}}
-$$
+Panel count derived from roof area constraint:
+$$N_{\text{panels}} = \min\!\left(\left\lceil \frac{P_{\text{target}}}{P_{\text{panel}}}\right\rceil,\; \left\lfloor \frac{A_{\text{roof}}}{A_{\text{panel}}}\right\rfloor\right)$$
 
-### 4.5 Financial Model (25-Year)
+### 3.4 Financial Model (25-Year DCF)
 
-$$
-\text{Savings}_y = E_y \times \eta_{self} \times T_{tariff} + E_y \times (1 - \eta_{self}) \times T_{export}
-$$
+$$E_y = E_{\text{annual}} \times (1 - d)^{y} \qquad d = 0.7\%\text{/year}$$
 
-$$
-E_y = E_{annual} \times (1 - d)^y \quad (d = 0.7\%\text{/year degradation})
-$$
+$$\text{Savings}_y = E_y \times \eta_{\text{self}} \times T_{\text{tariff}} + E_y \times (1 - \eta_{\text{self}}) \times T_{\text{export}}$$
 
-$$
-NPV = -CAPEX + \sum_{y=1}^{25} \frac{CF_y}{(1 + r)^y} \quad (r = 6\%\text{ discount rate})
-$$
+$$\text{NPV} = -\text{CAPEX} + \sum_{y=1}^{25} \frac{CF_y}{(1 + r)^y} \qquad r = 6\%$$
 
-$$
-LCOE = \frac{\sum_{y=0}^{25} \frac{C_y}{(1+r)^y}}{\sum_{y=1}^{25} \frac{E_y}{(1+r)^y}} \quad \text{[currency/kWh]}
-$$
+$$\text{LCOE} = \frac{\displaystyle\sum_{y=0}^{25} \frac{C_y}{(1+r)^y}}{\displaystyle\sum_{y=1}^{25} \frac{E_y}{(1+r)^y}} \quad \text{[currency/kWh]}$$
 
-### Calculation Parameters
+### Financial Parameters
 
 | Parameter | Value |
 |-----------|-------|
 | System losses | 14% (PR = 0.86) |
-| Panel degradation | 0.7%/year |
-| O&M cost | 1% of CAPEX/year |
+| Panel degradation | 0.7% / year |
+| O&M cost | 1% of CAPEX / year |
 | Discount rate | 6% |
-| Inverter replacement | Year 12 (80% of original cost) |
-| Battery replacement | Year 10 (80% of original cost) |
+| Inverter replacement | Year 12 @ 80% cost |
+| Battery replacement | Year 10 @ 80% cost |
 | BOS factor | 1.2× (20% overhead) |
 
 
 ---
 
+
 <!-- ================================================================== -->
-<!--                    5. USER WORKFLOW                                  -->
+<!--                    COLUMN 3  (center-right)                         -->
 <!-- ================================================================== -->
 
-## 5. User Workflow
+## 4. Key Features
 
-> ※ Horizontal arrow flow with numbered screenshots
+> ※ Layout as 2×4 card grid with icon + screenshot thumbnail per card
 
-```
-   ①             ②              ③             ④             ⑤
-┌────────┐   ┌────────┐   ┌─────────┐   ┌────────┐   ┌────────┐
-│ LOCATE │──▸│  DRAW  │──▸│ ANALYZE │──▸│  SIZE  │──▸│  ROI   │
-│Building│   │ Roofs  │   │ Shading │   │ System │   │ Report │
-└────────┘   └────────┘   └─────────┘   └────────┘   └────────┘
- Search any    Click to     Generate      Auto-pick    25-year
- address on    trace roof   3D model,     panels,      cashflow,
- 3D globe      polygons     ray-cast      inverter,    NPV, IRR,
-               on 3D tiles  shading       battery      payback
-```
+### 🗺️  3D Interactive Roof Drawing
+Draw roof polygons directly on **Google Photorealistic 3D Tiles**.
+Point-and-click tracing with undo/redo. Multi-roof support.
 
-### Step Details
+### ☀️  Async Ray-Cast Shading
+**`pickFromRayMostDetailed`** against real 3D building geometry.
+Monthly shading ratios with heatmap scatter visualization.
 
-| Step | Description |
-|------|-------------|
-| ① Locate | Search any address worldwide; fly to 3D photorealistic view |
-| ② Draw | Trace roof boundaries with click-to-add-point (Undo/Redo supported) |
-| ③ Analyze | Backend computes tilt, azimuth, area; generates 3D GLB model |
-| ④ Size | Enter electricity bill; system auto-sizes optimal configuration |
-| ⑤ Report | View 25-year ROI chart, payback period, and financial metrics |
+### 📐  CAD-Style Panel Placement
+SolidWorks-inspired split-view: **ghost preview**, rotation,
+**TransformControls gizmo**, panel browser with live cost display.
+
+### 🔋  Equipment Catalog Database
+**300 solar panels** (7 brands), **120 inverters** (6 brands),
+**80 batteries** (6 brands). Searchable and filterable via REST API.
+
+### ⚡  Automatic System Sizing
+Auto-recommend panel count, inverter, and battery based on
+roof area, consumption profile, irradiance, and shading factor.
+
+### 📊  25-Year Financial Projection
+NPV, IRR, payback period, LCOE — multi-currency (USD, EUR, JPY, THB)
+with configurable tariff, grid export, and degradation.
+
+### 🌳  Project Tree & Management
+SolidWorks FeatureManager-style hierarchical tree. User auth,
+project CRUD, capture snapshots, per-project appliance schedules.
+
+### 📈  Real-Time Progress Tracking
+Horizontal progress bar with live elapsed timer during
+shading computation. Phase labels for each analysis stage.
 
 
 ---
 
+## 5. User Workflow
+
+> ※ Horizontal 6-step arrow diagram with numbered screenshots below
+
+```
+  ①            ②             ③              ④              ⑤             ⑥
+┌────────┐  ┌────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐
+│ LOCATE │─▸│  DRAW  │─▸│ ANALYZE  │─▸│  SELECT  │─▸│   SIZE   │─▸│  ROI   │
+│Building│  │ Roofs  │  │ Shading  │  │Equipment │  │  System  │  │ Report │
+└────────┘  └────────┘  └──────────┘  └──────────┘  └──────────┘  └────────┘
+ Search by    Trace        3D model,     Browse        Auto or       25-year
+ address on   polygons     ray-cast      panels,       manual        cashflow
+ 3D globe     on tiles     per month     inverters,    sizing        NPV, IRR
+                                         batteries
+```
+
+| Step | User Action | System Response |
+|------|-------------|-----------------|
+| ① Locate | Type address or navigate globe | Fly to 3D photorealistic view |
+| ② Draw | Click vertices on roof surface | Polygon + area/tilt/azimuth computed |
+| ③ Analyze | Press "Analyze" button | GLB model + shading heatmap generated |
+| ④ Select | Browse catalog, pick equipment | Items added to project tree |
+| ⑤ Size | Enter bill / appliance schedule | Optimal kWp + panel count recommended |
+| ⑥ Report | View results page | Charts, financial metrics, comparison |
+
+
+---
+
+
 <!-- ================================================================== -->
-<!--                    6. RESULTS                                       -->
+<!--                    COLUMN 4  (right)                                -->
 <!-- ================================================================== -->
 
 ## 6. Results & Demonstration
 
-> ※ Place 3 key screenshots:
-> - Screenshot 1: 3D roof drawing on Cesium globe
-> - Screenshot 2: Split-view with 3D model + shading heatmap
-> - Screenshot 3: ROI report with charts
+> ※ Place 4 key screenshots (each ~220 × 165 mm):
+>
+> **Fig. 1:** 3D roof polygon drawing on Google Tiles (Cesium globe view)
+> **Fig. 2:** Split-view — Three.js 3D model with placed solar panels
+> **Fig. 3:** Shading heatmap overlay — green (sun) → red (shade) scatter
+> **Fig. 4:** Financial dashboard — 25-year cashflow chart + metrics
 
-### Sample Output (Residential Home — Niihama, Japan)
+### Sample Analysis: Residential Rooftop — Niihama, Ehime, Japan
 
 | Metric | Value |
 |--------|-------|
-| Roof area | ~45 m² |
+| Roof area | ~45 m² (2 planes) |
 | System capacity | 5.0 kWp |
 | Annual production | ~5,800 kWh/year |
 | Peak Sun Hours | 3.8 hrs/day |
-| Shading ratio (usable area) | 85% |
-| Monthly savings | ¥15,000/month |
+| Shading factor | 0.85 (15% loss) |
+| Monthly savings | ¥15,000 |
 | Simple payback | 8.2 years |
 | NPV (25-year) | ¥850,000 |
 | IRR | 11.5% |
 | LCOE | ¥8.5/kWh |
 
-> ※ Values are illustrative. Actual results depend on location,
-> roof geometry, electricity tariff, and equipment selection.
+> ※ Values are illustrative. Results vary by location, geometry, and tariff.
+
+### Equipment Catalog Summary
+
+| Category | Count | Brands | Key Specs |
+|----------|-------|--------|-----------|
+| ☀️ Solar Panels | 300 | REC, JA Solar, Trina, LONGi, Jinko, Qcells, Canadian Solar | 380–550 W, 19.5–22.5% eff |
+| ⚡ Inverters | 120 | Fronius, Huawei, SolarEdge, Sungrow, GoodWe, Growatt | 3–15 kW, 1φ/3φ, 96–98.5% eff |
+| 🔋 Batteries | 80 | Tesla, BYD, Sonnen, LG Energy, Pylontech, Huawei | 5–20 kWh, LiFePO4, 4000–8000 cycles |
 
 
 ---
-
-<!-- ================================================================== -->
-<!--                    7. NOVEL CONTRIBUTIONS                           -->
-<!-- ================================================================== -->
 
 ## 7. Novel Contributions
 
-| # | Contribution | Description |
-|---|-------------|-------------|
-| 1 | **3D Interactive Roof Tracing** | First web tool to draw roofs on Google Photorealistic 3D Tiles |
-| 2 | **Physics-Based 3D Shading** | Ray-cast against real building geometry, not heuristic estimates |
-| 3 | **End-to-End Integration** | 3D drawing → mesh generation → solar analysis → financial ROI |
-| 4 | **Free & Accessible** | No cost for solar data (PVGIS); runs in any modern browser |
-| 5 | **CAD-Quality UX** | SolidWorks-inspired project tree, gizmo-based panel placement |
+| # | Contribution | Significance |
+|---|-------------|--------------|
+| 1 | **3D Roof Tracing on Photorealistic Tiles** | First web tool to draw roofs directly on Google 3D building models |
+| 2 | **Async Ray-Cast Shading** | `pickFromRayMostDetailed` forces tile LOD loading — solves invisible-building problem |
+| 3 | **Integrated Equipment Catalog** | 500+ real products (panels, inverters, batteries) with filterable REST API |
+| 4 | **End-to-End Pipeline** | Single platform: 3D drawing → mesh → shading → sizing → 25-year ROI |
+| 5 | **Free & Browser-Based** | No software install, no API cost (PVGIS is free), works on any modern browser |
+| 6 | **CAD-Quality UX** | SolidWorks-inspired tree, ghost panel preview, gizmo-based 3D editing |
 
 
 ---
 
-<!-- ================================================================== -->
-<!--                    8. FUTURE WORK                                   -->
-<!-- ================================================================== -->
+## 8. Future Work
 
-## 8. Future Work & Limitations
-
-### Planned Improvements
-
-- **AI roof auto-detection** — Deep learning for automatic boundary extraction
-- **Real product database** — Integration with actual panel/inverter catalogs
-- **PDF export** — Professional downloadable report for customers
-- **Mobile optimization** — Responsive design for tablet/phone
-- **TMY data** — Typical Meteorological Year for ±5% better accuracy
-- **Sensitivity analysis** — User-adjustable degradation, discount, O&M
+| Priority | Enhancement | Expected Impact |
+|----------|-------------|-----------------|
+| High | **AI roof auto-detection** | Deep learning segmentation eliminates manual tracing |
+| High | **PDF report export** | Professional downloadable report for customers |
+| Medium | **TMY data integration** | Typical Meteorological Year → ±5% better accuracy |
+| Medium | **Sensitivity analysis** | User-adjustable degradation, discount rate, O&M |
+| Low | **Mobile responsive UI** | Tablet/phone support for field use |
+| Low | **Multi-language** | Japanese, Thai, English interface switching |
 
 ### Current Limitations
 
-| Limitation | Impact |
-|------------|--------|
-| PVGIS coverage only | Some regions have no solar data |
-| Google 3D Tiles quality | Shading accuracy depends on model quality |
-| Free hosting tier | Cold-start latency (~30 seconds) |
+| Limitation | Mitigation |
+|------------|------------|
+| PVGIS geographic coverage | Some equatorial/polar regions lack data |
+| Google 3D Tile LOD quality | Shading accuracy ∝ model resolution |
+| Free hosting cold start | ~30 s first-load on Render free tier |
 
 
 ---
-
-<!-- ================================================================== -->
-<!--                    9. CONCLUSION                                    -->
-<!-- ================================================================== -->
 
 ## 9. Conclusion
 
-This research developed **SunScope**, a web-based solar ROI calculation
-platform that integrates:
+**SunScope** demonstrates that a **browser-based platform** can deliver
+professional-grade rooftop solar analysis by integrating:
 
-- ✅ **3D photorealistic mapping** (CesiumJS + Google 3D Tiles)
-- ✅ **Physics-based shading simulation** (ray casting against real buildings)
-- ✅ **Scientific solar irradiance data** (PVGIS, European Commission)
-- ✅ **Complete 25-year financial modeling** (NPV, IRR, LCOE, payback)
+- ✅ **Photorealistic 3D mapping** — CesiumJS + Google 3D Tiles
+- ✅ **Physics-based shading** — async ray casting against real buildings
+- ✅ **Scientific irradiance data** — PVGIS v5.2 (European Commission)
+- ✅ **Equipment catalog** — 500+ products (panels, inverters, batteries)
+- ✅ **25-year financial modeling** — NPV, IRR, LCOE, payback period
 
-The platform enables **homeowners and solar installers** to make
+The platform empowers **homeowners and solar professionals** to make
 data-driven investment decisions with **scientific accuracy and
-visual confidence**, using only a web browser.
+visual confidence** — entirely from a web browser.
 
-> **Live Demo:** https://sunscope.onrender.com
-> **Source Code:** https://github.com/Tuibui/solar_roi
+> 🌐 **Live Demo:** https://sunscope.onrender.com
+> 💻 **Source Code:** https://github.com/Tuibui/solar_roi
 
 
 ---
-
-<!-- ================================================================== -->
-<!--                    10. REFERENCES                                   -->
-<!-- ================================================================== -->
 
 ## 10. References
 
-[1] PVGIS — Photovoltaic Geographical Information System, European Commission JRC. https://re.jrc.ec.europa.eu/pvg_tools/  
-[2] CesiumJS — Open-source JavaScript library for 3D globes. https://cesium.com/cesiumjs/  
-[3] Google Photorealistic 3D Tiles — Map Tiles API. https://developers.google.com/maps/documentation/tile/3d-tiles  
-[4] Three.js — JavaScript 3D library. https://threejs.org/  
-[5] pvlib — Open-source PV system simulation tools. https://pvlib-python.readthedocs.io/  
-[6] Trimesh — Python library for triangular meshes. https://trimesh.org/  
-[7] METI — Feed-in Tariff / Feed-in Premium (FIT/FIP). https://www.enecho.meti.go.jp/
+[1] European Commission JRC, "PVGIS — Photovoltaic Geographical Information System," https://re.jrc.ec.europa.eu/pvg_tools/  
+[2] Cesium GS Inc., "CesiumJS — Open-source 3D Geospatial Platform," https://cesium.com/cesiumjs/  
+[3] Google, "Photorealistic 3D Tiles — Map Tiles API," https://developers.google.com/maps/documentation/tile/3d-tiles  
+[4] Three.js Contributors, "Three.js — JavaScript 3D Library," https://threejs.org/  
+[5] pvlib Contributors, "pvlib python — PV System Simulation," https://pvlib-python.readthedocs.io/  
+[6] Trimesh Contributors, "Trimesh — Python Triangular Mesh Library," https://trimesh.org/  
+[7] METI Japan, "Feed-in Tariff / Feed-in Premium (FIT/FIP)," https://www.enecho.meti.go.jp/  
+[8] IEA, "Renewables 2024 — Global Status Report," https://www.iea.org/reports/renewables-2024
 
 
 ---
-
-<!-- ================================================================== -->
-<!--                    ACKNOWLEDGMENTS                                  -->
-<!-- ================================================================== -->
 
 ## Acknowledgments
 
-The author would like to thank the faculty of National Institute of
-Technology, Niihama College for their guidance and support.
-Thanks also to the CesiumJS, PVGIS, and open-source communities
-for providing the tools and data that made this research possible.
+The author thanks the faculty of National Institute of Technology,
+Niihama College for their guidance. Thanks to the CesiumJS, PVGIS,
+and open-source communities for the tools and data enabling this work.
+
+> ※ QR Code → https://sunscope.onrender.com
 
 
 ---
 
+
 <!-- ================================================================== -->
-<!--                    POSTER DESIGN GUIDE                              -->
+<!--                    POSTER DESIGN SPECIFICATIONS                     -->
 <!-- ================================================================== -->
 
-# Poster Design Guide
+# A0 Landscape Poster — Design Specifications
 
-## Typography
+## Dimensions
 
-| Element | Size | Style | Font |
-|---------|------|-------|------|
-| Title | 48–60pt | Bold | Noto Sans / Montserrat |
-| Section heading | 28–32pt | Bold | Noto Sans |
-| Body text | 16–18pt | Regular | Noto Sans |
-| Captions | 12–14pt | Italic | Noto Sans |
-| Equations | 18–20pt | — | Latin Modern |
+| Property | Value |
+|----------|-------|
+| Paper size | **A0 Landscape** |
+| Width × Height | **1189 × 841 mm** (46.8 × 33.1 in) |
+| Margins | 25 mm all sides |
+| Column count | **4 equal columns** (~270 mm each) |
+| Column gap | 15 mm |
+| Safe print area | 1139 × 791 mm |
+
+## Column Layout Map
+
+```
+←─────────────────── 1189 mm (A0 Landscape) ──────────────────────→
+
+┌─────────────────────────────────────────────────────────────────────┐  ↑
+│                       HEADER BANNER (full width)                   │  │
+│   [Kosen Logo]   SunScope: Interactive 3D Solar ROI ...    [Logos] │  100mm
+│   Tui Bui — NIT Niihama College, Japan                            │  │
+├────────────┬────────────┬─────────────┬────────────────────────────┤  ↓
+│            │            │             │                            │
+│ COL 1      │ COL 2      │ COL 3       │ COL 4                     │
+│            │            │             │                            │
+│ 1. Intro   │ 3. Method  │ 4. Features │ 6. Results                │
+│   Problem  │  3.1 PVGIS │   (card     │   Screenshots (×4)        │
+│   Objective│  3.2 Shade │    grid)    │   Sample metrics table    │
+│            │  3.3 Sizing│             │   Equipment summary       │
+│ 2. Arch    │  3.4 Finance│ 5. Workflow │                           │
+│   Diagram  │   Params   │   6-step    │ 7. Contributions          │
+│   Stack    │            │   diagram   │ 8. Future work            │
+│   Table    │            │             │ 9. Conclusion             │
+│            │            │             │ 10. References            │
+│            │            │             │ Acknowledgments + QR      │
+│            │            │             │                            │
+├────────────┴────────────┴─────────────┴────────────────────────────┤
+│                      FOOTER BAR  (optional)                        │
+│   Live Demo: sunscope.onrender.com    GitHub: Tuibui/solar_roi    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Typography (readable at 1.5 m distance)
+
+| Element | Size | Weight | Font |
+|---------|------|--------|------|
+| Poster title | **72–84 pt** | Bold | Montserrat / Noto Sans |
+| Subtitle | 36–42 pt | Regular | Montserrat |
+| Author line | 28–32 pt | Regular | Noto Sans |
+| Section heading (##) | **36–42 pt** | Bold | Montserrat |
+| Subsection (###) | 24–28 pt | Semi-Bold | Noto Sans |
+| Body text | **20–24 pt** | Regular | Noto Sans |
+| Table text | 18–20 pt | Regular | Noto Sans |
+| Captions | 16–18 pt | Italic | Noto Sans |
+| Equations | 22–26 pt | — | Latin Modern Math |
+| References | 14–16 pt | Regular | Noto Sans |
 
 ## Color Palette
 
-| Purpose | Color | Code |
-|---------|-------|------|
-| Main background | Dark Navy | `#0a1628` |
-| Accent | Solar Orange | `#f59e0b` |
-| Secondary | Blue | `#3b82f6` |
-| Positive/Success | Green | `#10b981` |
-| Text on dark | White | `#ffffff` |
-| Text on light | Dark Gray | `#1e293b` |
-| Card background | Light Gray | `#f8fafc` |
+| Role | Name | Hex | Usage |
+|------|------|-----|-------|
+| Primary BG | Dark Navy | `#0a1628` | Header, footer, section accents |
+| Card BG | White | `#ffffff` | Content card backgrounds |
+| Poster BG | Light Gray | `#f1f5f9` | Between cards (subtle grid) |
+| Accent 1 | Solar Orange | `#f59e0b` | Icons, highlights, section numbers |
+| Accent 2 | Blue | `#3b82f6` | Links, architecture diagram |
+| Success | Emerald | `#10b981` | Positive values, checkmarks |
+| Danger | Red | `#ef4444` | Shading loss indicators |
+| Text (dark) | Slate 900 | `#0f172a` | Body text on white |
+| Text (light) | White | `#ffffff` | Text on navy background |
 
-## Layout (A1 Portrait)
+## Figure & Screenshot Placement
 
-```
-┌─────────────────────────────────────┐
-│         HEADER BANNER               │  ← Navy gradient, logos, title
-│    Title / Author / Affiliation     │
-├──────────────────┬──────────────────┤
-│ 1. Background &  │ 2. System        │  ← White cards, orange accents
-│    Purpose       │    Architecture   │
-├──────────────────┴──────────────────┤
-│        3. Key Features (2×3 grid)   │  ← Icon cards with thumbnails
-├──────────────────┬──────────────────┤
-│ 4. Methodology   │ 5. Workflow      │  ← Formulas + step diagram
-│    Equations      │    Screenshots   │
-├──────────────────┴──────────────────┤
-│       6. Results (Screenshots)      │  ← Large images + result table
-├──────────────────┬──────────────────┤
-│ 7. Contributions │ 8. Future Work   │
-├──────────────────┴──────────────────┤
-│ 9. Conclusion    │ 10. References   │  ← Navy footer
-│                  │    Acknowledgments│
-│                  │    QR Code → 📱   │
-└─────────────────────────────────────┘
-```
-
-## Screenshot Placement Guide
-
-| Section | Image Content | Size |
-|---------|--------------|------|
-| 3. Features | Small thumbnails per card | 80×60mm each |
-| 5. Workflow | Step-by-step screenshots | 100×75mm each |
-| 6. Results | 3D view + ROI chart | 150×110mm × 2 |
+| Figure | Section | Location | Size (mm) | Content |
+|--------|---------|----------|-----------|---------|
+| Fig. 1 | Col 4, top | Results | 240 × 170 | 3D roof drawing on Cesium globe |
+| Fig. 2 | Col 4 | Results | 240 × 170 | Split-view: 3D model + panels |
+| Fig. 3 | Col 4 | Results | 240 × 170 | Shading heatmap (green→red) |
+| Fig. 4 | Col 4 | Results | 240 × 170 | 25-year cashflow chart |
+| Diagram 1 | Col 1 | Architecture | 250 × 180 | System architecture (vector) |
+| Diagram 2 | Col 2 | Methodology | 250 × 120 | Ray-casting concept |
+| Diagram 3 | Col 3 | Workflow | 250 × 80 | 6-step arrow flow |
 
 ## QR Code
 
-Bottom-right corner → https://sunscope.onrender.com
+| Property | Value |
+|----------|-------|
+| Position | Column 4, bottom-right |
+| Size | 60 × 60 mm |
+| URL | https://sunscope.onrender.com |
+| Label | "Scan to try live demo" |
+
+## Print Checklist
+
+- [ ] Export as PDF (300 DPI minimum, 150 DPI acceptable)
+- [ ] Embed all fonts
+- [ ] Convert text to outlines if using unusual fonts
+- [ ] CMYK color mode for professional printing
+- [ ] 3 mm bleed on all edges
+- [ ] Check contrast ratio ≥ 4.5:1 (WCAG AA)
+- [ ] Test readability: title at 5 m, body at 1.5 m
+- [ ] Verify QR code scans correctly at printed size
