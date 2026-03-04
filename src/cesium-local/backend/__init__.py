@@ -48,10 +48,14 @@ def create_app(config_overrides: dict = None):
     os.makedirs(STATIC_DIR, exist_ok=True)
 
     # ── Create tables (dev only — production uses `flask db upgrade`) ─────────
+    # ── Create tables (dev only — production uses `flask db upgrade`) ─────────
     if not IS_CLOUD:
         with app.app_context():
             db.create_all()
-            seed_catalog()
+
+    # ── Seed equipment catalog (idempotent — only inserts if tables empty) ────
+    with app.app_context():
+        seed_catalog()
 
     # ── Routes ─────────────────────────────────────────────────────────────────
     register_blueprints(app)
