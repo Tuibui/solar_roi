@@ -284,17 +284,37 @@ $$\text{NPV} = -\text{CAPEX} + \sum_{y=1}^{25} \frac{CF_y}{(1 + r)^y} \qquad r =
 
 $$\text{LCOE} = \frac{\displaystyle\sum_{y=0}^{25} \frac{C_y}{(1+r)^y}}{\displaystyle\sum_{y=1}^{25} \frac{E_y}{(1+r)^y}} \quad \text{[currency/kWh]}$$
 
+### Key Financial Terms
+
+| Symbol / Acronym | Full Name | Meaning |
+|------------------|-----------|---------|
+| **CAPEX** | Capital Expenditure | Total upfront cost of the solar system (panels + inverter + battery + BOS + installation) |
+| **NPV** | Net Present Value | Sum of all discounted future cash flows minus initial investment; NPV > 0 means profitable |
+| **IRR** | Internal Rate of Return | Discount rate at which NPV = 0; higher IRR = better investment |
+| **LCOE** | Levelized Cost of Energy | Total lifetime cost ÷ total lifetime energy produced (currency/kWh); lower = cheaper electricity |
+| **DCF** | Discounted Cash Flow | Method of valuing future savings/costs by applying a discount rate to account for time value of money |
+| **PR** | Performance Ratio | Fraction of theoretical energy actually delivered (accounts for wiring, heat, mismatch losses) |
+| **BOS** | Balance of System | All components besides panels (mounting, wiring, combiner boxes); expressed as a cost multiplier |
+| $CF_y$ | Cash Flow (year $y$) | Net annual benefit = energy savings + export revenue − O&M cost |
+| $E_y$ | Energy (year $y$) | Annual production after degradation: $E_{\text{annual}} \times (1 - d)^y$ |
+| $d$ | Degradation rate | Annual panel output decline (typically 0.5–0.7%/year) |
+| $r$ | Discount rate | Rate used to convert future money to present value (default 6%) |
+| $\eta_{\text{self}}$ | Self-consumption ratio | Fraction of produced energy consumed on-site (rest exported to grid) |
+| $T_{\text{tariff}}$ | Retail tariff | Price paid for grid electricity (currency/kWh) |
+| $T_{\text{export}}$ | Export tariff | Price received for selling excess energy back to grid (currency/kWh) |
+| **O&M** | Operation & Maintenance | Ongoing annual cost to maintain the system (cleaning, inspection, repairs) |
+
 ### Financial Parameters
 
-| Parameter | Value |
-|-----------|-------|
-| System losses | 14% (PR = 0.86) |
-| Panel degradation | 0.7% / year |
+| Parameter | Default Value |
+|-----------|---------------|
+| System losses (PR) | 14% (PR = 0.86) |
+| Panel degradation ($d$) | 0.7% / year |
 | O&M cost | 1% of CAPEX / year |
-| Discount rate | 6% |
-| Inverter replacement | Year 12 @ 80% cost |
-| Battery replacement | Year 10 @ 80% cost |
-| BOS factor | 1.2× (20% overhead) |
+| Discount rate ($r$) | 6% |
+| Inverter replacement | Year 12 @ 80% of original cost |
+| Battery replacement | Year 10 @ 80% of original cost |
+| BOS factor | 1.2× (20% overhead on panel cost) |
 
 
 ---
