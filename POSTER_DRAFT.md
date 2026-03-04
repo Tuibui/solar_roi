@@ -40,20 +40,20 @@
 
 ## 1. Introduction
 
-### Research Background
+### Event Background — NAPROCK 2026 Theme
 
-Global solar PV capacity surpassed **1.6 TW** in 2024, yet most
-homeowners and installers still rely on **2D satellite images** and
-manual site surveys to estimate rooftop solar viability.
+- **Theme:** “Solving Environmental Issues Using ICT” (Hanoi, Mar 8–9, 2026)  
+- **Urgency:** Rising heatwaves and storms from climate change; cities need faster clean-energy uptake.  
+- **Local need:** Vietnam’s urban rooftops are underused for solar because homeowners lack easy, accurate ROI evidence.  
 
-### Problem Statement
+### Problem Statement (what blocks rooftop solar today)
 
 | # | Problem | Impact |
 |---|---------|--------|
-| 1 | **Flat imagery** | Cannot measure roof tilt, orientation, or true area |
-| 2 | **No shading data** | Surrounding buildings block sunlight — ignored by existing tools |
-| 3 | **Expensive surveys** | On-site expert visits cost ¥50,000+ and take days |
-| 4 | **Fragmented workflow** | Separate tools for design, shading, sizing, and finance |
+| 1 | **Flat imagery** | No roof tilt/azimuth/usable area → wrong production estimates |
+| 2 | **Invisible shading** | Neighbor buildings/trees ignored → overstates energy by 10–25% |
+| 3 | **High survey friction** | On-site design quotes take days and cost ¥50,000+ |
+| 4 | **Fragmented workflow** | Separate apps for drawing, shading, sizing, and finance slow adoption |
 
 ### Objective
 
