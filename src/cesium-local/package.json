@@ -1,0 +1,18 @@
+{
+  "name": "cesium-local",
+  "version": "1.0.0",
+  "description": "A web application for calculating the return on investment of rooftop solar panel installations.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.161.0"
+  }
+}
