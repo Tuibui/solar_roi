@@ -160,21 +160,26 @@ class ShadingController {
 
   _waitForTiles() {
     return new Promise((resolve) => {
-      // If no OSM buildings, resolve immediately
-      if (!this.osmBuildings) {
-        console.log('[ShadingController] No OSM buildings, skipping tile wait');
+      // Wait for Google 3D tiles (the primary raycast target) if available
+      const googleTiles = typeof getGoogleTiles === 'function' ? getGoogleTiles() : null;
+      const tileset = googleTiles || this.osmBuildings;
+
+      if (!tileset) {
+        console.log('[ShadingController] No tilesets to wait for');
         resolve();
         return;
       }
 
       const checkInterval = 100;
-      const maxWait = 8000;  // 8 s max — longer waits don't help; start computing
+      const maxWait = 10000;  // 10 s max for 3D tile loading
       let waited = 0;
 
       const check = () => {
-        if (this.osmBuildings.allTilesLoaded) {
+        const loaded = tileset.tilesLoaded ||
+          (tileset.allTilesLoaded !== undefined && tileset.allTilesLoaded);
+        if (loaded) {
           setTimeout(() => {
-            console.log('[ShadingController] OSM tiles ready');
+            console.log('[ShadingController] 3D tiles ready');
             resolve();
           }, 1000);
           return;

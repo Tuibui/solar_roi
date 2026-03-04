@@ -192,7 +192,8 @@ model = trimesh.util.concatenate(parts)
 - **Excludes OSM buildings** (incomplete, was causing 0 results)
 - Ray origin offset **0.5m upward** (geodetic surface normal) to avoid self-intersection
 - Distance threshold **> 2.0m** to ignore own building hits
-- `pickFromRay` 2nd param = `objectsToExclude` (NOT objectsToQuery!)
+- Uses **`pickFromRayMostDetailed`** (async) — forces tile loading along each ray path; sync `pickFromRay` missed buildings whose tiles weren't in GPU memory
+- **Tile pre-loading**: renders from 4 cardinal directions around house before raycasting to prime the tile cache
 
 ---
 
@@ -423,7 +424,8 @@ panelPlacer.cancelSketch();  // safe — no callbacks fire
 
 ### Check Ray Casting (Session 6)
 1. Console: `[Shading] 12:00 → X/Y points shaded` (non-zero X)
-2. `pickFromRay(ray, [osmTileset])` — 2nd param EXCLUDES
+2. `pickFromRayMostDetailed(ray, [osmTileset])` — async, forces tile loading; 2nd param EXCLUDES
+3. `[Shading] Tile preload complete` — confirms surrounding tiles were loaded before raycasting
 
 ---
 
@@ -477,7 +479,7 @@ panelPlacer.cancelSketch();  // safe — no callbacks fire
 8. Ghost rotation: `_ghostRotationDeg` resets on `_cancelGhost()`
 9. GLB mesh discovery: `traverse()` + `roof_N` name sort (not direct children)
 10. 3D model: `model.rotation.x = +Math.PI / 2` (no Y flip)
-11. Ray casting: `pickFromRay(ray, [osmTileset])` — 2nd param EXCLUDES
+11. Ray casting: `pickFromRayMostDetailed(ray, [osmTileset])` — async, forces tile loading; 2nd param EXCLUDES
 12. UIState: `window.UIState` accessible for debugging state transitions
 
 **To continue work:**

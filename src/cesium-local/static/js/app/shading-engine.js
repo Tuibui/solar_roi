@@ -114,11 +114,11 @@ class ShadingEngine {
   }
 
   /**
-   * Cast ray from roof point toward sun — synchronous, uses current frame geometry.
+   * Cast ray from roof point toward sun — async, forces tile loading.
+   * Uses pickFromRayMostDetailed to load 3D tiles along the ray before picking.
    * Excludes OSM buildings (low-res); casts against Google Photorealistic 3D Tiles.
-   * Uses geodetic "up" offset to avoid self-intersection with roof surface.
    */
-  castRay(pointEcef, sunDirection) {
+  async castRay(pointEcef, sunDirection) {
     // Offset above roof surface using geodetic "up" to avoid self-intersection
     const up = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(pointEcef, new Cesium.Cartesian3());
     const upOffset = Cesium.Cartesian3.multiplyByScalar(up, 0.5, new Cesium.Cartesian3());
@@ -127,9 +127,10 @@ class ShadingEngine {
     const ray = new Cesium.Ray(origin, sunDirection);
 
     try {
-      // Exclude OSM buildings (low-res/inaccurate); pick against Google 3D tiles
+      // pickFromRayMostDetailed forces tile loading along the ray path.
+      // Sync pickFromRay misses buildings whose tiles aren't in GPU memory.
       const excludeList = this.excludeTileset ? [this.excludeTileset] : [];
-      const result = this.viewer.scene.pickFromRay(ray, excludeList);
+      const result = await this.viewer.scene.pickFromRayMostDetailed(ray, excludeList);
 
       if (!result || !result.object) {
         return { isShaded: false };
@@ -176,7 +177,7 @@ class ShadingEngine {
    * Returns irradiance-weighted shading ratio (0 = always sunlit, 1 = always shaded).
    * Fix #9: weights each hour by sin(altitude) so noon counts more than 8 am.
    */
-  analyzePointDaily(localPoint, roofMatrixWorld, date, pointEcef = null) {
+  async analyzePointDaily(localPoint, roofMatrixWorld, date, pointEcef = null) {
     const sampleHours = [8, 10, 12, 14, 16]; // Key solar hours
 
     // Compute ECEF once — position doesn't change between hours
@@ -194,7 +195,7 @@ class ShadingEngine {
 
       if (sinAlt <= 0) continue; // sun below horizon
 
-      const result = this.castRay(ecef, sunDir);
+      const result = await this.castRay(ecef, sunDir);
 
       totalWeight += sinAlt;
       if (result.isShaded) shadedWeight += sinAlt;
@@ -256,11 +257,13 @@ class ShadingEngine {
         const sinAlt = this._sinSolarAltitude(sunDir);
 
         if (sinAlt > 0) {
-          // All samples share the same sunDir — cast synchronously
+          // Batch all rays for this time slot — pickFromRayMostDetailed is async
+          const hits = await Promise.all(
+            ecefs.map(ecef => this.castRay(ecef, sunDir))
+          );
           for (let i = 0; i < ecefs.length; i++) {
-            const hit = this.castRay(ecefs[i], sunDir);
             totalWeight[i] += sinAlt;
-            if (hit.isShaded) shadedWeight[i] += sinAlt;
+            if (hits[i].isShaded) shadedWeight[i] += sinAlt;
           }
         }
 
@@ -290,11 +293,10 @@ class ShadingEngine {
 
   /**
    * Simple single-time analysis (for backwards compatibility).
-   * Now synchronous — castRay no longer async.
    */
-  analyzeSample(sample, roofMatrixWorld, sunDirection) {
+  async analyzeSample(sample, roofMatrixWorld, sunDirection) {
     const pointEcef = this.localToEcef(sample.local, roofMatrixWorld);
-    const rayResult = this.castRay(pointEcef, sunDirection);
+    const rayResult = await this.castRay(pointEcef, sunDirection);
 
     return {
       local: sample.local,
@@ -307,22 +309,23 @@ class ShadingEngine {
 
   /**
    * Compute shading for all samples at a single point in time.
-   * Fix #1: synchronous castRay — no Promise.all batching needed.
-   * Yields once per batchSize iterations to keep the UI responsive.
+   * Batches async pickFromRayMostDetailed calls for efficiency.
    */
   async computeShading(samples, roofMatrixWorld, dateTime, progressCallback) {
     const sunDirection = this.getSunDirection(dateTime);
     const results = [];
 
-    for (let i = 0; i < samples.length; i++) {
-      results.push(this.analyzeSample(samples[i], roofMatrixWorld, sunDirection));
+    for (let i = 0; i < samples.length; i += this.batchSize) {
+      const batch = samples.slice(i, i + this.batchSize);
+      const batchResults = await Promise.all(
+        batch.map(s => this.analyzeSample(s, roofMatrixWorld, sunDirection))
+      );
+      results.push(...batchResults);
 
       if (progressCallback) progressCallback(results.length, samples.length);
 
-      // Yield every batchSize samples to avoid blocking the main thread
-      if (i % this.batchSize === this.batchSize - 1) {
-        await new Promise(resolve => requestAnimationFrame(resolve));
-      }
+      // Yield to keep UI responsive
+      await new Promise(resolve => requestAnimationFrame(resolve));
     }
 
     return results;

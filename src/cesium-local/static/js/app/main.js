@@ -1146,6 +1146,66 @@ function populateSplitForm() {
 // ============ BOUNDARY SCATTER + RAY CASTING ============
 let boundaryScatterBusy = false;
 
+/**
+ * Pre-load surrounding 3D tiles by rendering from multiple camera angles.
+ * Primes the tile cache so pickFromRayMostDetailed is faster.
+ */
+async function preloadTilesForShading(viewer, houseLocation) {
+  const googleTiles = typeof getGoogleTiles === 'function' ? getGoogleTiles() : null;
+  if (!googleTiles) {
+    console.log('[Shading] No Google 3D tiles to preload');
+    return;
+  }
+
+  const savedPos = viewer.camera.position.clone();
+  const savedDir = viewer.camera.direction.clone();
+  const savedUp  = viewer.camera.up.clone();
+
+  const savedSSE = googleTiles.maximumScreenSpaceError;
+  googleTiles.maximumScreenSpaceError = 8;
+
+  const lon = houseLocation.lon;
+  const lat = houseLocation.lat;
+  const alt = (houseLocation.height || 0) + 150;
+
+  // Look from 4 cardinal directions toward the house + straight down
+  const offsets = [
+    [0.002, 0], [-0.002, 0], [0, 0.002], [0, -0.002]
+  ];
+  const target = Cesium.Cartesian3.fromDegrees(lon, lat, houseLocation.height || 0);
+
+  for (const [dLon, dLat] of offsets) {
+    const eye = Cesium.Cartesian3.fromDegrees(lon + dLon, lat + dLat, alt);
+    viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(
+      Math.atan2(dLon, dLat), Cesium.Math.toRadians(-35), 250
+    ));
+    viewer.scene.requestRender();
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  // Top-down view
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(lon, lat, alt + 200)
+  });
+  viewer.scene.requestRender();
+  await new Promise(r => setTimeout(r, 400));
+
+  // Wait for tiles to settle
+  const start = Date.now();
+  while (Date.now() - start < 5000) {
+    if (googleTiles.tilesLoaded) break;
+    viewer.scene.requestRender();
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  googleTiles.maximumScreenSpaceError = savedSSE;
+  viewer.camera.setView({
+    destination: savedPos,
+    orientation: { direction: savedDir, up: savedUp }
+  });
+  console.log('[Shading] Tile preload complete');
+}
+
 async function runBoundaryScatter(roofIndex, options = {}) {
   const { waitForShading = false, finishOverlay = false, skipBaseScatter = false, finalOnly = false } = options;
   if (boundaryScatterBusy) return;
@@ -1183,6 +1243,10 @@ async function runBoundaryScatter(roofIndex, options = {}) {
     if (!osm) {
       console.log('[Scatter] OSM not loaded (casting against Google 3D tiles only)');
     }
+
+    // Pre-load surrounding 3D tiles so ray casts can detect nearby buildings
+    await preloadTilesForShading(viewer, houseLocation);
+    if (gen !== scatterGeneration) return;
 
     const roofMesh = findRoofMesh(splitViewer.scene);
     if (!roofMesh) {
@@ -1575,7 +1639,11 @@ async function castRay(viewer, osmTileset, pointEcef, sunDirection) {
     // Cast against Google 3D photorealistic tiles (all real buildings).
     // Exclude OSM buildings (low-res, often incomplete).
     const excludeList = osmTileset ? [osmTileset] : [];
-    const result = viewer.scene.pickFromRay(ray, excludeList);
+
+    // pickFromRayMostDetailed forces Cesium to load 3D tiles along the ray
+    // before picking. The sync pickFromRay misses buildings whose tiles
+    // aren't in memory (camera not facing that direction).
+    const result = await viewer.scene.pickFromRayMostDetailed(ray, excludeList);
     if (!result || !result.object) return false;
     // Ignore close hits (self-intersection with own building roof surface)
     return result.distance > 2.0;
