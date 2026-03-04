@@ -19,22 +19,34 @@ let lastModelFile = 'roof_model.glb'; // updated after each analyze run
 let scatterGeneration = 0; // incremented on each clearSplitScene to cancel stale scatter
 const MODE_KEY = "solar_ui_mode";
 window.UIState = UIState;
-const DEMO_INVERTERS = [
-  { brand: 'SMA', model: 'Sunny Boy 5.0', kw: 5.0, phase: 1, price: 1200 },
-  { brand: 'SMA', model: 'Sunny Tripower 10', kw: 10.0, phase: 3, price: 2500 },
-  { brand: 'Fronius', model: 'Primo 6.0', kw: 6.0, phase: 1, price: 1350 },
-  { brand: 'Fronius', model: 'Symo 15.0', kw: 15.0, phase: 3, price: 3200 },
-  { brand: 'Enphase', model: 'IQ8+', kw: 0.3, phase: 1, price: 180 },
-  { brand: 'Huawei', model: 'SUN2000-8KTL', kw: 8.0, phase: 3, price: 1800 },
-];
-const DEMO_BATTERIES = [
-  { brand: 'Tesla', model: 'Powerwall 2', kwh: 13.5, kw: 5.0, price: 8500 },
-  { brand: 'Tesla', model: 'Powerwall 3', kwh: 13.5, kw: 11.5, price: 9200 },
-  { brand: 'BYD', model: 'HVS 5.1', kwh: 5.1, kw: 5.1, price: 3400 },
-  { brand: 'BYD', model: 'HVM 11.0', kwh: 11.04, kw: 5.1, price: 6500 },
-  { brand: 'Enphase', model: 'IQ Battery 5P', kwh: 5.0, kw: 3.84, price: 5500 },
-  { brand: 'LG Energy', model: 'RESU16H Prime', kwh: 16.0, kw: 7.0, price: 9800 },
-];
+// Equipment catalog — loaded from DB via /api/catalog/*
+let _catalogInverters = [];
+let _catalogBatteries = [];
+let _catalogLoaded = false;
+
+async function loadCatalog() {
+  if (_catalogLoaded) return;
+  try {
+    const [invRes, batRes] = await Promise.all([
+      fetch('/api/catalog/inverters').then(r => r.json()),
+      fetch('/api/catalog/batteries').then(r => r.json()),
+    ]);
+    _catalogInverters = (invRes.inverters || []).map(i => ({
+      id: i.id, brand: i.brand, model: i.model,
+      kw: i.power_kw, phase: i.phase === 'three' ? 3 : 1,
+      price: i.price_usd || 0,
+    }));
+    _catalogBatteries = (batRes.batteries || []).map(b => ({
+      id: b.id, brand: b.brand, model: b.model,
+      kwh: b.capacity_kwh, kw: b.max_discharge_kw || 0,
+      price: b.price_usd || 0,
+    }));
+    _catalogLoaded = true;
+    console.log(`[Catalog] Loaded ${_catalogInverters.length} inverters, ${_catalogBatteries.length} batteries`);
+  } catch (e) {
+    console.warn('[Catalog] Failed to load from API, using empty catalog', e);
+  }
+}
 
 function formatMoney(value) {
   const n = Number(value);
@@ -133,6 +145,12 @@ function refreshCurrencyDisplays() {
 window.addEventListener("DOMContentLoaded", async () => {
   // Initialize wizard (data manager)
   wizard = initWizard();
+
+  // Load equipment catalog from DB in background
+  loadCatalog().then(() => {
+    renderInverterSearchResults('');
+    renderBatterySearchResults('');
+  });
 
   // Initialize map
   await initMap();
@@ -2295,8 +2313,8 @@ function ensureEquipmentListsState() {
 
 function addInverterFromDetailsByIndex(idx) {
   ensureEquipmentListsState();
-  if (!Number.isInteger(idx) || !DEMO_INVERTERS[idx]) return;
-  wizard.sessionData.step2.q9_inverters.push({ ...DEMO_INVERTERS[idx] });
+  if (!Number.isInteger(idx) || !_catalogInverters[idx]) return;
+  wizard.sessionData.step2.q9_inverters.push({ ..._catalogInverters[idx] });
   wizard.saveSessionData();
   const search = document.getElementById('splitInverterSearch');
   if (search) search.value = '';
@@ -2307,8 +2325,8 @@ function addInverterFromDetailsByIndex(idx) {
 
 function addBatteryFromDetailsByIndex(idx) {
   ensureEquipmentListsState();
-  if (!Number.isInteger(idx) || !DEMO_BATTERIES[idx]) return;
-  wizard.sessionData.step2.q10_batteries.push({ ...DEMO_BATTERIES[idx] });
+  if (!Number.isInteger(idx) || !_catalogBatteries[idx]) return;
+  wizard.sessionData.step2.q10_batteries.push({ ..._catalogBatteries[idx] });
   wizard.saveSessionData();
   const search = document.getElementById('splitBatterySearch');
   if (search) search.value = '';
@@ -2322,20 +2340,24 @@ function renderInverterSearchResults(filterText = '') {
   if (!list) return;
   const currency = getSelectedCurrencySafe();
   const ft = String(filterText || '').toLowerCase().trim();
-  const filtered = DEMO_INVERTERS.filter((inv) => {
+  const filtered = _catalogInverters.filter((inv) => {
     if (!ft) return true;
     return inv.brand.toLowerCase().includes(ft) ||
       inv.model.toLowerCase().includes(ft) ||
       String(inv.kw).includes(ft);
   });
 
+  if (!_catalogLoaded) {
+    list.innerHTML = '<div class="form-hint">Loading catalog...</div>';
+    return;
+  }
   if (!filtered.length) {
     list.innerHTML = '<div class="form-hint">No inverter found.</div>';
     return;
   }
 
   list.innerHTML = filtered.map((inv) => {
-    const idx = DEMO_INVERTERS.indexOf(inv);
+    const idx = _catalogInverters.indexOf(inv);
     const priceText = formatCurrencyAmount(convertAmount(inv.price, 'USD', currency), currency);
     return `
       <div class="appliance-item">
@@ -2358,20 +2380,24 @@ function renderBatterySearchResults(filterText = '') {
   if (!list) return;
   const currency = getSelectedCurrencySafe();
   const ft = String(filterText || '').toLowerCase().trim();
-  const filtered = DEMO_BATTERIES.filter((bat) => {
+  const filtered = _catalogBatteries.filter((bat) => {
     if (!ft) return true;
     return bat.brand.toLowerCase().includes(ft) ||
       bat.model.toLowerCase().includes(ft) ||
       String(bat.kwh).includes(ft);
   });
 
+  if (!_catalogLoaded) {
+    list.innerHTML = '<div class="form-hint">Loading catalog...</div>';
+    return;
+  }
   if (!filtered.length) {
     list.innerHTML = '<div class="form-hint">No battery found.</div>';
     return;
   }
 
   list.innerHTML = filtered.map((bat) => {
-    const idx = DEMO_BATTERIES.indexOf(bat);
+    const idx = _catalogBatteries.indexOf(bat);
     const priceText = formatCurrencyAmount(convertAmount(bat.price, 'USD', currency), currency);
     return `
       <div class="appliance-item">
