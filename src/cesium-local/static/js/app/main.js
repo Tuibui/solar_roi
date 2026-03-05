@@ -90,9 +90,11 @@ function recommendInverter() {
     alert(msgs[lang] || msgs.en);
     return;
   }
-  // Inverter sizing: 0.8–1.2× system kWp
-  const minKw = Math.round(kwp * 0.8 * 10) / 10;
-  const maxKw = Math.round(kwp * 1.2 * 10) / 10;
+  // Inverter sizing by DC/AC ratio (typical 1.1–1.3)
+  const DC_AC_MIN = 1.1; // looser ratio → larger inverter
+  const DC_AC_MAX = 1.3; // tighter ratio → smaller inverter
+  const minKw = Math.round((kwp / DC_AC_MAX) * 10) / 10; // highest ratio → smallest AC size
+  const maxKw = Math.round((kwp / DC_AC_MIN) * 10) / 10; // lowest ratio → largest AC size
   // Phase recommendation: < 5kWp → 1-phase, otherwise 3-phase
   const recPhase = kwp < 5 ? '1' : '3';
 
@@ -123,9 +125,9 @@ function recommendInverter() {
   if (list) {
     const lang = (window.I18n && window.I18n.getLang) ? window.I18n.getLang() : 'en';
     const msgs = {
-      en: `System: ${kwp.toFixed(1)} kWp → Recommended: ${minKw}–${maxKw} kW, ${recPhase}-phase`,
-      th: `ระบบ: ${kwp.toFixed(1)} kWp → แนะนำ: ${minKw}–${maxKw} kW, ${recPhase} เฟส`,
-      ja: `システム: ${kwp.toFixed(1)} kWp → 推奨: ${minKw}–${maxKw} kW, ${recPhase}相`
+      en: `System: ${kwp.toFixed(1)} kWp → Recommended: ${minKw}–${maxKw} kW (DC/AC 1.1–1.3), ${recPhase}-phase`,
+      th: `ระบบ: ${kwp.toFixed(1)} kWp → แนะนำ: ${minKw}–${maxKw} kW (DC/AC 1.1–1.3), ${recPhase} เฟส`,
+      ja: `システム: ${kwp.toFixed(1)} kWp → 推奨: ${minKw}–${maxKw} kW (DC/AC 1.1–1.3), ${recPhase}相`
     };
     list.insertAdjacentHTML('beforebegin',
       `<div class="recommend-banner" id="invRecommendBanner">${msgs[lang] || msgs.en}</div>`);
@@ -151,6 +153,8 @@ function getApplianceEnergySplit() {
     const [eh, em] = (app.usage_end || '22:00').split(':').map(Number);
     const startMin = sh * 60 + (sm || 0);
     const endMin = eh * 60 + (em || 0);
+    // If start and end are equal, treat as zero runtime instead of 24h
+    if (startMin === endMin) continue;
     const totalMin = endMin > startMin ? endMin - startMin : (1440 - startMin + endMin);
     let nightMin = 0;
     if (endMin > startMin) {
@@ -196,19 +200,13 @@ function recommendBattery() {
   // Useful battery = min(what solar can charge, what night needs)
   const usefulKwh = nightKwh > 0 ? Math.min(excessSolar, nightKwh) : excessSolar;
 
-  if (usefulKwh <= 0.1) {
-    const msgs = {
-      en: `Not enough excess solar to justify a battery.\nSolar: ${dailySolarKwh.toFixed(1)} kWh/day, Daytime load: ${dayKwh.toFixed(1)} kWh → surplus: ${excessSolar.toFixed(1)} kWh`,
-      th: `พลังงานแสงอาทิตย์ส่วนเกินไม่พอสำหรับแบตเตอรี่\nโซลาร์: ${dailySolarKwh.toFixed(1)} kWh/วัน, โหลดกลางวัน: ${dayKwh.toFixed(1)} kWh → ส่วนเกิน: ${excessSolar.toFixed(1)} kWh`,
-      ja: `バッテリーに十分な余剰ソーラーがありません\nソーラー: ${dailySolarKwh.toFixed(1)} kWh/日, 昼間負荷: ${dayKwh.toFixed(1)} kWh → 余剰: ${excessSolar.toFixed(1)} kWh`
-    };
-    alert(msgs[lang] || msgs.en);
-    return;
-  }
+  // If solar surplus is tiny, still size for backup/TOU using night load (or 1 kWh minimum)
+  const sizingKwh = usefulKwh > 0.1 ? usefulKwh : Math.max(nightKwh, 1);
+  const sizingMode = usefulKwh > 0.1 ? 'solar' : 'backup';
 
   // Battery kWh = useful energy ÷ 0.8 DoD
-  const recKwh = Math.round(usefulKwh / 0.8 * 10) / 10;
-  const minKwh = Math.round(usefulKwh * 10) / 10;
+  const recKwh = Math.round(sizingKwh / 0.8 * 10) / 10;
+  const minKwh = Math.round(sizingKwh * 10) / 10;
   const maxKwh = Math.round(recKwh * 1.3 * 10) / 10;
 
   // Open filter panel if hidden
@@ -233,9 +231,9 @@ function recommendBattery() {
   const list = document.getElementById('splitBatterySearchList');
   if (list) {
     const msgs = {
-      en: `Solar: ${dailySolarKwh.toFixed(1)} kWh/day | Day load: ${dayKwh.toFixed(1)} | Night load: ${nightKwh.toFixed(1)} | Excess: ${excessSolar.toFixed(1)} kWh → Battery: ${minKwh}–${maxKwh} kWh`,
-      th: `โซลาร์: ${dailySolarKwh.toFixed(1)} kWh/วัน | กลางวัน: ${dayKwh.toFixed(1)} | กลางคืน: ${nightKwh.toFixed(1)} | ส่วนเกิน: ${excessSolar.toFixed(1)} kWh → แบต: ${minKwh}–${maxKwh} kWh`,
-      ja: `ソーラー: ${dailySolarKwh.toFixed(1)} kWh/日 | 昼: ${dayKwh.toFixed(1)} | 夜: ${nightKwh.toFixed(1)} | 余剰: ${excessSolar.toFixed(1)} kWh → バッテリー: ${minKwh}–${maxKwh} kWh`
+      en: `${sizingMode === 'solar' ? 'Solar surplus' : 'Backup/grid-charge'} sizing — Solar: ${dailySolarKwh.toFixed(1)} kWh/day | Day: ${dayKwh.toFixed(1)} | Night: ${nightKwh.toFixed(1)} | Excess: ${excessSolar.toFixed(1)} → Battery: ${minKwh}–${maxKwh} kWh`,
+      th: `${sizingMode === 'solar' ? 'ใช้ส่วนเกินโซลาร์' : 'โหมดสำรอง/ชาร์จจากกริด'} — โซลาร์: ${dailySolarKwh.toFixed(1)} kWh/วัน | กลางวัน: ${dayKwh.toFixed(1)} | กลางคืน: ${nightKwh.toFixed(1)} | ส่วนเกิน: ${excessSolar.toFixed(1)} → แบต: ${minKwh}–${maxKwh} kWh`,
+      ja: `${sizingMode === 'solar' ? 'ソーラー余剰' : 'バックアップ/グリッド充電'} — ソーラー: ${dailySolarKwh.toFixed(1)} kWh/日 | 昼: ${dayKwh.toFixed(1)} | 夜: ${nightKwh.toFixed(1)} | 余剰: ${excessSolar.toFixed(1)} → バッテリー: ${minKwh}–${maxKwh} kWh`
     };
     list.insertAdjacentHTML('beforebegin',
       `<div class="recommend-banner" id="batRecommendBanner">${msgs[lang] || msgs.en}</div>`);
@@ -2619,8 +2617,11 @@ function renderInverterSearchResults(filterText = '') {
   // Read filter panel values
   const fBrand = (document.getElementById('invFilterBrand')?.value || '').toLowerCase();
   const fPhase = document.getElementById('invFilterPhase')?.value || '';
-  const fMinKw = parseFloat(document.getElementById('invFilterMinKw')?.value) || 0;
-  const fMaxKw = parseFloat(document.getElementById('invFilterMaxKw')?.value) || Infinity;
+  const rawMin = document.getElementById('invFilterMinKw')?.value ?? '';
+  const rawMax = document.getElementById('invFilterMaxKw')?.value ?? '';
+  const fMinKw = rawMin === '' ? 0 : (Number.isFinite(parseFloat(rawMin)) ? parseFloat(rawMin) : 0);
+  const parsedMax = rawMax === '' ? Infinity : parseFloat(rawMax);
+  const fMaxKw = Number.isFinite(parsedMax) ? parsedMax : Infinity;
 
   const filtered = _catalogInverters.filter((inv) => {
     if (ft && !(inv.brand.toLowerCase().includes(ft) || inv.model.toLowerCase().includes(ft) || String(inv.kw).includes(ft))) return false;
@@ -2667,8 +2668,11 @@ function renderBatterySearchResults(filterText = '') {
 
   // Read filter panel values
   const fBrand = (document.getElementById('batFilterBrand')?.value || '').toLowerCase();
-  const fMinKwh = parseFloat(document.getElementById('batFilterMinKwh')?.value) || 0;
-  const fMaxKwh = parseFloat(document.getElementById('batFilterMaxKwh')?.value) || Infinity;
+  const rawMin = document.getElementById('batFilterMinKwh')?.value ?? '';
+  const rawMax = document.getElementById('batFilterMaxKwh')?.value ?? '';
+  const fMinKwh = rawMin === '' ? 0 : (Number.isFinite(parseFloat(rawMin)) ? parseFloat(rawMin) : 0);
+  const parsedMax = rawMax === '' ? Infinity : parseFloat(rawMax);
+  const fMaxKwh = Number.isFinite(parsedMax) ? parsedMax : Infinity;
 
   const filtered = _catalogBatteries.filter((bat) => {
     if (ft && !(bat.brand.toLowerCase().includes(ft) || bat.model.toLowerCase().includes(ft) || String(bat.kwh).includes(ft))) return false;
