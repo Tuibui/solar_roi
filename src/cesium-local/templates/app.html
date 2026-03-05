@@ -217,7 +217,34 @@
             <div class="form-section">
               <h3 class="form-section-title" data-i18n="detail.search_inv">Search Inverter</h3>
               <div class="form-group">
-                <input type="text" id="splitInverterSearch" placeholder="Search brand, model, kW..." autocomplete="off" spellcheck="false" data-i18n-ph="detail.search_inv_ph">
+                <div class="search-filter-row">
+                  <input type="text" id="splitInverterSearch" placeholder="Search brand, model, kW..." autocomplete="off" spellcheck="false" data-i18n-ph="detail.search_inv_ph">
+                  <button class="filter-toggle-btn" id="btnInvFilter" type="button" title="Filter" aria-label="Filter inverters">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 2h14l-5 6v5l-4 2V8L1 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+                <div class="filter-panel hidden" id="invFilterPanel">
+                  <div class="filter-row">
+                    <label class="filter-label" data-i18n="filter.brand">Brand</label>
+                    <select id="invFilterBrand" class="filter-select"><option value="">All</option></select>
+                  </div>
+                  <div class="filter-row">
+                    <label class="filter-label" data-i18n="filter.phase">Phase</label>
+                    <select id="invFilterPhase" class="filter-select">
+                      <option value="">All</option>
+                      <option value="1">1‑phase</option>
+                      <option value="3">3‑phase</option>
+                    </select>
+                  </div>
+                  <div class="filter-row">
+                    <label class="filter-label" data-i18n="filter.kw_range">kW Range</label>
+                    <div class="filter-range">
+                      <input type="number" id="invFilterMinKw" class="filter-input" placeholder="Min" step="0.1" min="0">
+                      <span class="filter-dash">–</span>
+                      <input type="number" id="invFilterMaxKw" class="filter-input" placeholder="Max" step="0.1" min="0">
+                    </div>
+                  </div>
+                </div>
               </div>
               <div id="splitInverterSearchList" class="appliances-list"></div>
             </div>
@@ -234,7 +261,26 @@
             <div class="form-section">
               <h3 class="form-section-title" data-i18n="detail.search_bat">Search Battery</h3>
               <div class="form-group">
-                <input type="text" id="splitBatterySearch" placeholder="Search brand, model, kWh..." autocomplete="off" spellcheck="false" data-i18n-ph="detail.search_bat_ph">
+                <div class="search-filter-row">
+                  <input type="text" id="splitBatterySearch" placeholder="Search brand, model, kWh..." autocomplete="off" spellcheck="false" data-i18n-ph="detail.search_bat_ph">
+                  <button class="filter-toggle-btn" id="btnBatFilter" type="button" title="Filter" aria-label="Filter batteries">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 2h14l-5 6v5l-4 2V8L1 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+                <div class="filter-panel hidden" id="batFilterPanel">
+                  <div class="filter-row">
+                    <label class="filter-label" data-i18n="filter.brand">Brand</label>
+                    <select id="batFilterBrand" class="filter-select"><option value="">All</option></select>
+                  </div>
+                  <div class="filter-row">
+                    <label class="filter-label" data-i18n="filter.kwh_range">kWh Range</label>
+                    <div class="filter-range">
+                      <input type="number" id="batFilterMinKwh" class="filter-input" placeholder="Min" step="0.1" min="0">
+                      <span class="filter-dash">–</span>
+                      <input type="number" id="batFilterMaxKwh" class="filter-input" placeholder="Max" step="0.1" min="0">
+                    </div>
+                  </div>
+                </div>
               </div>
               <div id="splitBatterySearchList" class="appliances-list"></div>
             </div>

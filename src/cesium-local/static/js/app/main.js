@@ -43,8 +43,22 @@ async function loadCatalog() {
     }));
     _catalogLoaded = true;
     console.log(`[Catalog] Loaded ${_catalogInverters.length} inverters, ${_catalogBatteries.length} batteries`);
+    populateFilterBrands();
   } catch (e) {
     console.warn('[Catalog] Failed to load from API, using empty catalog', e);
+  }
+}
+
+function populateFilterBrands() {
+  const invBrandSel = document.getElementById('invFilterBrand');
+  if (invBrandSel) {
+    const brands = [...new Set(_catalogInverters.map(i => i.brand).filter(Boolean))].sort();
+    invBrandSel.innerHTML = '<option value="">All</option>' + brands.map(b => `<option value="${b}">${b}</option>`).join('');
+  }
+  const batBrandSel = document.getElementById('batFilterBrand');
+  if (batBrandSel) {
+    const brands = [...new Set(_catalogBatteries.map(b => b.brand).filter(Boolean))].sort();
+    batBrandSel.innerHTML = '<option value="">All</option>' + brands.map(b => `<option value="${b}">${b}</option>`).join('');
   }
 }
 
@@ -796,6 +810,36 @@ function setupSplitViewHandlers() {
   const batterySearch = document.getElementById('splitBatterySearch');
   if (batterySearch) {
     batterySearch.addEventListener('input', () => renderBatterySearchResults(batterySearch.value));
+  }
+
+  // ── Filter panel toggles ──
+  const btnInvFilter = document.getElementById('btnInvFilter');
+  const invFilterPanel = document.getElementById('invFilterPanel');
+  if (btnInvFilter && invFilterPanel) {
+    btnInvFilter.addEventListener('click', () => {
+      const open = invFilterPanel.classList.toggle('hidden');
+      btnInvFilter.classList.toggle('active', !invFilterPanel.classList.contains('hidden'));
+    });
+    // Re-render on any filter change
+    ['invFilterBrand', 'invFilterPhase', 'invFilterMinKw', 'invFilterMaxKw'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', () => renderInverterSearchResults(inverterSearch?.value));
+      if (el && el.type === 'number') el.addEventListener('input', () => renderInverterSearchResults(inverterSearch?.value));
+    });
+  }
+
+  const btnBatFilter = document.getElementById('btnBatFilter');
+  const batFilterPanel = document.getElementById('batFilterPanel');
+  if (btnBatFilter && batFilterPanel) {
+    btnBatFilter.addEventListener('click', () => {
+      batFilterPanel.classList.toggle('hidden');
+      btnBatFilter.classList.toggle('active', !batFilterPanel.classList.contains('hidden'));
+    });
+    ['batFilterBrand', 'batFilterMinKwh', 'batFilterMaxKwh'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', () => renderBatterySearchResults(batterySearch?.value));
+      if (el && el.type === 'number') el.addEventListener('input', () => renderBatterySearchResults(batterySearch?.value));
+    });
   }
 
 
@@ -2386,11 +2430,20 @@ function renderInverterSearchResults(filterText = '') {
   if (!list) return;
   const currency = getSelectedCurrencySafe();
   const ft = String(filterText || '').toLowerCase().trim();
+
+  // Read filter panel values
+  const fBrand = (document.getElementById('invFilterBrand')?.value || '').toLowerCase();
+  const fPhase = document.getElementById('invFilterPhase')?.value || '';
+  const fMinKw = parseFloat(document.getElementById('invFilterMinKw')?.value) || 0;
+  const fMaxKw = parseFloat(document.getElementById('invFilterMaxKw')?.value) || Infinity;
+
   const filtered = _catalogInverters.filter((inv) => {
-    if (!ft) return true;
-    return inv.brand.toLowerCase().includes(ft) ||
-      inv.model.toLowerCase().includes(ft) ||
-      String(inv.kw).includes(ft);
+    if (ft && !(inv.brand.toLowerCase().includes(ft) || inv.model.toLowerCase().includes(ft) || String(inv.kw).includes(ft))) return false;
+    if (fBrand && inv.brand.toLowerCase() !== fBrand) return false;
+    if (fPhase && inv.phase !== Number(fPhase)) return false;
+    if (inv.kw < fMinKw) return false;
+    if (Number.isFinite(fMaxKw) && inv.kw > fMaxKw) return false;
+    return true;
   });
 
   if (!_catalogLoaded) {
@@ -2426,11 +2479,18 @@ function renderBatterySearchResults(filterText = '') {
   if (!list) return;
   const currency = getSelectedCurrencySafe();
   const ft = String(filterText || '').toLowerCase().trim();
+
+  // Read filter panel values
+  const fBrand = (document.getElementById('batFilterBrand')?.value || '').toLowerCase();
+  const fMinKwh = parseFloat(document.getElementById('batFilterMinKwh')?.value) || 0;
+  const fMaxKwh = parseFloat(document.getElementById('batFilterMaxKwh')?.value) || Infinity;
+
   const filtered = _catalogBatteries.filter((bat) => {
-    if (!ft) return true;
-    return bat.brand.toLowerCase().includes(ft) ||
-      bat.model.toLowerCase().includes(ft) ||
-      String(bat.kwh).includes(ft);
+    if (ft && !(bat.brand.toLowerCase().includes(ft) || bat.model.toLowerCase().includes(ft) || String(bat.kwh).includes(ft))) return false;
+    if (fBrand && bat.brand.toLowerCase() !== fBrand) return false;
+    if (bat.kwh < fMinKwh) return false;
+    if (Number.isFinite(fMaxKwh) && bat.kwh > fMaxKwh) return false;
+    return true;
   });
 
   if (!_catalogLoaded) {

@@ -82,6 +82,12 @@
       'detail.search_bat_ph': 'Search brand, model, kWh...',
       'detail.installed_bat': 'Installed Batteries',
 
+      // ── Catalog Filters ──
+      'filter.brand': 'Brand',
+      'filter.phase': 'Phase',
+      'filter.kw_range': 'kW Range',
+      'filter.kwh_range': 'kWh Range',
+
       // ── Calculate page ──
       'calc.projects': 'Projects',
       'calc.loading': 'Loading projects...',
@@ -237,6 +243,11 @@
       'detail.search_bat_ph': 'ค้นหายี่ห้อ, รุ่น, kWh...',
       'detail.installed_bat': 'แบตเตอรี่ที่ติดตั้ง',
 
+      'filter.brand': 'ยี่ห้อ',
+      'filter.phase': 'เฟส',
+      'filter.kw_range': 'ช่วง kW',
+      'filter.kwh_range': 'ช่วง kWh',
+
       'calc.projects': 'โปรเจกต์',
       'calc.loading': 'กำลังโหลดโปรเจกต์...',
       'calc.estimate': 'ประเมินระบบ',
@@ -384,6 +395,11 @@
       'detail.search_bat': 'バッテリー検索',
       'detail.search_bat_ph': 'ブランド、モデル、kWh...',
       'detail.installed_bat': '設置済みバッテリー',
+
+      'filter.brand': 'ブランド',
+      'filter.phase': 'フェーズ',
+      'filter.kw_range': 'kW範囲',
+      'filter.kwh_range': 'kWh範囲',
 
       'calc.projects': 'プロジェクト',
       'calc.loading': 'プロジェクト読込中...',
