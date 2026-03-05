@@ -135,6 +135,99 @@ function recommendInverter() {
   }
 }
 
+/** Calculate nighttime energy from appliances (kWh) */
+function getNighttimeKwh() {
+  const appliances = (window.wizard && wizard.sessionData && wizard.sessionData.step2)
+    ? wizard.sessionData.step2.q4_appliances || [] : [];
+  const SOLAR_START = 6; // 6:00 AM
+  const SOLAR_END = 18;  // 6:00 PM
+  let nightWh = 0;
+  for (const app of appliances) {
+    const w = Number(app.power) || 0;
+    if (w <= 0) continue;
+    const [sh, sm] = (app.usage_start || '06:00').split(':').map(Number);
+    const [eh, em] = (app.usage_end || '22:00').split(':').map(Number);
+    const startMin = sh * 60 + (sm || 0);
+    const endMin = eh * 60 + (em || 0);
+    const totalMin = endMin > startMin ? endMin - startMin : (1440 - startMin + endMin);
+    // Night minutes = usage time outside 6:00–18:00
+    const solarStartMin = SOLAR_START * 60;
+    const solarEndMin = SOLAR_END * 60;
+    let nightMin = 0;
+    if (endMin > startMin) {
+      // No wrap-around
+      if (startMin < solarStartMin) nightMin += Math.min(solarStartMin, endMin) - startMin;
+      if (endMin > solarEndMin) nightMin += endMin - Math.max(solarEndMin, startMin);
+    } else {
+      // Wraps past midnight: startMin→24:00 + 00:00→endMin
+      nightMin = totalMin; // most of wrap-around is night
+      // Subtract solar overlap if any
+      const overlapStart = Math.max(startMin, solarStartMin);
+      const overlapEnd = Math.min(1440, solarEndMin);
+      if (overlapStart < overlapEnd && startMin < solarEndMin) nightMin -= (overlapEnd - overlapStart);
+      const overlapStart2 = Math.max(0, solarStartMin);
+      const overlapEnd2 = Math.min(endMin, solarEndMin);
+      if (overlapStart2 < overlapEnd2) nightMin -= (overlapEnd2 - overlapStart2);
+    }
+    nightMin = Math.max(0, nightMin);
+    nightWh += w * (nightMin / 60);
+  }
+  return nightWh / 1000;
+}
+
+/** Auto-recommend battery based on nighttime appliance usage */
+function recommendBattery() {
+  const nightKwh = getNighttimeKwh();
+  const lang = (window.I18n && window.I18n.getLang) ? window.I18n.getLang() : 'en';
+
+  if (nightKwh <= 0) {
+    const msgs = {
+      en: 'Add appliances with usage times first so nighttime energy can be estimated.',
+      th: 'เพิ่มเครื่องใช้ไฟฟ้าพร้อมเวลาใช้งานก่อนเพื่อประมาณพลังงานกลางคืน',
+      ja: '夜間エネルギーを推定するため、使用時間付きの家電を追加してください'
+    };
+    alert(msgs[lang] || msgs.en);
+    return;
+  }
+
+  // Battery kWh = nighttime consumption ÷ 0.8 DoD buffer
+  const recKwh = Math.round(nightKwh / 0.8 * 10) / 10;
+  const minKwh = Math.round(nightKwh * 10) / 10;
+  const maxKwh = Math.round(recKwh * 1.3 * 10) / 10;
+
+  // Open filter panel if hidden
+  const panel = document.getElementById('batFilterPanel');
+  const btn = document.getElementById('btnBatFilter');
+  if (panel && panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    if (btn) btn.classList.add('active');
+  }
+  // Set filter values
+  const minEl = document.getElementById('batFilterMinKwh');
+  const maxEl = document.getElementById('batFilterMaxKwh');
+  if (minEl) minEl.value = minKwh;
+  if (maxEl) maxEl.value = maxKwh;
+  const brandEl = document.getElementById('batFilterBrand');
+  if (brandEl) brandEl.value = '';
+  const searchEl = document.getElementById('splitBatterySearch');
+  if (searchEl) searchEl.value = '';
+  renderBatterySearchResults('');
+
+  // Show info banner
+  const list = document.getElementById('splitBatterySearchList');
+  if (list) {
+    const msgs = {
+      en: `Night usage: ${nightKwh.toFixed(1)} kWh → Recommended: ${minKwh}–${maxKwh} kWh`,
+      th: `ใช้กลางคืน: ${nightKwh.toFixed(1)} kWh → แนะนำ: ${minKwh}–${maxKwh} kWh`,
+      ja: `夜間使用: ${nightKwh.toFixed(1)} kWh → 推奨: ${minKwh}–${maxKwh} kWh`
+    };
+    list.insertAdjacentHTML('beforebegin',
+      `<div class="recommend-banner" id="batRecommendBanner">${msgs[lang] || msgs.en}</div>`);
+    const prev = list.parentElement.querySelectorAll('.recommend-banner');
+    if (prev.length > 1) prev[0].remove();
+  }
+}
+
 function formatMoney(value) {
   const n = Number(value);
   const safe = Number.isFinite(n) ? n : 0;

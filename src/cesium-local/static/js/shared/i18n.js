@@ -88,6 +88,7 @@
       'filter.kw_range': 'kW Range',
       'filter.kwh_range': 'kWh Range',
       'filter.recommend': 'Recommend Inverter',
+      'filter.recommend_bat': 'Recommend Battery',
 
       // ── Calculate page ──
       'calc.projects': 'Projects',
@@ -249,6 +250,7 @@
       'filter.kw_range': 'ช่วง kW',
       'filter.kwh_range': 'ช่วง kWh',
       'filter.recommend': 'แนะนำอินเวอร์เตอร์',
+      'filter.recommend_bat': 'แนะนำแบตเตอรี่',
 
       'calc.projects': 'โปรเจกต์',
       'calc.loading': 'กำลังโหลดโปรเจกต์...',
@@ -403,6 +405,7 @@
       'filter.kw_range': 'kW範囲',
       'filter.kwh_range': 'kWh範囲',
       'filter.recommend': 'インバーター推奨',
+      'filter.recommend_bat': 'バッテリー推奨',
 
       'calc.projects': 'プロジェクト',
       'calc.loading': 'プロジェクト読込中...',
