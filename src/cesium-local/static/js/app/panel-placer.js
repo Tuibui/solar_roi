@@ -296,8 +296,8 @@ class PanelPlacer {
     return DEFAULT_SCENE_UNITS_PER_METER;
   }
 
-  _createPanelObject(spec, asGhost) {
-    const unitsPerMeter = this._getSceneUnitsPerMeter();
+  _createPanelObject(spec, asGhost, overrideUnitsPerMeter) {
+    const unitsPerMeter = overrideUnitsPerMeter || this._getSceneUnitsPerMeter();
     const length = spec.lengthM * unitsPerMeter;
     const width = spec.widthM * unitsPerMeter;
     const thicknessScale = 1.9;
@@ -554,17 +554,22 @@ class PanelPlacer {
 
   serializePanels() {
     const panels = [];
+    const currentScale = this._getSceneUnitsPerMeter();
     for (const p of this.confirmedPanels) {
       const meta = this.panelMeta.get(p.name);
       if (!meta) continue;
       const spec = this.panelModels[meta.modelKey];
+      // Use calibrated scale for the panel's roof, or current default
+      const roofIdx = meta.roofIndex;
+      const savedScale = (Number.isInteger(roofIdx) && this.sceneUnitsPerMeter.has(roofIdx))
+        ? this.sceneUnitsPerMeter.get(roofIdx) : currentScale;
       panels.push({
         name: p.name,
         modelKey: meta.modelKey,
         modelLabel: meta.modelLabel,
         roofIndex: meta.roofIndex,
         modelPrice: meta.modelPrice || 0,
-        // Save spec so panels can be restored without catalog lookup
+        sceneUnitsPerMeter: savedScale,
         spec: spec ? { lengthM: spec.lengthM, widthM: spec.widthM, thicknessM: spec.thicknessM, watt: spec.watt, price: spec.price, brand: spec.brand, model: spec.model } : null,
         position: { x: p.position.x, y: p.position.y, z: p.position.z },
         quaternion: { x: p.quaternion.x, y: p.quaternion.y, z: p.quaternion.z, w: p.quaternion.w }
@@ -589,7 +594,9 @@ class PanelPlacer {
           brand: '', model: entry.modelLabel || entry.modelKey
         });
       }
-      const panel = this._createPanelObject(spec, false);
+      // Use saved scale to match original panel size
+      const scale = entry.sceneUnitsPerMeter || undefined;
+      const panel = this._createPanelObject(spec, false, scale);
       panel.name = entry.name;
       panel.position.set(entry.position.x, entry.position.y, entry.position.z);
       panel.quaternion.set(entry.quaternion.x, entry.quaternion.y, entry.quaternion.z, entry.quaternion.w);

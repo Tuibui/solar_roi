@@ -1003,7 +1003,7 @@ async function applyDatasetToWorkspace(ds) {
     mode: 'all',
     waitForShading: true,
     finishOverlay: false,
-    finalOnly: true
+    finalOnly: false
   };
 
   // Schedule panel restoration after model loads
