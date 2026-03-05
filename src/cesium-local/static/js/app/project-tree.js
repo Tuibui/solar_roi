@@ -17,8 +17,8 @@ const ProjectTree = (function () {
   let panelCatalog = [];
   let panelCatalogLoadPromise = null;
 
-  // ─── Panel Catalog (CSV-driven demo data) ───
-  const PANEL_CSV_URL = '/static/models/demo_panel.csv';
+  // ─── Panel Catalog (DB API) ───
+  const PANEL_API_URL = '/api/catalog/panels';
   const DEFAULT_PANEL_THICKNESS_M = 0.03;
   const DEFAULT_PANEL_WIDTH_M = 1.134;
   const DEFAULT_PANEL_LENGTH_M = 1.722;
@@ -115,23 +115,36 @@ const ProjectTree = (function () {
     };
   }
 
+  function normalizeApiPanel(p) {
+    const brand = p.brand || 'Unknown';
+    const model = p.model || 'Panel';
+    const watt = p.power_w || 0;
+    const eff = p.efficiency != null ? p.efficiency : null;
+    const price = p.price_usd || 0;
+    const lengthM = p.length_mm ? p.length_mm / 1000 : DEFAULT_PANEL_LENGTH_M;
+    const widthM = p.width_mm ? p.width_mm / 1000 : DEFAULT_PANEL_WIDTH_M;
+    const thicknessM = DEFAULT_PANEL_THICKNESS_M;
+    const panelId = slugify(`${brand}-${model}-${watt || 'w'}`);
+    return { panelId, brand, model, type: '', watt, eff, price, lengthM, widthM, thicknessM };
+  }
+
   async function ensurePanelCatalogLoaded() {
     if (panelCatalog.length > 0) return panelCatalog;
     if (panelCatalogLoadPromise) return panelCatalogLoadPromise;
 
-    panelCatalogLoadPromise = fetch(PANEL_CSV_URL)
+    panelCatalogLoadPromise = fetch(PANEL_API_URL)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.text();
+        return res.json();
       })
-      .then(text => {
-        const rows = parseSimpleCsv(text);
-        panelCatalog = rows.map(normalizePanelRow).filter(p => p.panelId);
+      .then(data => {
+        const panels = data.panels || [];
+        panelCatalog = panels.map(normalizeApiPanel).filter(p => p.panelId);
         panelCatalog.sort((a, b) => (b.watt || 0) - (a.watt || 0));
         return panelCatalog;
       })
       .catch((err) => {
-        console.error('[ProjectTree] Failed loading panel CSV:', err);
+        console.error('[ProjectTree] Failed loading panel catalog from API:', err);
         panelCatalog = [];
         return panelCatalog;
       })
