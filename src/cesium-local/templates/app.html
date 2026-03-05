@@ -89,14 +89,14 @@
   <div id="commandBar" class="command-bar">
     <div class="command-bar-left">
       <button class="command-bar-tab" data-tab="earth"><img class="tab-icon-img" src="/static/images/global.gif" alt="Earth"></button>
-      <button class="command-bar-tab" data-tab="add-panel">Manager Tree</button>
-      <button class="command-bar-tab" data-tab="project-detail">User Information</button>
-      <button class="command-bar-tab" data-tab="inverter">Inverter</button>
-      <button class="command-bar-tab" data-tab="battery">Battery</button>
+      <button class="command-bar-tab" data-tab="add-panel" data-i18n="cmd.tree">Manager Tree</button>
+      <button class="command-bar-tab" data-tab="project-detail" data-i18n="cmd.user">User Information</button>
+      <button class="command-bar-tab" data-tab="inverter" data-i18n="cmd.inverter">Inverter</button>
+      <button class="command-bar-tab" data-tab="battery" data-i18n="cmd.battery">Battery</button>
     </div>
     <div class="command-bar-right">
-      <button class="command-bar-tab ghost-tab" data-tab="open">Open Project</button>
-      <button class="command-bar-tab save-tab" data-tab="save">Save Project</button>
+      <button class="command-bar-tab ghost-tab" data-tab="open" data-i18n="cmd.open">Open Project</button>
+      <button class="command-bar-tab save-tab" data-tab="save" data-i18n="cmd.save">Save Project</button>
     </div>
   </div>
 
@@ -109,11 +109,11 @@
         <div class="map-search-box">
           <div class="map-controls-row">
             <div class="search-input-wrapper map-search">
-              <input type="text" id="addressInput" class="search-input" placeholder="Enter an address or place">
+              <input type="text" id="addressInput" class="search-input" placeholder="Enter an address or place" data-i18n-ph="app.search_ph">
               <div class="suggestions" id="suggestions"></div>
             </div>
-            <button class="btn-search-action" id="searchBtn" type="button">Search</button>
-            <button class="btn-search-action btn-detect" id="btnDetectLocation" type="button">Detect</button>
+            <button class="btn-search-action" id="searchBtn" type="button" data-i18n="app.search_btn">Search</button>
+            <button class="btn-search-action btn-detect" id="btnDetectLocation" type="button" data-i18n="app.detect_btn">Detect</button>
             <div class="toolbar-divider"></div>
             <div id="wizardToolbar" class="map-toolbar">
               <button id="btnDrawRoof" class="toolbar-btn" title="Draw Roof"><img src="/static/images/blueprint.png" alt="Draw" style="width:20px;height:20px;vertical-align:middle;"></button>
@@ -143,7 +143,7 @@
       <!-- Project Tree Panel (SolidWorks FeatureManager) -->
       <div class="project-tree-panel" id="projectTreePanel">
         <div class="ptree-header">
-          <span class="ptree-header-title" id="dockHeaderTitle">Project</span>
+          <span class="ptree-header-title" id="dockHeaderTitle" data-i18n="app.project">Project</span>
           <button class="ptree-toggle-btn" id="btnTreeToggle" title="Collapse tree">◀</button>
         </div>
         <div class="ptree-body" id="projectTreeBody"></div>
@@ -152,12 +152,12 @@
         <div class="dock-content" id="dockProjectDetail">
           <div class="dock-form-body">
             <div class="form-section">
-              <h3 class="form-section-title">Appliances</h3>
+              <h3 class="form-section-title" data-i18n="detail.appliances">Appliances</h3>
               <div class="form-group">
-                <label for="wizardPresetAppliance">Add Preset Appliance</label>
+                <label for="wizardPresetAppliance" data-i18n="detail.add_preset">Add Preset Appliance</label>
                 <div style="display: flex; gap: 6px;">
                   <select id="wizardPresetAppliance" style="flex: 1;">
-                    <option value="">-- Select --</option>
+                    <option value="" data-i18n="detail.select">-- Select --</option>
                     <option value="led|10">LED Light (10W)</option>
                     <option value="fan|75">Ceiling Fan (75W)</option>
                     <option value="fridge|150">Refrigerator (150W)</option>
@@ -170,15 +170,15 @@
                     <option value="pump|750">Water Pump (750W)</option>
                     <option value="custom">+ Custom...</option>
                   </select>
-                  <button class="btn-small primary wide-btn" id="btnAddAppliance" type="button">Add</button>
+                  <button class="btn-small primary wide-btn" id="btnAddAppliance" type="button" data-i18n="detail.add_btn">Add</button>
                 </div>
               </div>
               <div id="wizardAppliancesList" class="appliances-list"></div>
             </div>
             <div class="form-section">
-              <h3 class="form-section-title">Electricity Price</h3>
+              <h3 class="form-section-title" data-i18n="detail.elec_price">Electricity Price</h3>
               <div class="form-group">
-                <label for="wizardTariff">Price per kWh</label>
+                <label for="wizardTariff" data-i18n="detail.price_kwh">Price per kWh</label>
                 <div class="split-input-row">
                   <input type="number" id="wizardTariff" step="0.01" min="0" value="4.5" placeholder="4.5">
                   <select id="wizardCurrency" aria-label="Tariff currency">
@@ -191,20 +191,20 @@
               </div>
             </div>
             <div class="form-section">
-              <h3 class="form-section-title">Grid Export Price</h3>
+              <h3 class="form-section-title" data-i18n="detail.export_price">Grid Export Price</h3>
               <div class="form-group">
-                <label for="splitExportPrice">Export price per kWh</label>
+                <label for="splitExportPrice" data-i18n="detail.export_kwh">Export price per kWh</label>
                 <div class="split-input-row">
                   <input type="number" id="splitExportPrice" step="0.01" min="0" placeholder="2.2">
                   <span class="export-currency-label" id="exportCurrencyLabel">THB</span>
                 </div>
-                <p class="form-hint">Price your utility pays for exported solar energy.</p>
+                <p class="form-hint" data-i18n="detail.export_hint">Price your utility pays for exported solar energy.</p>
               </div>
             </div>
             <div class="form-section">
-              <h3 class="form-section-title">Project Name</h3>
+              <h3 class="form-section-title" data-i18n="detail.project_name">Project Name</h3>
               <div class="form-group">
-                <input type="text" id="splitProjectName" placeholder="My Solar Project">
+                <input type="text" id="splitProjectName" placeholder="My Solar Project" data-i18n-ph="detail.project_name_ph">
               </div>
               <div id="splitSaveMsg" style="display:none;" class="success-message"></div>
             </div>
@@ -215,14 +215,14 @@
         <div class="dock-content" id="dockInverter">
           <div class="dock-form-body">
             <div class="form-section">
-              <h3 class="form-section-title">Search Inverter</h3>
+              <h3 class="form-section-title" data-i18n="detail.search_inv">Search Inverter</h3>
               <div class="form-group">
-                <input type="text" id="splitInverterSearch" placeholder="Search brand, model, kW..." autocomplete="off" spellcheck="false">
+                <input type="text" id="splitInverterSearch" placeholder="Search brand, model, kW..." autocomplete="off" spellcheck="false" data-i18n-ph="detail.search_inv_ph">
               </div>
               <div id="splitInverterSearchList" class="appliances-list"></div>
             </div>
             <div class="form-section">
-              <h3 class="form-section-title">Installed Inverters</h3>
+              <h3 class="form-section-title" data-i18n="detail.installed_inv">Installed Inverters</h3>
               <div id="splitInverterList" class="appliances-list"></div>
             </div>
           </div>
@@ -232,14 +232,14 @@
         <div class="dock-content" id="dockBattery">
           <div class="dock-form-body">
             <div class="form-section">
-              <h3 class="form-section-title">Search Battery</h3>
+              <h3 class="form-section-title" data-i18n="detail.search_bat">Search Battery</h3>
               <div class="form-group">
-                <input type="text" id="splitBatterySearch" placeholder="Search brand, model, kWh..." autocomplete="off" spellcheck="false">
+                <input type="text" id="splitBatterySearch" placeholder="Search brand, model, kWh..." autocomplete="off" spellcheck="false" data-i18n-ph="detail.search_bat_ph">
               </div>
               <div id="splitBatterySearchList" class="appliances-list"></div>
             </div>
             <div class="form-section">
-              <h3 class="form-section-title">Installed Batteries</h3>
+              <h3 class="form-section-title" data-i18n="detail.installed_bat">Installed Batteries</h3>
               <div id="splitBatteryList" class="appliances-list"></div>
             </div>
           </div>
@@ -267,14 +267,14 @@
 
         <!-- Sketch mode confirm/cancel (top-right) -->
         <div class="sketch-confirm-bar hidden" id="sketchConfirmBar">
-          <button class="sketch-btn sketch-btn-undo" id="btnSketchUndo" title="Undo (Ctrl+Z)">↩</button>
-          <button class="sketch-btn sketch-btn-redo" id="btnSketchRedo" title="Redo (Ctrl+Shift+Z)">↪</button>
-          <button class="sketch-btn sketch-btn-ok" id="btnSketchFinish" title="Finish sketch">✓</button>
-          <button class="sketch-btn sketch-btn-cancel" id="btnSketchCancel" title="Cancel sketch">✗</button>
+          <button class="sketch-btn sketch-btn-undo" id="btnSketchUndo" title="Undo (Ctrl+Z)" data-i18n-title="app.undo">↩</button>
+          <button class="sketch-btn sketch-btn-redo" id="btnSketchRedo" title="Redo (Ctrl+Shift+Z)" data-i18n-title="app.redo">↪</button>
+          <button class="sketch-btn sketch-btn-ok" id="btnSketchFinish" title="Finish sketch" data-i18n-title="app.finish_sketch">✓</button>
+          <button class="sketch-btn sketch-btn-cancel" id="btnSketchCancel" title="Cancel sketch" data-i18n-title="app.cancel_sketch">✗</button>
         </div>
 
         <!-- Sketch mode indicator -->
-        <div class="sketch-mode-badge hidden" id="sketchModeBadge">SKETCH MODE</div>
+        <div class="sketch-mode-badge hidden" id="sketchModeBadge" data-i18n="app.sketch_mode">SKETCH MODE</div>
       </div>
       </div><!-- /.split-viewer-col -->
     </div>
@@ -285,9 +285,9 @@
   <!-- Save Popup -->
   <div class="save-popup hidden" id="savePopup" role="status" aria-live="polite">
     <div class="save-popup-card">
-      <div class="save-popup-title" id="savePopupTitle">Project Saved</div>
+      <div class="save-popup-title" id="savePopupTitle" data-i18n="app.save_popup">Project Saved</div>
       <div class="save-popup-body" id="savePopupBody"></div>
-      <button class="save-popup-close" id="savePopupClose" type="button">Close</button>
+      <button class="save-popup-close" id="savePopupClose" type="button" data-i18n="app.close">Close</button>
     </div>
   </div>
 
@@ -295,7 +295,7 @@
   <div class="opm-overlay hidden" id="openProjectOverlay" role="dialog" aria-modal="true" aria-label="Open Project">
     <div class="opm-modal">
       <div class="opm-header">
-        <span class="opm-title">Open Project</span>
+        <span class="opm-title" data-i18n="modal.open_project">Open Project</span>
         <button class="opm-close" id="openProjectClose" aria-label="Close">&#x2715;</button>
       </div>
       <div class="opm-body" id="openProjectBody"></div>
@@ -646,10 +646,12 @@
     (function() {
       const btn = document.getElementById("topAuthBtn");
       if (window.isGuest) {
-        btn.textContent = "Login";
+        btn.textContent = window.I18n ? I18n.t('top.login') : "Login";
+        btn.setAttribute('data-i18n', 'top.login');
         btn.onclick = () => { window.location.href = "/login"; };
       } else {
-        btn.textContent = "Logout";
+        btn.textContent = window.I18n ? I18n.t('top.logout') : "Logout";
+        btn.setAttribute('data-i18n', 'top.logout');
         btn.onclick = (event) => {
           event.preventDefault();
           sessionStorage.removeItem("solar_demo_auth");
@@ -659,6 +661,18 @@
         };
       }
     })();
+
+    // Currency change → update export price currency label
+    window.addEventListener('currency-changed', () => {
+      const label = document.getElementById('exportCurrencyLabel');
+      const cur = window.CurrencyUtil ? CurrencyUtil.getSelectedCurrency() : 'THB';
+      if (label) label.textContent = cur;
+    });
+
+    // Language change → re-apply data-i18n to all elements
+    window.addEventListener('lang-changed', () => {
+      if (window.I18n) I18n.apply();
+    });
   </script>
 </body>
 </html>

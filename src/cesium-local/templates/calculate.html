@@ -65,12 +65,12 @@
   <div class="calc-container">
     <div class="calc-layout">
       <aside class="project-panel">
-        <div class="project-panel-title">Projects</div>
-        <div id="datasetsContainer" class="loading project-list">Loading projects...</div>
+        <div class="project-panel-title" data-i18n="calc.projects">Projects</div>
+        <div id="datasetsContainer" class="loading project-list" data-i18n="calc.loading">Loading projects...</div>
         <div class="action-bar" id="actionBar" style="display: none;">
-          <button class="btn-calc" id="btnEstimate" disabled>Estimate System</button>
-          <button class="btn-del" id="btnDel" disabled>Delete</button>
-          <span class="selected-info" id="selectedInfo">No selection</span>
+          <button class="btn-calc" id="btnEstimate" disabled data-i18n="calc.estimate">Estimate System</button>
+          <button class="btn-del" id="btnDel" disabled data-i18n="calc.delete">Delete</button>
+          <span class="selected-info" id="selectedInfo" data-i18n="calc.no_selection">No selection</span>
         </div>
       </aside>
 
@@ -78,11 +78,11 @@
         <!-- Roof & Model capture images (side by side) -->
         <div class="capture-images" id="captureImages" style="display:none;">
           <div class="capture-card">
-            <div class="capture-label">ACTUAL ROOF</div>
+            <div class="capture-label" data-i18n="calc.actual_roof">ACTUAL ROOF</div>
             <img id="captureRoof" alt="Roof capture" />
           </div>
           <div class="capture-card">
-            <div class="capture-label">3D MODEL</div>
+            <div class="capture-label" data-i18n="calc.model_3d">3D MODEL</div>
             <img id="captureModel" alt="Model capture" />
           </div>
         </div>
@@ -90,21 +90,21 @@
         <div class="chart-section" id="chartSection">
           <div class="chart-container">
             <div class="chart-header" style="margin-bottom: 6px;">
-              <h3 class="chart-title">Monthly Solar Irradiation <span class="data-source-badge">PVGIS</span></h3>
+              <h3 class="chart-title"><span data-i18n="calc.irradiation">Monthly Solar Irradiation</span> <span class="data-source-badge">PVGIS</span></h3>
             </div>
             <div class="chart-canvas-wrap">
               <canvas id="irradiationChart"></canvas>
-              <div class="chart-loading" id="chartLoading">Loading irradiation data from PVGIS...</div>
+              <div class="chart-loading" id="chartLoading" data-i18n="calc.loading_irr">Loading irradiation data from PVGIS...</div>
             </div>
             <div class="chart-table-wrap">
               <table class="chart-table" id="irradiationRoofTable">
                 <thead>
                   <tr>
-                    <th>Roof</th>
-                    <th>Tilt (°)</th>
-                    <th>Azimuth (°)</th>
-                    <th>Area (m²)</th>
-                    <th>Irradiation (kWh/m²/y)</th>
+                    <th data-i18n="calc.th_roof">Roof</th>
+                    <th data-i18n="calc.th_tilt">Tilt (°)</th>
+                    <th data-i18n="calc.th_azimuth">Azimuth (°)</th>
+                    <th data-i18n="calc.th_area">Area (m²)</th>
+                    <th data-i18n="calc.th_irradiation">Irradiation (kWh/m²/y)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -119,24 +119,24 @@
         <div class="chart-section" id="pvOutputSection">
           <div class="chart-container pv-output-container">
             <div class="chart-header" style="margin-bottom: 6px;">
-              <h3 class="chart-title">Monthly PV Output (Total System) <span class="data-source-badge">PVGIS</span></h3>
+              <h3 class="chart-title"><span data-i18n="calc.pv_output">Monthly PV Output (Total System)</span> <span class="data-source-badge">PVGIS</span></h3>
               <div class="chart-kpi">
                 <div class="chart-kpi-item">
-                  <div class="chart-kpi-label">System Size</div>
+                  <div class="chart-kpi-label" data-i18n="calc.system_size">System Size</div>
                   <div class="chart-kpi-value" id="pvKpiSystem">-</div>
                 </div>
                 <div class="chart-kpi-item">
-                  <div class="chart-kpi-label">Annual PV</div>
+                  <div class="chart-kpi-label" data-i18n="calc.annual_pv">Annual PV</div>
                   <div class="chart-kpi-value" id="pvKpiAnnual">-</div>
                 </div>
               </div>
             </div>
             <div class="chart-canvas-wrap">
               <canvas id="pvOutputChart"></canvas>
-              <div class="chart-loading hidden" id="pvOutputLoading">Calculating PV output...</div>
+              <div class="chart-loading hidden" id="pvOutputLoading" data-i18n="calc.loading_pv">Calculating PV output...</div>
             </div>
             <div class="chart-table-wrap bom-table-wrap" style="margin-top: 16px;">
-              <div class="model-card-title" style="margin: 0 0 8px;">Bill of Materials</div>
+              <div class="model-card-title" style="margin: 0 0 8px;" data-i18n="calc.bom">Bill of Materials</div>
               <table class="chart-table" id="bomTable"></table>
             </div>
           </div>
@@ -146,8 +146,8 @@
         <section class="report-section" id="reportSection">
           <div class="report-header">
             <div>
-              <div class="report-title" id="reportTitle">ROI Report</div>
-              <div class="report-subtitle" id="reportSubtitle">Select a project and calculate sizing to generate the report.</div>
+              <div class="report-title" id="reportTitle" data-i18n="calc.roi_report">ROI Report</div>
+              <div class="report-subtitle" id="reportSubtitle" data-i18n="calc.select_prompt">Select a project and calculate sizing to generate the report.</div>
             </div>
             <div class="report-actions"></div>
           </div>
@@ -156,19 +156,19 @@
 
           <div class="report-charts">
             <div class="report-chart-card">
-              <div class="report-chart-title">Monthly Energy Balance</div>
+              <div class="report-chart-title" data-i18n="calc.energy_balance">Monthly Energy Balance</div>
               <canvas id="energyChart"></canvas>
             </div>
             <div class="report-chart-card">
-              <div class="report-chart-title">Cumulative Cashflow</div>
+              <div class="report-chart-title" data-i18n="calc.cashflow">Cumulative Cashflow</div>
               <canvas id="cashflowChart"></canvas>
             </div>
             <div class="report-chart-card">
-              <div class="report-chart-title">Monthly Bill Comparison</div>
+              <div class="report-chart-title" data-i18n="calc.bill_compare">Monthly Bill Comparison</div>
               <canvas id="billChart"></canvas>
             </div>
             <div class="report-chart-card">
-              <div class="report-chart-title">Self‑Consumption Ratio</div>
+              <div class="report-chart-title" data-i18n="calc.self_consume">Self‑Consumption Ratio</div>
               <canvas id="selfConsumptionChart"></canvas>
             </div>
           </div>
@@ -202,18 +202,7 @@
       };
       const DEFAULT_CHART_COLOR = [26, 82, 118];
 
-      // Static exchange rates (base: USD)
-      const FX_RATES_TO_USD = { USD: 1, EUR: 0.92, JPY: 150, THB: 35.5 };
-      window.CurrencyUtil = {
-        convert(val, from, to) {
-          const v = Number(val) || 0;
-          if (from === to || !from || !to) return v;
-          const fromRate = FX_RATES_TO_USD[from];
-          const toRate = FX_RATES_TO_USD[to];
-          if (!fromRate || !toRate) return v;
-          return v / fromRate * toRate;
-        }
-      };
+      // CurrencyUtil is loaded from utils.js – do NOT redefine here
 
       let selectedId = null;
       let datasets = [];
@@ -1058,7 +1047,8 @@
         const user = getUser();
 
         if (!user || !user.id) {
-          container.innerHTML = '<div class="empty-state"><h3>Not Logged In</h3><p><a href="/login">Login</a> to view your projects.</p></div>';
+          const _t = window.I18n ? I18n.t : (k) => k;
+          container.innerHTML = `<div class="empty-state"><h3>${_t('calc.not_logged_in')}</h3><p><a href="/login">${_t('top.login')}</a> ${_t('calc.login_prompt')}</p></div>`;
           loadProjectModel(null);
           return;
         }
@@ -1069,22 +1059,24 @@
           datasets = data.projects || [];
 
           if (datasets.length === 0) {
-            container.innerHTML = '<div class="empty-state"><h3>No Projects</h3><p>Create a project in the <a href="/app">App</a> first.</p></div>';
+            const _t = window.I18n ? I18n.t : (k) => k;
+            container.innerHTML = `<div class="empty-state"><h3>${_t('calc.no_projects')}</h3><p>${_t('calc.create_prompt')}</p></div>`;
             actionBar.style.display = "none";
             loadProjectModel(null);
             return;
           }
 
           container.className = "project-list";
+          const _t = window.I18n ? I18n.t : (k) => k;
           container.innerHTML = datasets.map(ds => {
             const roofCount = ds.roofs?.length || 0;
             const loc = ds.location?.address || (ds.location?.lat ? ds.location.lat.toFixed(4) + ", " + ds.location.lon.toFixed(4) : "-");
             return '<div class="dataset-card" data-id="' + ds.id + '">' +
               '<div class="dataset-name">' + (ds.name || "Untitled") + '</div>' +
               '<div class="dataset-meta">' +
-                '<div class="dataset-meta-row"><span class="dataset-meta-label">Created</span><span class="dataset-meta-value">' + formatDate(ds.created_at) + '</span></div>' +
-                '<div class="dataset-meta-row"><span class="dataset-meta-label">Location</span><span class="dataset-meta-value">' + loc + '</span></div>' +
-                '<div class="dataset-meta-row"><span class="dataset-meta-label">Roofs</span><span class="dataset-meta-value">' + roofCount + '</span></div>' +
+                '<div class="dataset-meta-row"><span class="dataset-meta-label">' + _t('calc.created') + '</span><span class="dataset-meta-value">' + formatDate(ds.created_at) + '</span></div>' +
+                '<div class="dataset-meta-row"><span class="dataset-meta-label">' + _t('calc.location') + '</span><span class="dataset-meta-value">' + loc + '</span></div>' +
+                '<div class="dataset-meta-row"><span class="dataset-meta-label">' + _t('calc.roofs_label') + '</span><span class="dataset-meta-value">' + roofCount + '</span></div>' +
               '</div></div>';
           }).join("");
 
@@ -1124,7 +1116,8 @@
         const btnEstimate = document.getElementById("btnEstimate");
         if (btnEstimate) btnEstimate.disabled = false;
         document.getElementById("btnDel").disabled = false;
-        document.getElementById("selectedInfo").textContent = "Selected: " + (currentProject?.name || "Untitled");
+        const _t = window.I18n ? I18n.t : (k) => k;
+        document.getElementById("selectedInfo").textContent = _t('calc.selected_prefix') + ": " + (currentProject?.name || "Untitled");
         sizingData = null;
         lastIrradiationData = null;
         lastPvOutputData = null;
@@ -1293,10 +1286,11 @@
 
       function updateEnergyChart(monthlyLoad, monthlyPV, monthlySelf, monthlyExport) {
         const ctx = document.getElementById("energyChart").getContext("2d");
+        const _t = window.I18n ? I18n.t : (k) => k;
         const datasets = [
-          { label: "Load", data: monthlyLoad, backgroundColor: "rgba(55, 65, 81, 0.35)", borderRadius: 3 },
-          { label: "Self-consumed", data: monthlySelf, backgroundColor: "rgba(28, 79, 110, 0.7)", borderRadius: 3 },
-          { label: "Export", data: monthlyExport, backgroundColor: "rgba(16, 185, 129, 0.6)", borderRadius: 3 }
+          { label: _t('calc.chart_load'), data: monthlyLoad, backgroundColor: "rgba(55, 65, 81, 0.35)", borderRadius: 3 },
+          { label: _t('calc.chart_self_consumed'), data: monthlySelf, backgroundColor: "rgba(28, 79, 110, 0.7)", borderRadius: 3 },
+          { label: _t('calc.chart_export'), data: monthlyExport, backgroundColor: "rgba(16, 185, 129, 0.6)", borderRadius: 3 }
         ];
 
         if (energyChart) {
@@ -1332,8 +1326,9 @@
 
       function updateCashflowChart(cumulative, currency) {
         const ctx = document.getElementById("cashflowChart").getContext("2d");
+        const _t = window.I18n ? I18n.t : (k) => k;
         const labels = cumulative.map((_, i) => `Y${i + 1}`);
-        const yLabel = `Cumulative Cashflow [${currency || ''}]`;
+        const yLabel = `${_t('calc.cashflow')} [${currency || ''}]`;
 
         if (cashflowChart) {
           cashflowChart.data.labels = labels;
@@ -1348,7 +1343,7 @@
           data: {
             labels,
             datasets: [{
-              label: "Cumulative Cashflow",
+              label: _t('calc.cashflow'),
               data: cumulative,
               borderColor: "rgba(28, 79, 110, 0.9)",
               backgroundColor: "rgba(28, 79, 110, 0.12)",
@@ -1376,9 +1371,10 @@
 
       function updateBillChart(baseline, post, currency) {
         const ctx = document.getElementById("billChart").getContext("2d");
+        const _t = window.I18n ? I18n.t : (k) => k;
         const datasets = [
-          { label: "Baseline Bill", data: baseline, backgroundColor: "rgba(55, 65, 81, 0.35)" },
-          { label: "Post‑PV Bill", data: post, backgroundColor: "rgba(16, 185, 129, 0.6)" }
+          { label: _t('calc.chart_baseline'), data: baseline, backgroundColor: "rgba(55, 65, 81, 0.35)" },
+          { label: _t('calc.chart_post_pv'), data: post, backgroundColor: "rgba(16, 185, 129, 0.6)" }
         ];
         const yLabel = `Monthly Bill [${currency || ''}]`;
 
@@ -1414,8 +1410,9 @@
 
       function updateSelfConsumptionChart(selfConsumed, exported, selfRatio) {
         const ctx = document.getElementById("selfConsumptionChart").getContext("2d");
+        const _t = window.I18n ? I18n.t : (k) => k;
         const pct = (selfRatio * 100).toFixed(0);
-        const titleText = `${pct}% Self-Consumed`;
+        const titleText = `${pct}% ${_t('calc.chart_self_consumed')}`;
 
         if (selfConsumptionChart) {
           selfConsumptionChart.data.datasets[0].data = [selfConsumed, exported];
@@ -1427,7 +1424,7 @@
         selfConsumptionChart = new Chart(ctx, {
           type: "doughnut",
           data: {
-            labels: ["Self-Consumed [kWh]", "Exported [kWh]"],
+            labels: [_t('calc.chart_self_kwh'), _t('calc.chart_export_kwh')],
             datasets: [{
               data: [selfConsumed, exported],
               backgroundColor: ["rgba(28, 79, 110, 0.75)", "rgba(16, 185, 129, 0.65)"],
@@ -1466,8 +1463,9 @@
 
       function updatePvOutputChart(monthlyPV) {
         const ctx = document.getElementById("pvOutputChart").getContext("2d");
+        const _t = window.I18n ? I18n.t : (k) => k;
         const dataset = [{
-          label: "PV Output (kWh)",
+          label: _t('calc.chart_pv_output'),
           data: monthlyPV,
           backgroundColor: "rgba(28, 79, 110, 0.65)",
           borderColor: "rgba(28, 79, 110, 0.95)",
@@ -1576,54 +1574,55 @@
         const irr = computeIRR(cash.flows, capex);
         const payback = annualSavings > 0 ? capex / annualSavings : 0;
 
+        const _t = window.I18n ? I18n.t : (k) => k;
         reportSummary.innerHTML = `
           <table class="report-table">
             <thead>
               <tr>
-                <th>Topic</th>
-                <th>Description</th>
-                <th>Quantity</th>
-                <th>Unit</th>
+                <th>${_t('calc.th_topic')}</th>
+                <th>${_t('calc.th_description')}</th>
+                <th>${_t('calc.th_quantity')}</th>
+                <th>${_t('calc.th_unit')}</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td>Self‑Consumption</td><td>PV used onsite</td><td>${(selfRatio * 100).toFixed(0)}</td><td>%</td></tr>
-              <tr><td>Annual Savings</td><td>Baseline bill minus post‑PV bill</td><td>${formatCurrency(annualSavings, currency)}</td><td>${currency}/year</td></tr>
-              <tr><td>Payback</td><td>Years to recover total capex</td><td>${payback ? payback.toFixed(1) : "-"}</td><td>years</td></tr>
-              <tr><td>NPV</td><td>Net present value of cashflows</td><td>${formatCurrency(npv, currency)}</td><td>${currency}</td></tr>
-              <tr><td>IRR</td><td>Rate where NPV equals zero</td><td>${(irr * 100).toFixed(1)}</td><td>%</td></tr>
-              <tr><td>Total Capex</td><td>Hardware + BOS/installation</td><td>${formatCurrency(capex, currency)}</td><td>${currency}</td></tr>
-              <tr><td>LCOE</td><td>Levelized cost of PV energy</td><td>${formatCurrency(lcoe, currency)}</td><td>${currency}/kWh</td></tr>
+              <tr><td>${_t('calc.self_consumption')}</td><td>${_t('calc.desc_self')}</td><td>${(selfRatio * 100).toFixed(0)}</td><td>%</td></tr>
+              <tr><td>${_t('calc.annual_savings')}</td><td>${_t('calc.desc_savings')}</td><td>${formatCurrency(annualSavings, currency)}</td><td>${currency}/year</td></tr>
+              <tr><td>${_t('calc.payback')}</td><td>${_t('calc.desc_payback')}</td><td>${payback ? payback.toFixed(1) : "-"}</td><td>years</td></tr>
+              <tr><td>${_t('calc.npv_label')}</td><td>${_t('calc.desc_npv')}</td><td>${formatCurrency(npv, currency)}</td><td>${currency}</td></tr>
+              <tr><td>${_t('calc.irr_label')}</td><td>${_t('calc.desc_irr')}</td><td>${(irr * 100).toFixed(1)}</td><td>%</td></tr>
+              <tr><td>${_t('calc.total_capex')}</td><td>${_t('calc.desc_capex')}</td><td>${formatCurrency(capex, currency)}</td><td>${currency}</td></tr>
+              <tr><td>${_t('calc.lcoe')}</td><td>${_t('calc.desc_lcoe')}</td><td>${formatCurrency(lcoe, currency)}</td><td>${currency}/kWh</td></tr>
             </tbody>
           </table>
         `;
 
         const panelUnitCost = panelCount > 0 ? panelCost / panelCount : 0;
         const bomRows = [];
-        bomRows.push(`<tr><td>Panel</td><td>${panelCount}</td><td>${panelWatt} W</td><td>${panelUnitCost ? formatCurrency(panelUnitCost, currency) : "-"}</td><td>${panelCost ? formatCurrency(panelCost, currency) : "-"}</td></tr>`);
+        bomRows.push(`<tr><td>${_t('calc.panel')}</td><td>${panelCount}</td><td>${panelWatt} W</td><td>${panelUnitCost ? formatCurrency(panelUnitCost, currency) : "-"}</td><td>${panelCost ? formatCurrency(panelCost, currency) : "-"}</td></tr>`);
         if (inverters.length) {
           inverters.forEach(inv => {
             const price = convertCurrency(Number(inv.price) || 0, "USD", currency);
-            bomRows.push(`<tr><td>Inverter</td><td>1</td><td>${inv.model || "-"}</td><td>${formatCurrency(price, currency)}</td><td>${formatCurrency(price, currency)}</td></tr>`);
+            bomRows.push(`<tr><td>${_t('cmd.inverter')}</td><td>1</td><td>${inv.model || "-"}</td><td>${formatCurrency(price, currency)}</td><td>${formatCurrency(price, currency)}</td></tr>`);
           });
         } else {
-          bomRows.push(`<tr><td>Inverter</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`);
+          bomRows.push(`<tr><td>${_t('cmd.inverter')}</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`);
         }
         if (batteries.length) {
           batteries.forEach(bat => {
             const price = convertCurrency(Number(bat.price) || 0, "USD", currency);
-            bomRows.push(`<tr><td>Battery</td><td>1</td><td>${bat.model || "-"}</td><td>${formatCurrency(price, currency)}</td><td>${formatCurrency(price, currency)}</td></tr>`);
+            bomRows.push(`<tr><td>${_t('cmd.battery')}</td><td>1</td><td>${bat.model || "-"}</td><td>${formatCurrency(price, currency)}</td><td>${formatCurrency(price, currency)}</td></tr>`);
           });
         } else {
-          bomRows.push(`<tr><td>Battery</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`);
+          bomRows.push(`<tr><td>${_t('cmd.battery')}</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`);
         }
-        bomRows.push(`<tr><td colspan="4"><strong>Hardware Total</strong></td><td><strong>${formatCurrency(hardwareTotal, currency)}</strong></td></tr>`);
-        bomRows.push(`<tr><td colspan="4"><strong>Total Capex (incl. BOS)</strong></td><td><strong>${formatCurrency(capex, currency)}</strong></td></tr>`);
+        bomRows.push(`<tr><td colspan="4"><strong>${_t('calc.hw_total')}</strong></td><td><strong>${formatCurrency(hardwareTotal, currency)}</strong></td></tr>`);
+        bomRows.push(`<tr><td colspan="4"><strong>${_t('calc.capex_bos')}</strong></td><td><strong>${formatCurrency(capex, currency)}</strong></td></tr>`);
 
         bomTable.innerHTML = `
           <thead>
             <tr>
-              <th>Item</th><th>Qty</th><th>Spec</th><th>Unit Cost</th><th>Total</th>
+              <th>${_t('calc.th_item')}</th><th>${_t('calc.th_qty')}</th><th>${_t('calc.th_spec')}</th><th>${_t('calc.th_unit_cost')}</th><th>${_t('calc.th_total')}</th>
             </tr>
           </thead>
           <tbody>${bomRows.join("")}</tbody>
@@ -1841,11 +1840,14 @@
         const isGuest = !(sessionStorage.getItem(AUTH_KEY) && sessionStorage.getItem(USER_KEY));
         const topBtn = document.getElementById("topAuthBtn");
         if (topBtn) {
+          const _t = window.I18n ? I18n.t : (k) => k;
           if (isGuest) {
-            topBtn.textContent = "Login";
+            topBtn.textContent = _t('top.login');
+            topBtn.setAttribute('data-i18n', 'top.login');
             topBtn.onclick = () => { window.location.href = "/login"; };
           } else {
-            topBtn.textContent = "Logout";
+            topBtn.textContent = _t('top.logout');
+            topBtn.setAttribute('data-i18n', 'top.logout');
             topBtn.onclick = (e) => {
               e.preventDefault();
               sessionStorage.removeItem(AUTH_KEY);
@@ -1877,6 +1879,16 @@
       window.addEventListener('currency-changed', () => {
         panelPricePerWattUSD = null; // force re-fetch
         if (currentProject && sizingData) renderReport();
+      });
+
+      // Re-render everything when language changes
+      window.addEventListener('lang-changed', () => {
+        // Re-render project list labels
+        if (datasets.length) loadDatasets();
+        // Re-render report (tables, charts, labels)
+        if (currentProject && sizingData) renderReport();
+        // Re-apply data-i18n on static elements
+        if (window.I18n) I18n.apply();
       });
 
       loadDatasets();
