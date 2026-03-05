@@ -77,6 +77,9 @@ class Project(db.Model):
     capture_image_path = db.Column(db.String(300), nullable=True)
     # 3D model snapshot path
     capture_model_path = db.Column(db.String(300), nullable=True)
+    # Capture images as base64 (persistent across deploys)
+    capture_image_b64 = db.Column(db.Text, nullable=True)
+    capture_model_b64 = db.Column(db.Text, nullable=True)
 
     # Equipment lists (stored as JSON text)
     inverters_json = db.Column(db.Text, nullable=True)
@@ -122,8 +125,8 @@ class Project(db.Model):
                 'type': self.system_type
             },
             'selected_roof_index': self.selected_roof_index,
-            'capture_image_path': self.capture_image_path,
-            'capture_model_path': self.capture_model_path,
+            'capture_image_path': f'/api/projects/{self.id}/capture/roof' if self.capture_image_b64 else self.capture_image_path,
+            'capture_model_path': f'/api/projects/{self.id}/capture/model' if self.capture_model_b64 else self.capture_model_path,
             'inverters': self._parse_json_list(self.inverters_json),
             'batteries': self._parse_json_list(self.batteries_json),
             'panels': self._parse_json_list(self.panels_json),

@@ -31,12 +31,23 @@ def _save_capture_image(project_id, data_url, suffix="roof"):
     except Exception:
         return None
 
+    # Save to filesystem (works locally, ephemeral on cloud)
     capture_dir = os.path.join(STATIC_DIR_FRONTEND, "captures")
     os.makedirs(capture_dir, exist_ok=True)
     filename = f"project_{project_id}_{suffix}.{ext}"
     file_path = os.path.join(capture_dir, filename)
     with open(file_path, "wb") as f:
         f.write(image_bytes)
+
+    # Also store in DB for persistence across deploys
+    project = Project.query.get(project_id)
+    if project:
+        full_b64 = f"data:image/{ext};base64,{b64_data}"
+        if suffix == "roof":
+            project.capture_image_b64 = full_b64
+        else:
+            project.capture_model_b64 = full_b64
+
     return f"/static/captures/{filename}"
 
 
@@ -342,6 +353,35 @@ def get_roofs(project_id):
 
     return jsonify({
         "roofs": [r.to_dict() for r in project.roofs]
+    })
+
+
+@projects_bp.route("/api/projects/<int:project_id>/capture/<suffix>", methods=["GET"])
+def get_project_capture(project_id, suffix):
+    """Serve capture images from DB (persistent across deploys)."""
+    project = Project.query.get(project_id)
+    if not project:
+        return jsonify({"error": "Project not found"}), 404
+
+    if suffix == "roof":
+        data_url = project.capture_image_b64
+    elif suffix == "model":
+        data_url = project.capture_model_b64
+    else:
+        return jsonify({"error": "Invalid suffix"}), 400
+
+    if not data_url:
+        return '', 404
+
+    match = re.match(r'^data:image/([a-zA-Z0-9+]+);base64,(.+)$', data_url)
+    if not match:
+        return '', 404
+
+    mime = f"image/{match.group(1)}"
+    image_bytes = base64.b64decode(match.group(2))
+    from flask import Response
+    return Response(image_bytes, mimetype=mime, headers={
+        'Cache-Control': 'public, max-age=86400'
     })
 
 
