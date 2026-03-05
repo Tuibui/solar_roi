@@ -1,33 +1,33 @@
 /* ============================================
-   DESIGN SYSTEM - Japanese Engineering Style
-   Clean, precise, data-dense, professional
+   DESIGN SYSTEM - Technical Vintage Oldschool
+   Industrial, precise, grey-charcoal palette
    ============================================ */
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Anton&display=swap");
 
 :root {
-  /* Primary palette - restrained */
-  --bg-primary: #0f2735;
-  --bg-secondary: #182f3d;
-  --bg-tertiary: #223744;
-  --bg-surface: #f2f4f7;
+  /* Primary palette - industrial charcoal */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #252525;
+  --bg-tertiary: #2f2f2f;
+  --bg-surface: #edeeef;
   --bg-card: #ffffff;
-  --bg-ink: #0b1f2b;
+  --bg-ink: #1a1a1a;
 
   /* Text colors */
-  --text-primary: #1a232b;
-  --text-secondary: #394752;
-  --text-muted: #5d6b76;
-  --text-inverse: #f2f5f8;
+  --text-primary: #1a1e22;
+  --text-secondary: #3d4349;
+  --text-muted: #6b7178;
+  --text-inverse: #eaecee;
 
-  /* Accent - single muted blue */
-  --accent: #1c4f6e;
-  --accent-hover: #163e57;
-  --accent-subtle: rgba(28, 79, 110, 0.12);
+  /* Accent - neutral charcoal grey */
+  --accent: #4a5568;
+  --accent-hover: #3a4556;
+  --accent-subtle: rgba(74, 85, 104, 0.12);
 
   /* Borders */
-  --border-light: #d6dce2;
-  --border-medium: #c1c8cf;
-  --border-dark: #1a3443;
+  --border-light: #d2d5d9;
+  --border-medium: #b8bcc1;
+  --border-dark: #2a2a2a;
 
   /* Status */
   --success: #1d7a59;
@@ -108,7 +108,7 @@ body {
    HEADER - Compact, professional
    ============================================ */
 .header {
-  background: linear-gradient(180deg, #0f2a3a 0%, #143547 100%);
+  background: linear-gradient(180deg, #1a1a1a 0%, #262626 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   position: sticky;
   top: 0;
@@ -175,19 +175,19 @@ body {
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(232, 239, 245, 0.18);
-  background: rgba(15, 39, 53, 0.5);
+  background: rgba(26, 26, 26, 0.5);
   transition: all 0.12s ease;
 }
 
 .header-links a:hover {
   color: #fff;
   border-color: rgba(232, 239, 245, 0.4);
-  background: rgba(22, 45, 60, 0.8);
+  background: rgba(50, 50, 50, 0.8);
 }
 
 .header-links a.active {
   color: #fff;
-  background: rgba(28, 79, 110, 0.85);
+  background: rgba(74, 85, 104, 0.85);
   border-color: rgba(255, 255, 255, 0.4);
 }
 
@@ -308,7 +308,7 @@ body {
      0 3px 7px rgba(0,0,0,0.35);
 }
 .sunscope-wordmark .sunscope-sun { color: #fca63a; }
-.sunscope-wordmark .sunscope-scope { color: #3a94ff; }
+.sunscope-wordmark .sunscope-scope { color: #c0c8d0; }
 
 .sub-strip {
   height: var(--bar-unit);
@@ -380,7 +380,7 @@ body {
   background: linear-gradient(180deg, #f6f8fa 0%, #e1e6ea 100%);
   border: 1px solid #aab2b8;
   border-radius: var(--radius-md);
-  box-shadow: inset 0 1px 0 #ffffff, 0 1px 0 rgba(15, 39, 53, 0.05);
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 0 rgba(20, 20, 20, 0.05);
 }
 
 .card-header {
@@ -416,20 +416,20 @@ body {
   padding: var(--sp-2) var(--sp-4);
   font-size: var(--text-sm);
   font-weight: 600;
-  border: 1px solid #1f3f57;
+  border: 1px solid #3a424d;
   border-radius: var(--radius-sm);
-  background: linear-gradient(180deg, #2b5875 0%, #1f3f57 100%);
+  background: linear-gradient(180deg, #555d68 0%, #3a424d 100%);
   color: #fff;
   cursor: pointer;
   transition: background 0.1s ease;
   text-transform: none;
   letter-spacing: 0.02em;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(180deg, #306484 0%, #244860 100%);
-  border-color: #244860;
+  background: linear-gradient(180deg, #5f6873 0%, #454d57 100%);
+  border-color: #454d57;
 }
 
 .btn-primary:disabled {
@@ -629,7 +629,7 @@ body {
 .opm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(11, 31, 43, 0.72);
+  background: rgba(20, 20, 20, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -709,7 +709,7 @@ body {
 }
 .opm-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 2px 8px rgba(28,79,110,0.10);
+  box-shadow: 0 2px 8px rgba(74,85,104,0.15);
 }
 .opm-card-info { flex: 1; min-width: 0; }
 .opm-card-name {
@@ -780,4 +780,4 @@ body {
 }
 .app-toast--success { background: #1e6f3e; }
 .app-toast--error   { background: #b63028; }
-.app-toast--info    { background: var(--accent); }
+.app-toast--info    { background: #4a5568; }

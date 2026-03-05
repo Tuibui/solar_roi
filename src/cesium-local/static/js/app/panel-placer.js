@@ -1587,7 +1587,7 @@ class PanelPlacer {
     const setActive = () => {
       hud.querySelectorAll('button').forEach((btn) => {
         const active = btn.dataset.mode === this._gizmoMode;
-        btn.style.background = active ? '#1f5d87' : '#f3f3f3';
+        btn.style.background = active ? '#4a5568' : '#f3f3f3';
         btn.style.color = active ? '#fff' : '#222';
       });
     };

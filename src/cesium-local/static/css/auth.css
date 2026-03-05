@@ -1,5 +1,5 @@
 /* ============================================
-   AUTH PAGES — Technical Old-School
+   AUTH PAGES — Technical Vintage Oldschool
    Shared by login.html & register.html
    Uses --steel-* and --accent from base.css
    ============================================ */
@@ -8,7 +8,7 @@
 body.login-page,
 body.register-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #c9ced3 0%, #dde1e5 100%);
+  background: linear-gradient(180deg, #c9cdd2 0%, #d8dce0 100%);
   color: #1d242a;
   position: relative;
   overflow: hidden;
@@ -20,8 +20,8 @@ body.register-page::before {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(15, 30, 40, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 30, 40, 0.06) 1px, transparent 1px);
+    linear-gradient(rgba(20, 20, 20, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 20, 20, 0.06) 1px, transparent 1px);
   background-size: 28px 28px;
   pointer-events: none;
   opacity: 0.6;
@@ -50,13 +50,13 @@ body.register-page::after {
   min-height: calc(100vh - 96px);
 }
 
-/* ── Shell grid ── */
+/* ── Shell grid — BIGGER ── */
 .login-shell,
 .register-shell {
   display: grid;
-  grid-template-columns: minmax(320px, 520px);
-  gap: 24px;
-  width: min(560px, 94vw);
+  grid-template-columns: minmax(400px, 640px);
+  gap: 28px;
+  width: min(680px, 94vw);
 }
 
 .login-status,
@@ -64,23 +64,20 @@ body.register-page::after {
   display: none;
 }
 
-/* ── Brief sidebar ── */
-/* briefs removed on auth pages */
-
 /* ── Auth panel (login / register card) ── */
 .login-panel,
 .register-panel {
-  background: linear-gradient(180deg, #f8fafb 0%, #e6eaee 100%);
+  background: linear-gradient(180deg, #f8f9fa 0%, #e4e7eb 100%);
   border: 1px solid var(--steel-500);
   border-radius: 6px;
-  box-shadow: inset 0 1px 0 #ffffff, 0 18px 28px rgba(15, 25, 33, 0.22);
+  box-shadow: inset 0 1px 0 #ffffff, 0 18px 28px rgba(15, 15, 15, 0.22);
   overflow: hidden;
 }
 
 .panel-header {
-  background: linear-gradient(180deg, #dfe4e8 0%, #c4cad1 100%);
+  background: linear-gradient(180deg, #dde0e4 0%, #c2c7cd 100%);
   border-bottom: 1px solid var(--steel-500);
-  padding: 16px 20px;
+  padding: 20px 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -88,7 +85,7 @@ body.register-page::after {
 }
 
 .panel-header .panel-title {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -96,68 +93,68 @@ body.register-page::after {
 }
 
 .panel-header .panel-tag {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--steel-700);
   border: 1px solid var(--steel-400);
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 12px;
-  background: #eef1f4;
+  background: #eef0f2;
   box-shadow: inset 0 1px 0 #ffffff;
 }
 
 .panel-body {
-  padding: 22px;
-  background: #f7f9fb;
+  padding: 28px 26px;
+  background: #f7f8f9;
 }
 
-/* ── Form styles ── */
+/* ── Form styles — BIGGER ── */
 .login-form .form-group,
 .register-form .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .login-form label,
 .register-form label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--steel-700);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .login-form input,
 .register-form input {
   width: 100%;
-  padding: 12px 12px;
-  font-size: 13px;
+  padding: 14px 14px;
+  font-size: 15px;
   font-family: var(--font-family);
   border: 1px solid var(--steel-500);
   border-radius: 4px;
   background: #ffffff;
-  color: #1a232b;
-  box-shadow: inset 0 1px 2px rgba(10, 20, 28, 0.08);
+  color: #1a1e22;
+  box-shadow: inset 0 1px 2px rgba(10, 10, 10, 0.08);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .login-form input:focus,
 .register-form input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(28, 79, 110, 0.18);
+  border-color: #4a5568;
+  box-shadow: 0 0 0 3px rgba(74, 85, 104, 0.18);
 }
 
 /* ── Error messages ── */
 .login-error,
 .register-error {
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: #fff3f3;
   border: 1px solid #c44747;
   border-radius: 4px;
   color: #9c2f2f;
-  font-size: 12px;
-  margin-bottom: 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
   display: none;
 }
 
@@ -166,55 +163,55 @@ body.register-page::after {
   display: block;
 }
 
-/* ── Action buttons ── */
+/* ── Action buttons — BIGGER ── */
 .login-actions,
 .register-actions {
-  margin-top: 18px;
+  margin-top: 22px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .login-btn,
 .register-btn {
   width: 100%;
-  padding: 12px 14px;
-  font-size: 12px;
+  padding: 14px 16px;
+  font-size: 14px;
   font-family: var(--font-family);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #f6f8fa;
-  background: linear-gradient(180deg, #2b5875 0%, #1f3f57 100%);
-  border: 1px solid #1f3f57;
+  color: #f0f1f2;
+  background: linear-gradient(180deg, #555d68 0%, #3a424d 100%);
+  border: 1px solid #3a424d;
   border-radius: 4px;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 6px 10px rgba(15, 25, 33, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 6px 10px rgba(15, 15, 15, 0.18);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .login-btn:hover,
 .register-btn:hover {
   transform: translateY(-1px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 14px rgba(15, 25, 33, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 14px rgba(15, 15, 15, 0.22);
 }
 
 .login-btn:active,
 .register-btn:active {
   transform: translateY(0);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* ── Footer links ── */
 .login-footer,
 .register-footer {
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--steel-700);
 }
 
 .login-footer a,
 .register-footer a {
-  color: var(--accent);
+  color: #4a5568;
   text-decoration: none;
   font-weight: 700;
 }
@@ -237,7 +234,7 @@ body.register-page::after {
   display: flex;
   justify-content: space-between;
   border-top: 1px solid var(--steel-400);
-  background: linear-gradient(180deg, #dfe3e7 0%, #c6ccd2 100%);
+  background: linear-gradient(180deg, #dde0e4 0%, #c4c8ce 100%);
   box-shadow: inset 0 1px 0 #ffffff;
 }
 
