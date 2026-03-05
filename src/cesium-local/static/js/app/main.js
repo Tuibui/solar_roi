@@ -919,25 +919,25 @@ function setupSplitViewHandlers() {
 
   // Tariff
   const tariffInput = document.getElementById('wizardTariff');
-  const currencySelect = document.getElementById('wizardCurrency');
   if (tariffInput) {
     tariffInput.addEventListener('change', (e) => {
-      const currency = currencySelect ? currencySelect.value : 'THB';
+      const currency = typeof getSelectedCurrencySafe === 'function' ? getSelectedCurrencySafe() : 'THB';
       wizard.setTariff(e.target.value, currency);
     });
   }
-  if (currencySelect) {
-    currencySelect.addEventListener('change', (e) => {
-      const price = tariffInput ? tariffInput.value : wizard.sessionData.step2.q6_tariff.price;
-      wizard.setTariff(price, e.target.value);
-      // Sync export currency label
-      const exportLabel = document.getElementById('exportCurrencyLabel');
-      if (exportLabel) {
-        exportLabel.textContent = e.target.value + '/kWh';
-      }
-      refreshCurrencyDisplays();
-    });
-  }
+
+  // Update tariff/export currency labels when global currency changes
+  window.addEventListener('currency-changed', (e) => {
+    const cur = (e.detail && e.detail.currency) || 'THB';
+    const tariffLabel = document.getElementById('tariffCurrencyLabel');
+    if (tariffLabel) tariffLabel.textContent = cur + '/kWh';
+    const exportLabel = document.getElementById('exportCurrencyLabel');
+    if (exportLabel) exportLabel.textContent = cur + '/kWh';
+    // Update wizard with new currency
+    const price = tariffInput ? tariffInput.value : null;
+    if (price != null) wizard.setTariff(price, cur);
+    refreshCurrencyDisplays();
+  });
 
   // Grid export price
   const exportPriceInput = document.getElementById('splitExportPrice');
@@ -1278,9 +1278,10 @@ function populateSplitForm() {
 
   // Tariff
   const tariffInput = document.getElementById('wizardTariff');
-  const currencySelect = document.getElementById('wizardCurrency');
   if (tariffInput) tariffInput.value = data.q6_tariff.price || 4.5;
-  if (currencySelect) currencySelect.value = data.q6_tariff.currency || 'THB';
+
+  // Sync currency labels to global selection
+  const globalCur = typeof getSelectedCurrencySafe === 'function' ? getSelectedCurrencySafe() : (data.q6_tariff.currency || 'THB');
 
   // Export price
   const exportPrice = document.getElementById('splitExportPrice');
@@ -1288,10 +1289,12 @@ function populateSplitForm() {
     exportPrice.value = data.q7_export.price;
   }
 
-  // Export currency label sync
+  // Currency labels sync to global
+  const tariffLabel = document.getElementById('tariffCurrencyLabel');
+  if (tariffLabel) tariffLabel.textContent = globalCur + '/kWh';
   const exportLabel = document.getElementById('exportCurrencyLabel');
   if (exportLabel) {
-    exportLabel.textContent = (data.q6_tariff.currency || 'THB') + '/kWh';
+    exportLabel.textContent = globalCur + '/kWh';
   }
   refreshCurrencyDisplays();
 }

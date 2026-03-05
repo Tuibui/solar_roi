@@ -108,8 +108,6 @@ function getSelectedCurrency() {
   // Global selector takes priority
   const global = document.getElementById('globalCurrencySelect');
   if (global && global.value) return global.value;
-  const select = document.getElementById('wizardCurrency');
-  if (select && select.value) return select.value;
   const wiz = window.wizard;
   const cur = wiz && wiz.sessionData && wiz.sessionData.step2 && wiz.sessionData.step2.q6_tariff
     ? wiz.sessionData.step2.q6_tariff.currency
