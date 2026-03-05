@@ -557,12 +557,15 @@ class PanelPlacer {
     for (const p of this.confirmedPanels) {
       const meta = this.panelMeta.get(p.name);
       if (!meta) continue;
+      const spec = this.panelModels[meta.modelKey];
       panels.push({
         name: p.name,
         modelKey: meta.modelKey,
         modelLabel: meta.modelLabel,
         roofIndex: meta.roofIndex,
         modelPrice: meta.modelPrice || 0,
+        // Save spec so panels can be restored without catalog lookup
+        spec: spec ? { lengthM: spec.lengthM, widthM: spec.widthM, thicknessM: spec.thicknessM, watt: spec.watt, price: spec.price, brand: spec.brand, model: spec.model } : null,
         position: { x: p.position.x, y: p.position.y, z: p.position.z },
         quaternion: { x: p.quaternion.x, y: p.quaternion.y, z: p.quaternion.z, w: p.quaternion.w }
       });
@@ -573,10 +576,18 @@ class PanelPlacer {
   restorePanels(data) {
     if (!Array.isArray(data) || !data.length) return;
     for (const entry of data) {
-      const spec = this.panelModels[entry.modelKey];
+      let spec = this.panelModels[entry.modelKey];
+      // Auto-register panel type from saved spec if not in catalog
+      if (!spec && entry.spec) {
+        spec = this.registerPanelType(entry.modelKey, entry.spec);
+      }
       if (!spec) {
-        console.warn('[PanelPlacer] Cannot restore panel — unknown model:', entry.modelKey);
-        continue;
+        // Last resort: use default dimensions so panel still appears
+        spec = this.registerPanelType(entry.modelKey, {
+          lengthM: 1.722, widthM: 1.134, thicknessM: 0.03,
+          watt: 0, price: entry.modelPrice || 0,
+          brand: '', model: entry.modelLabel || entry.modelKey
+        });
       }
       const panel = this._createPanelObject(spec, false);
       panel.name = entry.name;
