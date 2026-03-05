@@ -1006,6 +1006,9 @@ async function applyDatasetToWorkspace(ds) {
     finalOnly: true
   };
 
+  // Schedule panel restoration after model loads
+  window.pendingPanels = ds.panels || [];
+
   showSplitView();
   if (window.ProjectTree) ProjectTree.updateRoofs(roofs);
 }
@@ -1103,6 +1106,22 @@ function initSplitViewer() {
     const loadWithFallback = (url, triedFallback = false) => {
       window.threeViewer.loadModelToViewer(splitViewer, url, roofIndex,
         async () => {
+          // Restore saved panels before scatter
+          if (window.pendingPanels && window.pendingPanels.length) {
+            const panelsData = window.pendingPanels;
+            window.pendingPanels = null;
+            try {
+              const pp = window.ensurePanelPlacer ? await window.ensurePanelPlacer() : null;
+              if (pp && typeof pp.restorePanels === 'function') {
+                pp.restorePanels(panelsData);
+              }
+            } catch (e) {
+              console.warn('[Panels] Failed to restore saved panels:', e);
+            }
+          } else {
+            window.pendingPanels = null;
+          }
+
           // Model loaded
           if (window.pendingScatter) {
             const { mode, roofIndex: pendingRoofIndex, waitForShading, finishOverlay, finalOnly } = window.pendingScatter;

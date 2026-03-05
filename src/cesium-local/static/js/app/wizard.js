@@ -436,7 +436,11 @@ class SolarWizard {
         quantity: app.quantity || 1,
         usage_start: app.usage_start || '06:00',
         usage_end: app.usage_end || '22:00'
-      }))
+      })),
+      panels: (() => {
+        const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+        return (pp && typeof pp.serializePanels === 'function') ? pp.serializePanels() : [];
+      })()
     };
 
     try {
@@ -489,7 +493,11 @@ class SolarWizard {
           roofData: this.sessionData.step1,
           inputs: this.sessionData.step2,
           inverters: this.sessionData.step2.q9_inverters || [],
-          batteries: this.sessionData.step2.q10_batteries || []
+          batteries: this.sessionData.step2.q10_batteries || [],
+          panels: (() => {
+            const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+            return (pp && typeof pp.serializePanels === 'function') ? pp.serializePanels() : [];
+          })()
         };
 
         const datasets = JSON.parse(localStorage.getItem('solar_saved_datasets') || '[]');
@@ -537,6 +545,7 @@ class SolarWizard {
           location: project.location,
           roofs: project.roofs
         },
+        panels: project.panels || [],
         inputs: {
           q1_location: { lat: project.location.lat, lon: project.location.lon },
           q2_geometry: {

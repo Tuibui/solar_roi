@@ -81,6 +81,7 @@ class Project(db.Model):
     # Equipment lists (stored as JSON text)
     inverters_json = db.Column(db.Text, nullable=True)
     batteries_json = db.Column(db.Text, nullable=True)
+    panels_json = db.Column(db.Text, nullable=True)
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -125,6 +126,7 @@ class Project(db.Model):
             'capture_model_path': self.capture_model_path,
             'inverters': self._parse_json_list(self.inverters_json),
             'batteries': self._parse_json_list(self.batteries_json),
+            'panels': self._parse_json_list(self.panels_json),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

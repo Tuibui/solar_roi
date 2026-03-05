@@ -93,6 +93,7 @@ def create_project():
         )
         project.inverters_json = json.dumps(data.get("inverters") or [])
         project.batteries_json = json.dumps(data.get("batteries") or [])
+        project.panels_json = json.dumps(data.get("panels") or [])
 
         db.session.add(project)
         db.session.commit()
@@ -194,6 +195,8 @@ def update_project(project_id):
             project.inverters_json = json.dumps(data.get("inverters") or [])
         if "batteries" in data:
             project.batteries_json = json.dumps(data.get("batteries") or [])
+        if "panels" in data:
+            project.panels_json = json.dumps(data.get("panels") or [])
         if "capture_image" in data:
             capture_path = _save_capture_image(project.id, data.get("capture_image"), "roof")
             if capture_path:

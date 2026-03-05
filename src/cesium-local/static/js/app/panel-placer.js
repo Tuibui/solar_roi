@@ -550,6 +550,52 @@ class PanelPlacer {
     }
   }
 
+  // ──────────────── SERIALIZE / RESTORE ────────────────
+
+  serializePanels() {
+    const panels = [];
+    for (const p of this.confirmedPanels) {
+      const meta = this.panelMeta.get(p.name);
+      if (!meta) continue;
+      panels.push({
+        name: p.name,
+        modelKey: meta.modelKey,
+        modelLabel: meta.modelLabel,
+        roofIndex: meta.roofIndex,
+        modelPrice: meta.modelPrice || 0,
+        position: { x: p.position.x, y: p.position.y, z: p.position.z },
+        quaternion: { x: p.quaternion.x, y: p.quaternion.y, z: p.quaternion.z, w: p.quaternion.w }
+      });
+    }
+    return panels;
+  }
+
+  restorePanels(data) {
+    if (!Array.isArray(data) || !data.length) return;
+    for (const entry of data) {
+      const spec = this.panelModels[entry.modelKey];
+      if (!spec) {
+        console.warn('[PanelPlacer] Cannot restore panel — unknown model:', entry.modelKey);
+        continue;
+      }
+      const panel = this._createPanelObject(spec, false);
+      panel.name = entry.name;
+      panel.position.set(entry.position.x, entry.position.y, entry.position.z);
+      panel.quaternion.set(entry.quaternion.x, entry.quaternion.y, entry.quaternion.z, entry.quaternion.w);
+
+      this.viewer.scene.add(panel);
+      this.confirmedPanels.push(panel);
+      this.panelMeta.set(panel.name, {
+        modelKey: entry.modelKey,
+        modelLabel: entry.modelLabel || entry.modelKey,
+        roofIndex: entry.roofIndex,
+        modelPrice: entry.modelPrice || 0
+      });
+    }
+    console.log('[PanelPlacer] Restored', data.length, 'panels');
+    this._emitPanelsChanged();
+  }
+
   get sketchRoofIndex() { return this._sketchRoofIndex; }
 
   // ──────────────── STATE MACHINE ────────────────

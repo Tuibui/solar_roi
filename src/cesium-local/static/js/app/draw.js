@@ -268,7 +268,7 @@ function resetBoundaries() {
 }
 
 // Restore saved boundaries (e.g. when loading a project).
-// polygons: array of polygon arrays, each polygon being [{x,y,z}, ...].
+// polygons: array of polygon arrays; points may be {x,y,z} ECEF or {lat,lon,height}.
 // Re-populates `boundaries` and re-draws Cesium polygon entities.
 function restoreBoundaries(polygons) {
   const viewer = getViewer();
@@ -279,15 +279,23 @@ function restoreBoundaries(polygons) {
 
   (polygons || []).forEach((poly) => {
     if (!Array.isArray(poly) || poly.length < 3) return;
-    boundaries.push(poly);
+
+    // Convert lat/lon/height → ECEF Cartesian3 if needed
+    const cartPoly = poly.map(p => {
+      if (p.lat != null && p.lon != null) {
+        return Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.height || 0);
+      }
+      return new Cesium.Cartesian3(p.x, p.y, p.z);
+    });
+
+    boundaries.push(cartPoly);
 
     if (viewer && typeof ROOF_COLORS !== 'undefined') {
       const colorIndex = (boundaries.length - 1) % ROOF_COLORS.length;
       const roofColor = ROOF_COLORS[colorIndex];
-      const cartPositions = poly.map(p => new Cesium.Cartesian3(p.x, p.y, p.z));
       const entity = viewer.entities.add({
         polygon: {
-          hierarchy: cartPositions,
+          hierarchy: cartPoly,
           material: roofColor.cesium.withAlpha(0.4),
           classificationType: Cesium.ClassificationType.CESIUM_3D_TILE
         }
