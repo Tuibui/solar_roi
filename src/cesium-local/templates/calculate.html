@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/static/css/base.css">
   <link rel="stylesheet" href="/static/css/app.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/static/js/shared/utils.js?v=20260305"></script>
   <script type="importmap">
     {
       "imports": {
@@ -24,6 +25,28 @@
       <img class="gemini-logo" src="/static/images/Gemini_Generated_Image_d2r1zjd2r1zjd2r1.png" alt="Gemini">
     </div>
     <div class="top-strip-right">
+      <div class="top-bar-group">
+        <span class="top-bar-label">LANG</span>
+        <select id="globalLangSelect" class="top-bar-select" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="th">TH</option>
+          <option value="ja">JA</option>
+        </select>
+      </div>
+      <div class="top-bar-group">
+        <span class="top-bar-label">CURRENCY</span>
+        <select id="globalCurrencySelect" class="top-bar-select" aria-label="Currency">
+          <option value="USD">USD $</option>
+          <option value="THB" selected>THB ฿</option>
+          <option value="JPY">JPY ¥</option>
+          <option value="EUR">EUR €</option>
+          <option value="GBP">GBP £</option>
+          <option value="CNY">CNY ¥</option>
+          <option value="KRW">KRW ₩</option>
+          <option value="AUD">AUD A$</option>
+          <option value="INR">INR ₹</option>
+        </select>
+      </div>
       <button id="topAuthBtn" class="top-auth-btn">Login</button>
       <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
       <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
@@ -203,7 +226,7 @@
       let currentModelUrl = null;
       let lastIrradiationData = null;
       let lastPvOutputData = null;
-      let panelPricePerWattJPY = null;
+      let panelPricePerWattUSD = null;
 
       const modelHost = null;
       const modelPlaceholder = null;
@@ -512,6 +535,10 @@
       }
 
       function getProjectCurrency() {
+        const util = window.CurrencyUtil;
+        if (util && typeof util.getSelectedCurrency === "function") {
+          return util.getSelectedCurrency();
+        }
         return currentProject?.tariff?.currency || currentProject?.tariff_currency || "THB";
       }
 
@@ -531,30 +558,24 @@
         return Number(val) || 0;
       }
 
-      async function loadPanelPricePerWattJPY() {
-        if (panelPricePerWattJPY != null) return panelPricePerWattJPY;
+      async function loadPanelPricePerWattUSD() {
+        if (panelPricePerWattUSD != null) return panelPricePerWattUSD;
         try {
-          const res = await fetch("/static/models/demo_panel.csv");
-          const text = await res.text();
-          const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-          if (lines.length < 2) return null;
-          const header = lines[0].split(",").map(h => h.trim());
-          let totalCost = 0;
-          let totalWatt = 0;
-          for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(",").map(c => c.trim());
-            const row = {};
-            header.forEach((h, idx) => row[h] = cols[idx] || "");
-            const watt = parseFloat(String(row["Solar panel wattage (W)"] || "").replace(/[^\d.]/g, ""));
-            const cost = parseFloat(String(row["Cost (¥)"] || "").replace(/[^\d.]/g, ""));
+          const res = await fetch("/api/catalog/panels");
+          const data = await res.json();
+          const panels = data.panels || [];
+          let totalCost = 0, totalWatt = 0;
+          for (const p of panels) {
+            const watt = Number(p.power_w);
+            const cost = Number(p.price_usd);
             if (Number.isFinite(watt) && Number.isFinite(cost) && watt > 0) {
               totalWatt += watt;
               totalCost += cost;
             }
           }
           if (totalWatt <= 0) return null;
-          panelPricePerWattJPY = totalCost / totalWatt;
-          return panelPricePerWattJPY;
+          panelPricePerWattUSD = totalCost / totalWatt;
+          return panelPricePerWattUSD;
         } catch (e) {
           return null;
         }
@@ -1503,9 +1524,9 @@
 
         const panelWatt = sizingData?.sizing?.panel_watt || 0;
         const panelCount = sizingData?.sizing?.panel_count || 0;
-        const panelPricePerWattJPY = await loadPanelPricePerWattJPY();
-        const panelCostJPY = panelPricePerWattJPY ? panelCount * panelWatt * panelPricePerWattJPY : 0;
-        const panelCost = convertCurrency(panelCostJPY, "JPY", currency);
+        const panelPricePerWattUSD = await loadPanelPricePerWattUSD();
+        const panelCostUSD = panelPricePerWattUSD ? panelCount * panelWatt * panelPricePerWattUSD : 0;
+        const panelCost = convertCurrency(panelCostUSD, "USD", currency);
 
         const inverters = currentProject?.inverters || [];
         const batteries = currentProject?.batteries || [];
@@ -1849,6 +1870,12 @@
           }
         }
       })();
+
+      // Re-render report when currency changes
+      window.addEventListener('currency-changed', () => {
+        panelPricePerWattUSD = null; // force re-fetch
+        if (currentProject && sizingData) renderReport();
+      });
 
       loadDatasets();
     })();

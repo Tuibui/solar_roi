@@ -238,6 +238,56 @@ body {
   border-color: rgba(255,255,255,0.35);
 }
 
+/* ── Top-bar dropdowns (currency & language) ── */
+.top-bar-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #e8ecf0;
+  padding: 6px 26px 6px 8px;
+  height: 34px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ccc'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.top-bar-select:hover {
+  background-color: rgba(0,0,0,0.35);
+  border-color: rgba(255,255,255,0.35);
+}
+.top-bar-select:focus {
+  outline: none;
+  border-color: rgba(255,255,255,0.5);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+}
+.top-bar-select option {
+  background: #3a3a3a;
+  color: #e8ecf0;
+}
+
+.top-bar-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  margin-bottom: 2px;
+  font-family: "JetBrains Mono", "Courier New", monospace;
+}
+
+.top-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .live-price-box {
   min-width: 210px;
   padding: 6px 10px;

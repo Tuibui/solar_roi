@@ -38,14 +38,14 @@ const ProjectTree = (function () {
     return Number.isFinite(n) ? n : null;
   }
 
-  function formatPanelPrice(priceJPY) {
+  function formatPanelPrice(priceUSD) {
     const curUtil = window.CurrencyUtil;
     const currency = curUtil && typeof curUtil.getSelectedCurrency === 'function'
       ? curUtil.getSelectedCurrency()
       : 'THB';
     const converted = curUtil && typeof curUtil.convert === 'function'
-      ? curUtil.convert(priceJPY, 'JPY', currency)
-      : Number(priceJPY) || 0;
+      ? curUtil.convert(priceUSD, 'USD', currency)
+      : Number(priceUSD) || 0;
     if (curUtil && typeof curUtil.format === 'function') {
       return curUtil.format(converted, currency);
     }
@@ -484,6 +484,11 @@ const ProjectTree = (function () {
     containerEl.setAttribute('tabindex', '0');
     containerEl.addEventListener('keydown', handleKeyDown);
     updateStatusBar(null);
+    // Refresh panel browser prices when currency changes
+    window.addEventListener('currency-changed', () => {
+      panelCatalog = []; // force re-render with new prices
+      ensurePanelCatalogLoaded().then(() => refreshPanelBrowser());
+    });
   }
 
   function updateRoofs(roofs) {
