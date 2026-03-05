@@ -62,6 +62,79 @@ function populateFilterBrands() {
   }
 }
 
+/** Compute total system kWp from placed panels */
+function getSystemKwp() {
+  const pp = window.getPanelPlacer ? window.getPanelPlacer() : null;
+  if (!pp) return 0;
+  let totalW = 0;
+  const allPanels = [...(pp.confirmedPanels || []), ...(pp.sessionPanels || [])];
+  for (const p of allPanels) {
+    const meta = pp.panelMeta.get(p.name);
+    if (!meta) continue;
+    const spec = pp.panelModels[meta.modelKey];
+    if (spec && spec.watt) totalW += spec.watt;
+  }
+  return totalW / 1000;
+}
+
+/** Auto-recommend inverter: set filter range around system kWp and show results */
+function recommendInverter() {
+  const kwp = getSystemKwp();
+  if (kwp <= 0) {
+    const lang = (window.I18n && window.I18n.getLang) ? window.I18n.getLang() : 'en';
+    const msgs = {
+      en: 'Place solar panels on the roof first so the system kWp can be calculated.',
+      th: 'วางแผงโซลาร์บนหลังคาก่อนเพื่อคำนวณ kWp ของระบบ',
+      ja: '屋根にソーラーパネルを設置してからシステムkWpを計算してください'
+    };
+    alert(msgs[lang] || msgs.en);
+    return;
+  }
+  // Inverter sizing: 0.8–1.2× system kWp
+  const minKw = Math.round(kwp * 0.8 * 10) / 10;
+  const maxKw = Math.round(kwp * 1.2 * 10) / 10;
+  // Phase recommendation: < 5kWp → 1-phase, otherwise 3-phase
+  const recPhase = kwp < 5 ? '1' : '3';
+
+  // Open the filter panel if hidden
+  const panel = document.getElementById('invFilterPanel');
+  const btn = document.getElementById('btnInvFilter');
+  if (panel && panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    if (btn) btn.classList.add('active');
+  }
+  // Set filter values
+  const minEl = document.getElementById('invFilterMinKw');
+  const maxEl = document.getElementById('invFilterMaxKw');
+  const phaseEl = document.getElementById('invFilterPhase');
+  if (minEl) minEl.value = minKw;
+  if (maxEl) maxEl.value = maxKw;
+  if (phaseEl) phaseEl.value = recPhase;
+  // Clear brand and text search
+  const brandEl = document.getElementById('invFilterBrand');
+  if (brandEl) brandEl.value = '';
+  const searchEl = document.getElementById('splitInverterSearch');
+  if (searchEl) searchEl.value = '';
+  // Re-render
+  renderInverterSearchResults('');
+
+  // Show a small info banner above results
+  const list = document.getElementById('splitInverterSearchList');
+  if (list) {
+    const lang = (window.I18n && window.I18n.getLang) ? window.I18n.getLang() : 'en';
+    const msgs = {
+      en: `System: ${kwp.toFixed(1)} kWp → Recommended: ${minKw}–${maxKw} kW, ${recPhase}-phase`,
+      th: `ระบบ: ${kwp.toFixed(1)} kWp → แนะนำ: ${minKw}–${maxKw} kW, ${recPhase} เฟส`,
+      ja: `システム: ${kwp.toFixed(1)} kWp → 推奨: ${minKw}–${maxKw} kW, ${recPhase}相`
+    };
+    list.insertAdjacentHTML('beforebegin',
+      `<div class="recommend-banner" id="invRecommendBanner">${msgs[lang] || msgs.en}</div>`);
+    // Remove previous banner if any
+    const prev = list.parentElement.querySelectorAll('.recommend-banner');
+    if (prev.length > 1) prev[0].remove();
+  }
+}
+
 function formatMoney(value) {
   const n = Number(value);
   const safe = Number.isFinite(n) ? n : 0;

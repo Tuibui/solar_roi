@@ -1349,6 +1349,40 @@
   font-size: 12px;
 }
 
+/* Recommend button */
+.recommend-btn {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  letter-spacing: .03em;
+  background: linear-gradient(180deg, #3a4a56 0%, #2a3640 100%);
+  color: #e8ecf0;
+  border: 1px solid #556672;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.recommend-btn:hover {
+  background: linear-gradient(180deg, #4a5c6a 0%, #354550 100%);
+}
+
+/* Recommendation banner */
+.recommend-banner {
+  margin: 4px 0;
+  padding: 5px 8px;
+  font-size: 10.5px;
+  font-family: 'JetBrains Mono', monospace;
+  background: linear-gradient(180deg, #e8eff4 0%, #d6dee6 100%);
+  border: 1px solid #9aa6b0;
+  border-left: 3px solid #3a6a8a;
+  border-radius: 2px;
+  color: #2b3a48;
+}
+
 .dock-form-body .split-input-row {
   display: flex;
   gap: 6px;
