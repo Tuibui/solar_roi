@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/static/css/base.css?v=20260305">
   <link rel="stylesheet" href="/static/css/auth.css?v=20260305">
   <script src="/static/js/shared/utils.js?v=20260305"></script>
+  <script src="/static/js/shared/i18n.js?v=20260305"></script>
 </head>
 <body class="login-page">
   <div class="top-strip">
@@ -16,7 +17,7 @@
     </div>
     <div class="top-strip-right">
       <div class="top-bar-group">
-        <span class="top-bar-label">LANG</span>
+        <span class="top-bar-label" data-i18n="top.lang">LANG</span>
         <select id="globalLangSelect" class="top-bar-select" aria-label="Language">
           <option value="en">EN</option>
           <option value="th">TH</option>
@@ -24,7 +25,7 @@
         </select>
       </div>
       <div class="top-bar-group">
-        <span class="top-bar-label">CURRENCY</span>
+        <span class="top-bar-label" data-i18n="top.currency">CURRENCY</span>
         <select id="globalCurrencySelect" class="top-bar-select" aria-label="Currency">
           <option value="USD">USD $</option>
           <option value="THB" selected>THB ฿</option>
@@ -37,7 +38,7 @@
           <option value="INR">INR ₹</option>
         </select>
       </div>
-      <button id="topAuthBtn" class="top-auth-btn">Login</button>
+      <button id="topAuthBtn" class="top-auth-btn" data-i18n="top.login">Login</button>
       <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
       <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
     </div>
@@ -45,8 +46,8 @@
 
   <div class="sub-strip">
     <div class="sub-strip-left">
-      <a href="/app">Workspace</a>
-      <a href="/calculate">Analysis</a>
+      <a href="/app" data-i18n="nav.workspace">Workspace</a>
+      <a href="/calculate" data-i18n="nav.analysis">Analysis</a>
     </div>
   </div>
 
@@ -54,23 +55,23 @@
     <section class="login-shell">
       <div class="login-panel">
         <div class="panel-header">
-          <div class="panel-title">Operator Login</div>
-          <div class="panel-tag">Revision 2.6</div>
+          <div class="panel-title" data-i18n="login.title">Operator Login</div>
+          <div class="panel-tag" data-i18n="login.tag">Revision 2.6</div>
         </div>
         <div class="panel-body">
           <div class="login-error" id="loginError"></div>
           <form id="loginForm" class="login-form">
             <div class="form-group">
-              <label for="loginEmail">Operator ID</label>
-              <input type="text" id="loginEmail" name="email" placeholder="Email or username" required>
+              <label for="loginEmail" data-i18n="login.operator_id">Operator ID</label>
+              <input type="text" id="loginEmail" name="email" data-i18n-ph="login.operator_id_ph" placeholder="Email or username" required>
             </div>
             <div class="form-group">
-              <label for="loginPassword">Access Key</label>
-              <input type="password" id="loginPassword" name="password" placeholder="Enter password" required>
+              <label for="loginPassword" data-i18n="login.access_key">Access Key</label>
+              <input type="password" id="loginPassword" name="password" data-i18n-ph="login.access_key_ph" placeholder="Enter password" required>
             </div>
             <div class="login-actions">
-              <button type="submit" class="login-btn">Engage Session</button>
-              <div class="login-footer">Need credentials? <a href="/register">Create an account</a></div>
+              <button type="submit" class="login-btn" data-i18n="login.submit">Engage Session</button>
+              <div class="login-footer"><span data-i18n="login.footer">Need credentials?</span> <a href="/register" data-i18n="login.footer_link">Create an account</a></div>
             </div>
           </form>
         </div>
@@ -79,9 +80,9 @@
   </main>
 
   <div class="login-status">
-    <span>System: Nominal</span>
-    <span>Console: SOLAR-ROI / v2.6</span>
-    <span>Security: Active</span>
+    <span data-i18n="login.status_system">System: Nominal</span>
+    <span data-i18n="login.status_console">Console: SOLAR-ROI / v2.6</span>
+    <span data-i18n="login.status_security">Security: Active</span>
   </div>
 
   <script>

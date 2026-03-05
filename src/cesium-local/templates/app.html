@@ -37,7 +37,7 @@
     </div>
     <div class="top-strip-right">
       <div class="top-bar-group">
-        <span class="top-bar-label">LANG</span>
+        <span class="top-bar-label" data-i18n="top.lang">LANG</span>
         <select id="globalLangSelect" class="top-bar-select" aria-label="Language">
           <option value="en">EN</option>
           <option value="th">TH</option>
@@ -45,7 +45,7 @@
         </select>
       </div>
       <div class="top-bar-group">
-        <span class="top-bar-label">CURRENCY</span>
+        <span class="top-bar-label" data-i18n="top.currency">CURRENCY</span>
         <select id="globalCurrencySelect" class="top-bar-select" aria-label="Currency">
           <option value="USD">USD $</option>
           <option value="THB" selected>THB ฿</option>
@@ -58,7 +58,7 @@
           <option value="INR">INR ₹</option>
         </select>
       </div>
-      <button id="topAuthBtn" class="top-auth-btn">Login</button>
+      <button id="topAuthBtn" class="top-auth-btn" data-i18n="top.login">Login</button>
       <img src="/static/images/kosen_logo.png" alt="Kosen" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
       <img src="/static/images/cesium_logo.png" alt="Cesium" style="background: transparent; padding: 0; margin: 0; border: none; box-shadow: none; height: 46px; width: auto;">
     </div>
@@ -66,8 +66,8 @@
 
   <div class="sub-strip">
     <div class="sub-strip-left">
-      <a href="/app" class="active">Workspace</a>
-      <a href="/calculate">Analysis</a>
+      <a href="/app" class="active" data-i18n="nav.workspace">Workspace</a>
+      <a href="/calculate" data-i18n="nav.analysis">Analysis</a>
     </div>
   </div>
 
@@ -307,7 +307,8 @@
   <!-- Scripts -->
   <script src="/Build/Cesium/Cesium.js"></script>
   <script src="/static/js/shared/config.js?v=20260226"></script>
-  <script src="/static/js/shared/utils.js?v=20260226"></script>
+  <script src="/static/js/shared/utils.js?v=20260305"></script>
+  <script src="/static/js/shared/i18n.js?v=20260305"></script>
   <script src="/static/js/app/map.js?v=20260226"></script>
   <script src="/static/js/app/draw.js?v=20260226"></script>
   <script src="/static/js/app/api.js?v=20260226"></script>
