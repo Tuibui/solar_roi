@@ -135,13 +135,15 @@ function recommendInverter() {
   }
 }
 
-/** Calculate nighttime energy from appliances (kWh) */
-function getNighttimeKwh() {
+/** Calculate nighttime and daytime energy from appliances (kWh) */
+function getApplianceEnergySplit() {
   const appliances = (window.wizard && wizard.sessionData && wizard.sessionData.step2)
     ? wizard.sessionData.step2.q4_appliances || [] : [];
   const SOLAR_START = 6; // 6:00 AM
   const SOLAR_END = 18;  // 6:00 PM
-  let nightWh = 0;
+  const solarStartMin = SOLAR_START * 60;
+  const solarEndMin = SOLAR_END * 60;
+  let nightWh = 0, dayWh = 0;
   for (const app of appliances) {
     const w = Number(app.power) || 0;
     if (w <= 0) continue;
@@ -150,18 +152,12 @@ function getNighttimeKwh() {
     const startMin = sh * 60 + (sm || 0);
     const endMin = eh * 60 + (em || 0);
     const totalMin = endMin > startMin ? endMin - startMin : (1440 - startMin + endMin);
-    // Night minutes = usage time outside 6:00–18:00
-    const solarStartMin = SOLAR_START * 60;
-    const solarEndMin = SOLAR_END * 60;
     let nightMin = 0;
     if (endMin > startMin) {
-      // No wrap-around
       if (startMin < solarStartMin) nightMin += Math.min(solarStartMin, endMin) - startMin;
       if (endMin > solarEndMin) nightMin += endMin - Math.max(solarEndMin, startMin);
     } else {
-      // Wraps past midnight: startMin→24:00 + 00:00→endMin
-      nightMin = totalMin; // most of wrap-around is night
-      // Subtract solar overlap if any
+      nightMin = totalMin;
       const overlapStart = Math.max(startMin, solarStartMin);
       const overlapEnd = Math.min(1440, solarEndMin);
       if (overlapStart < overlapEnd && startMin < solarEndMin) nightMin -= (overlapEnd - overlapStart);
@@ -170,29 +166,49 @@ function getNighttimeKwh() {
       if (overlapStart2 < overlapEnd2) nightMin -= (overlapEnd2 - overlapStart2);
     }
     nightMin = Math.max(0, nightMin);
+    const dayMin = totalMin - nightMin;
     nightWh += w * (nightMin / 60);
+    dayWh += w * (dayMin / 60);
   }
-  return nightWh / 1000;
+  return { nightKwh: nightWh / 1000, dayKwh: dayWh / 1000 };
 }
 
-/** Auto-recommend battery based on nighttime appliance usage */
+/** Auto-recommend battery: considers both solar output and nighttime usage */
 function recommendBattery() {
-  const nightKwh = getNighttimeKwh();
   const lang = (window.I18n && window.I18n.getLang) ? window.I18n.getLang() : 'en';
+  const systemKwp = getSystemKwp();
+  const { nightKwh, dayKwh } = getApplianceEnergySplit();
 
-  if (nightKwh <= 0) {
+  if (systemKwp <= 0 && nightKwh <= 0) {
     const msgs = {
-      en: 'Add appliances with usage times first so nighttime energy can be estimated.',
-      th: 'เพิ่มเครื่องใช้ไฟฟ้าพร้อมเวลาใช้งานก่อนเพื่อประมาณพลังงานกลางคืน',
-      ja: '夜間エネルギーを推定するため、使用時間付きの家電を追加してください'
+      en: 'Place solar panels and add appliances with usage times first.',
+      th: 'วางแผงโซลาร์และเพิ่มเครื่องใช้ไฟฟ้าพร้อมเวลาใช้งานก่อน',
+      ja: 'ソーラーパネルを設置し、使用時間付きの家電を追加してください'
     };
     alert(msgs[lang] || msgs.en);
     return;
   }
 
-  // Battery kWh = nighttime consumption ÷ 0.8 DoD buffer
-  const recKwh = Math.round(nightKwh / 0.8 * 10) / 10;
-  const minKwh = Math.round(nightKwh * 10) / 10;
+  // Daily solar production ≈ system kWp × 4 peak sun hours (average)
+  const dailySolarKwh = systemKwp * 4;
+  // Excess solar available to charge battery
+  const excessSolar = Math.max(0, dailySolarKwh - dayKwh);
+  // Useful battery = min(what solar can charge, what night needs)
+  const usefulKwh = nightKwh > 0 ? Math.min(excessSolar, nightKwh) : excessSolar;
+
+  if (usefulKwh <= 0.1) {
+    const msgs = {
+      en: `Not enough excess solar to justify a battery.\nSolar: ${dailySolarKwh.toFixed(1)} kWh/day, Daytime load: ${dayKwh.toFixed(1)} kWh → surplus: ${excessSolar.toFixed(1)} kWh`,
+      th: `พลังงานแสงอาทิตย์ส่วนเกินไม่พอสำหรับแบตเตอรี่\nโซลาร์: ${dailySolarKwh.toFixed(1)} kWh/วัน, โหลดกลางวัน: ${dayKwh.toFixed(1)} kWh → ส่วนเกิน: ${excessSolar.toFixed(1)} kWh`,
+      ja: `バッテリーに十分な余剰ソーラーがありません\nソーラー: ${dailySolarKwh.toFixed(1)} kWh/日, 昼間負荷: ${dayKwh.toFixed(1)} kWh → 余剰: ${excessSolar.toFixed(1)} kWh`
+    };
+    alert(msgs[lang] || msgs.en);
+    return;
+  }
+
+  // Battery kWh = useful energy ÷ 0.8 DoD
+  const recKwh = Math.round(usefulKwh / 0.8 * 10) / 10;
+  const minKwh = Math.round(usefulKwh * 10) / 10;
   const maxKwh = Math.round(recKwh * 1.3 * 10) / 10;
 
   // Open filter panel if hidden
@@ -217,9 +233,9 @@ function recommendBattery() {
   const list = document.getElementById('splitBatterySearchList');
   if (list) {
     const msgs = {
-      en: `Night usage: ${nightKwh.toFixed(1)} kWh → Recommended: ${minKwh}–${maxKwh} kWh`,
-      th: `ใช้กลางคืน: ${nightKwh.toFixed(1)} kWh → แนะนำ: ${minKwh}–${maxKwh} kWh`,
-      ja: `夜間使用: ${nightKwh.toFixed(1)} kWh → 推奨: ${minKwh}–${maxKwh} kWh`
+      en: `Solar: ${dailySolarKwh.toFixed(1)} kWh/day | Day load: ${dayKwh.toFixed(1)} | Night load: ${nightKwh.toFixed(1)} | Excess: ${excessSolar.toFixed(1)} kWh → Battery: ${minKwh}–${maxKwh} kWh`,
+      th: `โซลาร์: ${dailySolarKwh.toFixed(1)} kWh/วัน | กลางวัน: ${dayKwh.toFixed(1)} | กลางคืน: ${nightKwh.toFixed(1)} | ส่วนเกิน: ${excessSolar.toFixed(1)} kWh → แบต: ${minKwh}–${maxKwh} kWh`,
+      ja: `ソーラー: ${dailySolarKwh.toFixed(1)} kWh/日 | 昼: ${dayKwh.toFixed(1)} | 夜: ${nightKwh.toFixed(1)} | 余剰: ${excessSolar.toFixed(1)} kWh → バッテリー: ${minKwh}–${maxKwh} kWh`
     };
     list.insertAdjacentHTML('beforebegin',
       `<div class="recommend-banner" id="batRecommendBanner">${msgs[lang] || msgs.en}</div>`);
