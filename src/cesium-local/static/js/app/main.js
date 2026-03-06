@@ -316,7 +316,7 @@ function refreshLivePrice() {
   if (!totalEl) return;
 
   const currency = getSelectedCurrencySafe();
-  const panelsTotal = convertAmount(getPanelsPriceTotal(), 'JPY', currency);
+  const panelsTotal = convertAmount(getPanelsPriceTotal(), 'USD', currency);
   const objectsTotal = convertAmount(getObjectsPriceTotal(), 'USD', currency);
   totalEl.textContent = formatCurrencyAmount(panelsTotal + objectsTotal, currency);
 }

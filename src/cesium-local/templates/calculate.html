@@ -1509,7 +1509,11 @@
 
         const currency = getProjectCurrency();
         const tariff = currentProject?.tariff?.price ?? currentProject?.tariff_price ?? 0;
+        const tariffCurrency = currentProject?.tariff?.currency ?? currentProject?.tariff_currency ?? currency;
         const exportPrice = currentProject?.grid_export?.price ?? currentProject?.grid_export_price ?? 0;
+        const exportCurrency = currentProject?.grid_export?.currency ?? currentProject?.grid_export_currency ?? tariffCurrency;
+        const tariffConv = convertCurrency(tariff, tariffCurrency, currency);
+        const exportPriceConv = convertCurrency(exportPrice, exportCurrency, currency);
         const annualLoad = (sizingData?.consumption?.total_daily_kwh ? sizingData.consumption.total_daily_kwh * 365 : 0);
 
         const annualPV = lastPvOutputData?.annual_kwh || sizingData?.sizing?.annual_production_kwh || 0;
@@ -1518,8 +1522,8 @@
         const exported = Math.max(0, annualPV - selfConsumed);
         const gridImport = Math.max(0, annualLoad - selfConsumed);
 
-        const baselineBill = annualLoad * tariff;
-        const postBill = gridImport * tariff - exported * exportPrice;
+        const baselineBill = annualLoad * tariffConv;
+        const postBill = gridImport * tariffConv - exported * exportPriceConv;
         const annualSavings = baselineBill - postBill;
 
         const panelWatt = sizingData?.sizing?.panel_watt || 0;
