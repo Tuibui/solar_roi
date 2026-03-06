@@ -349,17 +349,17 @@
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(236, 239, 244, 0.92);
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #1f252d;
   z-index: 9999;
 }
 
 /* ── Progress overlay — matches site design system ─────────────── */
 .gauge-panel {
-  background: var(--bg-ink);
-  border: 1px solid var(--border-dark);
+  background: #f7f8fa;
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   padding: var(--sp-4) var(--sp-5);
   min-width: 400px;
@@ -375,17 +375,17 @@
 .gauge-phase {
   font-size: var(--text-sm);
   letter-spacing: 0.5px;
-  color: var(--text-inverse);
+  color: var(--text-primary);
   text-transform: uppercase;
 }
 .gauge-time {
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 .gauge-bar-track {
   width: 100%;
   height: 6px;
-  background: var(--bg-secondary);
+  background: #dfe3e8;
   border-radius: 3px;
   overflow: hidden;
 }
@@ -407,7 +407,7 @@
 }
 .gauge-pct {
   font-size: var(--text-xs);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   margin-top: var(--sp-1);
   text-align: right;
 }
@@ -415,7 +415,7 @@
   margin-top: var(--sp-3);
   max-height: 120px;
   overflow-y: auto;
-  border-top: 1px solid var(--border-dark);
+  border-top: 1px solid var(--border-light);
   padding-top: var(--sp-2);
 }
 .gauge-log::-webkit-scrollbar { width: 3px; }
@@ -424,13 +424,13 @@
 .gauge-log-line {
   font-size: var(--text-xs);
   line-height: 1.6;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .gauge-log-line:last-child {
-  color: var(--text-inverse);
+  color: var(--text-primary);
 }
 
 /* Toolbar - Compact horizontal */
