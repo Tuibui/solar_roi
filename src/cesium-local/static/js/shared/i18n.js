@@ -84,9 +84,11 @@
 
       // ── Catalog Filters ──
       'filter.brand': 'Brand',
+      'filter.brand_all': 'All',
       'filter.phase': 'Phase',
       'filter.kw_range': 'kW Range',
       'filter.kwh_range': 'kWh Range',
+      'filter.watt_range': 'Watt Range',
       'filter.recommend': 'Recommend Inverter',
       'filter.recommend_bat': 'Recommend Battery',
 
@@ -246,9 +248,11 @@
       'detail.installed_bat': 'แบตเตอรี่ที่ติดตั้ง',
 
       'filter.brand': 'ยี่ห้อ',
+      'filter.brand_all': 'ทั้งหมด',
       'filter.phase': 'เฟส',
       'filter.kw_range': 'ช่วง kW',
       'filter.kwh_range': 'ช่วง kWh',
+      'filter.watt_range': 'ช่วงวัตต์',
       'filter.recommend': 'แนะนำอินเวอร์เตอร์',
       'filter.recommend_bat': 'แนะนำแบตเตอรี่',
 
@@ -401,9 +405,11 @@
       'detail.installed_bat': '設置済みバッテリー',
 
       'filter.brand': 'ブランド',
+      'filter.brand_all': 'すべて',
       'filter.phase': 'フェーズ',
       'filter.kw_range': 'kW範囲',
       'filter.kwh_range': 'kWh範囲',
+      'filter.watt_range': 'ワット範囲',
       'filter.recommend': 'インバーター推奨',
       'filter.recommend_bat': 'バッテリー推奨',
 

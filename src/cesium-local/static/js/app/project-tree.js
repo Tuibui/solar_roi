@@ -16,6 +16,7 @@ const ProjectTree = (function () {
   let panelBrowserAutoMode = false;
   let panelCatalog = [];
   let panelCatalogLoadPromise = null;
+  let panelFilterState = { brand: '', minWatt: '', maxWatt: '', open: false };
 
   // ─── Panel Catalog (DB API) ───
   const PANEL_API_URL = '/api/catalog/panels';
@@ -84,6 +85,14 @@ const ProjectTree = (function () {
       rows.push(row);
     }
     return rows;
+  }
+
+  function escapeHtml(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function normalizePanelRow(row) {
@@ -552,6 +561,7 @@ const ProjectTree = (function () {
     if (treeRoot) treeRoot.style.display = '';
     panelBrowserRoofId = null;
     panelBrowserAutoMode = false;
+    panelFilterState = { brand: '', minWatt: '', maxWatt: '', open: false };
     updateStatusBar(selectedId);
   }
 
@@ -564,14 +574,34 @@ const ProjectTree = (function () {
 
   function renderPanelBrowser(filterText, loading) {
     if (!panelBrowserEl) return;
+    const t = (window.I18n && typeof window.I18n.t === 'function') ? window.I18n.t : (s => s);
     const ft = (filterText || '').toLowerCase();
     const catalog = panelCatalog || [];
-    const filtered = catalog.filter(p =>
-      !ft ||
-      p.brand.toLowerCase().includes(ft) ||
-      p.model.toLowerCase().includes(ft) ||
-      String(p.watt || '').includes(ft)
-    );
+    const brandFilter = (panelFilterState.brand || '').toLowerCase();
+    const rawMin = panelFilterState.minWatt ?? '';
+    const rawMax = panelFilterState.maxWatt ?? '';
+    const minWatt = rawMin === '' ? 0 : (Number.isFinite(parseFloat(rawMin)) ? parseFloat(rawMin) : 0);
+    const parsedMax = rawMax === '' ? Infinity : parseFloat(rawMax);
+    const maxWatt = Number.isFinite(parsedMax) ? parsedMax : Infinity;
+
+    const filtered = catalog.filter(p => {
+      const brand = (p.brand || '').trim().toLowerCase();
+      const model = (p.model || '').toLowerCase();
+      const watt = Number(p.watt) || 0;
+      if (ft && !(brand.includes(ft) || model.includes(ft) || String(watt).includes(ft))) return false;
+      if (brandFilter && brand !== brandFilter) return false;
+      if (watt < minWatt) return false;
+      if (Number.isFinite(maxWatt) && watt > maxWatt) return false;
+      return true;
+    });
+
+    const brands = Array.from(new Set((catalog || []).map(p => (p.brand || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const brandOptions = [
+      `<option value="">${t('filter.brand_all') || 'All'}</option>`
+    ].concat(brands.map(b =>
+      `<option value="${escapeHtml(b)}"${panelFilterState.brand === b ? ' selected' : ''}>${escapeHtml(b)}</option>`
+    )).join('');
+    const wattLabel = t('filter.watt_range') || 'Watt Range';
 
     const roofNode = panelBrowserRoofId ? findNode(treeData, panelBrowserRoofId) : null;
     const roofLabel = roofNode ? roofNode.label : 'Roof';
@@ -582,7 +612,26 @@ const ProjectTree = (function () {
         <span class="pb-title">${panelBrowserAutoMode ? 'Auto Panel' : 'Add Panel'} — ${roofLabel}</span>
       </div>
       <div class="pb-search-wrap">
-        <input type="text" class="pb-search" placeholder="Search brand, model, watt..." value="${filterText || ''}" autocomplete="off" spellcheck="false">
+        <div class="search-filter-row">
+          <input type="text" class="pb-search" placeholder="Search brand, model, watt..." value="${filterText || ''}" autocomplete="off" spellcheck="false">
+          <button class="filter-toggle-btn" id="pbFilterToggle" type="button" title="Filter panels" aria-label="Filter panels">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 2h14l-5 6v5l-4 2V8L1 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="filter-panel ${panelFilterState.open ? '' : 'hidden'}" id="pbFilterPanel">
+          <div class="filter-row">
+            <label class="filter-label">${t('filter.brand') || 'Brand'}</label>
+            <select id="pbFilterBrand" class="filter-select">${brandOptions}</select>
+          </div>
+          <div class="filter-row">
+            <label class="filter-label">${wattLabel}</label>
+            <div class="filter-range">
+              <input type="number" id="pbFilterMinW" class="filter-input" placeholder="Min" step="10" min="0" value="${panelFilterState.minWatt ?? ''}">
+              <span class="filter-dash">–</span>
+              <input type="number" id="pbFilterMaxW" class="filter-input" placeholder="Max" step="10" min="0" value="${panelFilterState.maxWatt ?? ''}">
+            </div>
+          </div>
+        </div>
       </div>
       <div class="pb-list">
         ${loading ? '<div class="pb-empty">Loading panel catalog...</div>' : ''}
@@ -629,6 +678,51 @@ const ProjectTree = (function () {
       debounce = setTimeout(() => renderPanelBrowser(searchInput.value), 150);
     });
     searchInput.focus();
+
+    // Wire filters
+    const filterPanel = panelBrowserEl.querySelector('#pbFilterPanel');
+    const filterToggle = panelBrowserEl.querySelector('#pbFilterToggle');
+    if (filterPanel && filterToggle) {
+      filterToggle.classList.toggle('active', panelFilterState.open);
+      filterPanel.classList.toggle('hidden', !panelFilterState.open);
+      filterToggle.addEventListener('click', () => {
+        const nowHidden = filterPanel.classList.toggle('hidden');
+        panelFilterState.open = !nowHidden;
+        filterToggle.classList.toggle('active', !nowHidden);
+      });
+    }
+
+    const brandSel = panelBrowserEl.querySelector('#pbFilterBrand');
+    if (brandSel) {
+      brandSel.value = panelFilterState.brand || '';
+      brandSel.addEventListener('change', () => {
+        panelFilterState.brand = brandSel.value;
+        renderPanelBrowser(searchInput ? searchInput.value : '');
+      });
+    }
+    const minW = panelBrowserEl.querySelector('#pbFilterMinW');
+    const maxW = panelBrowserEl.querySelector('#pbFilterMaxW');
+    const handleRangeChange = () => renderPanelBrowser(searchInput ? searchInput.value : '');
+    if (minW) {
+      minW.addEventListener('input', () => {
+        panelFilterState.minWatt = minW.value;
+        handleRangeChange();
+      });
+      minW.addEventListener('change', () => {
+        panelFilterState.minWatt = minW.value;
+        handleRangeChange();
+      });
+    }
+    if (maxW) {
+      maxW.addEventListener('input', () => {
+        panelFilterState.maxWatt = maxW.value;
+        handleRangeChange();
+      });
+      maxW.addEventListener('change', () => {
+        panelFilterState.maxWatt = maxW.value;
+        handleRangeChange();
+      });
+    }
 
     // Wire card clicks
     panelBrowserEl.querySelectorAll('.pb-card').forEach(card => {

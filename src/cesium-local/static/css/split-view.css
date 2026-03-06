@@ -698,6 +698,8 @@
 
 .pb-search {
   width: 100%;
+  flex: 1;
+  min-width: 0;
   box-sizing: border-box;
   height: 30px;
   padding: 0 10px;

@@ -223,8 +223,88 @@ class PanelPlacer {
     return `${v.x.toFixed(3)},${v.y.toFixed(3)},${v.z.toFixed(3)}`;
   }
 
+  _getPrincipalAxisDirection(points, normal) {
+    if (!points || points.length < 2) return null;
+    const n = (normal && normal.clone) ? normal.clone().normalize() : new THREE.Vector3(0, 1, 0);
+    let uAxis = new THREE.Vector3(1, 0, 0).addScaledVector(n, -n.x);
+    if (uAxis.lengthSq() < 1e-8) {
+      uAxis = new THREE.Vector3(0, 0, 1).addScaledVector(n, -n.z);
+    }
+    uAxis.normalize();
+    const vAxis = new THREE.Vector3().crossVectors(n, uAxis).normalize();
+
+    let meanU = 0;
+    let meanV = 0;
+    points.forEach(p => {
+      meanU += p.dot(uAxis);
+      meanV += p.dot(vAxis);
+    });
+    meanU /= points.length;
+    meanV /= points.length;
+
+    let covUU = 0;
+    let covUV = 0;
+    let covVV = 0;
+    points.forEach(p => {
+      const du = p.dot(uAxis) - meanU;
+      const dv = p.dot(vAxis) - meanV;
+      covUU += du * du;
+      covUV += du * dv;
+      covVV += dv * dv;
+    });
+    covUU /= points.length;
+    covUV /= points.length;
+    covVV /= points.length;
+
+    if (!Number.isFinite(covUU + covVV)) return null;
+
+    const angle = 0.5 * Math.atan2(2 * covUV, covUU - covVV);
+    const dir2 = new THREE.Vector2(Math.cos(angle), Math.sin(angle));
+    const dir = uAxis.clone().multiplyScalar(dir2.x).add(vAxis.clone().multiplyScalar(dir2.y));
+    if (dir.lengthSq() < 1e-10) return null;
+    dir.normalize();
+
+    const trace = covUU + covVV;
+    const det = covUU * covVV - covUV * covUV;
+    const disc = Math.max(0, trace * trace - 4 * det);
+    const lambda1 = 0.5 * (trace + Math.sqrt(disc));
+    const lambda2 = 0.5 * (trace - Math.sqrt(disc));
+    const anisotropy = lambda1 - lambda2;
+
+    const ref = new THREE.Vector3(1, 0, 0).addScaledVector(n, -n.x);
+    if (ref.lengthSq() > 1e-8) {
+      ref.normalize();
+      if (dir.dot(ref) < 0) dir.negate();
+    }
+
+    return { dir, anisotropy };
+  }
+
+  _scoreDirectionOnFace(dir, points, normal) {
+    if (!dir || !points || points.length === 0) return -Infinity;
+    const u = dir.clone().normalize();
+    const v = new THREE.Vector3().crossVectors(normal, u);
+    if (v.lengthSq() < 1e-10) return -Infinity;
+    v.normalize();
+    let minU = Infinity; let maxU = -Infinity;
+    let minV = Infinity; let maxV = -Infinity;
+    points.forEach(p => {
+      const uVal = p.dot(u);
+      const vVal = p.dot(v);
+      minU = Math.min(minU, uVal);
+      maxU = Math.max(maxU, uVal);
+      minV = Math.min(minV, vVal);
+      maxV = Math.max(maxV, vVal);
+    });
+    const spanU = maxU - minU;
+    const spanV = maxV - minV;
+    return spanU - spanV * 0.1;
+  }
+
   _getPrimaryEdgeDirection(coplanarVerts, normal) {
     if (!coplanarVerts || coplanarVerts.length < 3) return null;
+    const n = (normal && normal.clone) ? normal.clone().normalize() : new THREE.Vector3(0, 1, 0);
+
     const edgeMap = new Map();
     const edgePairs = [[0, 1], [1, 2], [2, 0]];
 
@@ -251,14 +331,32 @@ class PanelPlacer {
       }
     }
 
-    let best = null;
-    for (const entry of edgeMap.values()) {
-      if (!best || entry.len > best.len) best = entry;
+    let edgeDir = null;
+    let edgeScore = -Infinity;
+    if (edgeMap.size) {
+      let best = null;
+      for (const entry of edgeMap.values()) {
+        if (!best || entry.len > best.len) best = entry;
+      }
+      if (best && best.dir) {
+        edgeDir = best.dir.clone().normalize();
+        edgeScore = this._scoreDirectionOnFace(edgeDir, coplanarVerts, n);
+      }
     }
-    if (!best) return null;
 
-    const dir = best.dir.clone().normalize();
-    const ref = new THREE.Vector3(1, 0, 0).addScaledVector(normal, -normal.x);
+    const pca = this._getPrincipalAxisDirection(coplanarVerts, n);
+    const candidates = [];
+    if (edgeDir) candidates.push({ dir: edgeDir, score: edgeScore });
+    if (pca && pca.dir) {
+      const pcaScore = this._scoreDirectionOnFace(pca.dir, coplanarVerts, n) + (pca.anisotropy || 0) * 0.001;
+      candidates.push({ dir: pca.dir, score: pcaScore });
+    }
+
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => (b.score - a.score));
+    let dir = candidates[0].dir.clone().normalize();
+
+    const ref = new THREE.Vector3(1, 0, 0).addScaledVector(n, -n.x);
     if (ref.lengthSq() > 1e-8) {
       ref.normalize();
       if (dir.dot(ref) < 0) dir.negate();
@@ -294,6 +392,13 @@ class PanelPlacer {
       if (calibrated) return calibrated;
     }
     return DEFAULT_SCENE_UNITS_PER_METER;
+  }
+
+  _ensureFaceEdgeDir(faceData) {
+    if (!faceData || !faceData.normal || !faceData.coplanarVerts) return;
+    if (!faceData.edgeDir || faceData.edgeDir.lengthSq() < 1e-8) {
+      faceData.edgeDir = this._getPrimaryEdgeDirection(faceData.coplanarVerts, faceData.normal);
+    }
   }
 
   _createPanelObject(spec, asGhost, overrideUnitsPerMeter) {
@@ -636,9 +741,7 @@ class PanelPlacer {
 
   enterSketchMode(faceData) {
     this.deselectPanel();
-    if (!faceData.edgeDir && faceData.coplanarVerts && faceData.normal) {
-      faceData.edgeDir = this._getPrimaryEdgeDirection(faceData.coplanarVerts, faceData.normal);
-    }
+    this._ensureFaceEdgeDir(faceData);
     this.selectedFace = faceData;
     this.state = PlacerState.SKETCH;
     this.sessionPanels = [];
@@ -1043,6 +1146,7 @@ class PanelPlacer {
 
   _projectFace2D(faceData) {
     if (!faceData || !faceData.coplanarVerts || !faceData.normal) return null;
+    this._ensureFaceEdgeDir(faceData);
     const normal = faceData.normal.clone().normalize();
     const zAxis = (faceData.edgeDir && faceData.edgeDir.lengthSq() > 1e-6)
       ? faceData.edgeDir.clone().normalize()
@@ -1182,6 +1286,7 @@ class PanelPlacer {
   }
 
   _positionOnFace(panel, hit) {
+    if (this.selectedFace) this._ensureFaceEdgeDir(this.selectedFace);
     // Project hit point onto actual roof surface plane (avoid highlight offset)
     const normal = this.selectedFace ? this.selectedFace.normal.clone() : new THREE.Vector3(0, 1, 0);
     const center = this.selectedFace ? this.selectedFace.center : hit.point;
