@@ -34,7 +34,9 @@ def _ensure_ccw_xy(region):
     if len(region) < 3:
         return region
     x, z = region[:, 0], region[:, 2]
-    area = 0.5 * np.sum(x[:-1] * z[1:] - x[1:] * z[:-1])
+    # Complete Shoelace formula including closing edge (last→first vertex)
+    area = 0.5 * (np.sum(x[:-1] * z[1:] - x[1:] * z[:-1])
+                  + x[-1] * z[0] - x[0] * z[-1])
     if area < 0:
         region = region[::-1]
     return region
@@ -132,12 +134,90 @@ def _ecef_east_vector(lat_deg, lon_deg):
     lon = np.deg2rad(lon_deg)
     return np.array([-np.sin(lon), np.cos(lon), 0.0])
 
+def _point_in_triangle_2d(pt, a, b, c):
+    def _sign(p1, p2, p3):
+        return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
+    d1, d2, d3 = _sign(pt, a, b), _sign(pt, b, c), _sign(pt, c, a)
+    return not ((d1 < 0 or d2 < 0 or d3 < 0) and (d1 > 0 or d2 > 0 or d3 > 0))
+
+
+def _triangulate_polygon_2d(pts_2d):
+    """Ear-clipping triangulation for a simple 2D polygon.
+
+    Works correctly for both convex and concave polygons, unlike
+    naive fan triangulation which only handles convex shapes.
+    """
+    n = len(pts_2d)
+    if n < 3:
+        return []
+    if n == 3:
+        return [[0, 1, 2]]
+
+    # Ensure CCW winding for the index list
+    area = sum(
+        pts_2d[i][0] * pts_2d[(i + 1) % n][1]
+        - pts_2d[(i + 1) % n][0] * pts_2d[i][1]
+        for i in range(n)
+    )
+    indices = list(range(n))
+    if area < 0:
+        indices = indices[::-1]
+
+    faces = []
+    while len(indices) > 2:
+        ear_found = False
+        m = len(indices)
+        for i in range(m):
+            p = indices[(i - 1) % m]
+            c = indices[i]
+            nx = indices[(i + 1) % m]
+            cross = ((pts_2d[c][0] - pts_2d[p][0]) * (pts_2d[nx][1] - pts_2d[p][1])
+                     - (pts_2d[c][1] - pts_2d[p][1]) * (pts_2d[nx][0] - pts_2d[p][0]))
+            if cross <= 0:
+                continue
+            ear = True
+            for j in range(m):
+                if indices[j] in (p, c, nx):
+                    continue
+                if _point_in_triangle_2d(pts_2d[indices[j]], pts_2d[p], pts_2d[c], pts_2d[nx]):
+                    ear = False
+                    break
+            if ear:
+                faces.append([p, c, nx])
+                indices.pop(i)
+                ear_found = True
+                break
+        if not ear_found:
+            break
+    return faces
+
+
 def _region_to_mesh(positions):
     region = _remove_duplicate_points(positions)
     region = _ensure_ccw_xy(region)
     if len(region) < 3:
         return None
-    faces = [[0, i, i + 1] for i in range(1, len(region) - 1)]
+
+    # Project onto polygon plane for concave-safe ear-clipping triangulation
+    pts = np.array(region)
+    edge1 = pts[1] - pts[0]
+    edge2 = pts[2] - pts[0]
+    normal = np.cross(edge1, edge2)
+    nl = np.linalg.norm(normal)
+    if nl > 1e-10:
+        normal = normal / nl
+    else:
+        normal = np.array([0.0, 1.0, 0.0])
+    ref = np.array([1, 0, 0]) if abs(normal[0]) < 0.9 else np.array([0, 1, 0])
+    u = np.cross(normal, ref)
+    u = u / np.linalg.norm(u)
+    v = np.cross(normal, u)
+    pts_2d = [(float(p @ u), float(p @ v)) for p in pts]
+
+    faces = _triangulate_polygon_2d(pts_2d)
+    if not faces:
+        faces = [[0, i, i + 1] for i in range(1, len(region) - 1)]
+
     mesh = trimesh.Trimesh(region, faces, process=False)
     mesh.fix_normals()
     return mesh
@@ -440,7 +520,6 @@ def build_glb_from_roofs(roofs, out_path, roof_thickness=0.25,
 
     parts = []
     roof_infos = []
-    panel_parts = []
 
     for i, roof_pos in enumerate(roof_positions_rotated):
         mesh = _region_to_mesh(roof_pos)
@@ -480,13 +559,6 @@ def build_glb_from_roofs(roofs, out_path, roof_thickness=0.25,
                 logger.info(
                     "%s roof (#%d): tilt=%.2f, panel area=%.2fm2 (%sx%sm)",
                     name, i + 1, tilt or 0, mir_area, mir_width, mir_height)
-
-                try:
-                    panel_mesh = _create_panel_mesh(mir["corners"], _origin_2d, _u, _v, _n)
-                    if panel_mesh:
-                        panel_parts.append(panel_mesh)
-                except Exception as e:
-                    logger.warning("Panel mesh creation failed for roof #%d: %s", i + 1, e)
             else:
                 logger.info(
                     "%s roof (#%d): tilt=%.2f, no panel area found",

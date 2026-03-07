@@ -153,7 +153,7 @@ function autoFillFromRoofData(data) {
     `;
 
     html += data.roofs.map(roof => {
-      const area = roof.panel_area || 0;
+      const area = roof.area || roof.panel_area || 0;
       totalArea += area;
       const tilt = roof.user_tilt != null ? roof.user_tilt : roof.tilt;
       const azimuth = roof.azimuth;
