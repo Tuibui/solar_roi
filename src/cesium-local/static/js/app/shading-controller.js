@@ -120,7 +120,16 @@ class ShadingController {
         )
       });
 
-      // Load OSM Buildings into the hidden viewer
+      // Load Google Photorealistic 3D Tiles so shading uses the same dataset as map view
+      try {
+        const google = await Cesium.createGooglePhotorealistic3DTileset();
+        this.cesiumViewer.scene.primitives.add(google);
+        console.log('[ShadingController] Google 3D Tiles loaded in hidden viewer');
+      } catch (err) {
+        console.warn('[ShadingController] Failed to load Google 3D tiles in hidden viewer:', err);
+      }
+
+      // Load OSM Buildings into the hidden viewer (kept for other features but excluded from raycasts)
       try {
         if (typeof Cesium.createOsmBuildings === 'function') {
           console.log('[ShadingController] Using Cesium.createOsmBuildings()');
@@ -160,28 +169,42 @@ class ShadingController {
 
   _waitForTiles() {
     return new Promise((resolve) => {
-      // Wait for Google 3D tiles (the primary raycast target) if available
-      const googleTiles = typeof getGoogleTiles === 'function' ? getGoogleTiles() : null;
-      const tileset = googleTiles || this.osmBuildings;
+      // Force a scene render so Cesium starts loading tiles near the camera position
+      if (this.cesiumViewer && this.cesiumViewer.scene) {
+        this.cesiumViewer.scene.requestRender();
+      }
 
-      if (!tileset) {
+      // Wait for all tilesets (OSM + Google) to load tiles near the house
+      const googleTiles = typeof getGoogleTiles === 'function' ? getGoogleTiles() : null;
+      // Collect all active tilesets so we wait for the full scene
+      const tilesets = [googleTiles, this.osmBuildings].filter(Boolean);
+
+      if (tilesets.length === 0) {
         console.log('[ShadingController] No tilesets to wait for');
         resolve();
         return;
       }
 
-      const checkInterval = 100;
-      const maxWait = 10000;  // 10 s max for 3D tile loading
+      const checkInterval = 200;
+      const maxWait = 15000; // 15s max — Google Photorealistic tiles can be slow
       let waited = 0;
 
       const check = () => {
-        const loaded = tileset.tilesLoaded ||
-          (tileset.allTilesLoaded !== undefined && tileset.allTilesLoaded);
-        if (loaded) {
+        // Trigger another render each tick to keep tile loading pipeline active
+        if (this.cesiumViewer && this.cesiumViewer.scene) {
+          this.cesiumViewer.scene.requestRender();
+        }
+
+        const allLoaded = tilesets.every(ts =>
+          ts.tilesLoaded || (ts.allTilesLoaded !== undefined && ts.allTilesLoaded)
+        );
+
+        if (allLoaded) {
+          // Extra settle time after all tiles report ready
           setTimeout(() => {
             console.log('[ShadingController] 3D tiles ready');
             resolve();
-          }, 1000);
+          }, 500);
           return;
         }
 

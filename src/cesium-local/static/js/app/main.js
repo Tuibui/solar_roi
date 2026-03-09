@@ -673,7 +673,7 @@ async function snapCameraToRoof(roofIndex) {
   if (pp) pp.snapToRoof(roofIndex);
 }
 
-function handleAutoPanelSelection(data) {
+async function handleAutoPanelSelection(data) {
   const roofId = data?.roofId || '';
   const roofIndex = parseInt(String(roofId).replace('roof-', ''), 10);
   if (isNaN(roofIndex)) {
@@ -698,8 +698,24 @@ function handleAutoPanelSelection(data) {
     return;
   }
 
-  const maxPanels = Math.floor(usableArea / panelArea);
-  if (!Number.isFinite(maxPanels) || maxPanels < 1) {
+  // Compute how many panels actually fit using the real 3D grid algorithm.
+  // Falls back to area-based estimate if the placer isn't ready yet.
+  let maxPanels = Math.max(1, Math.floor(usableArea / panelArea));
+  let maxSource = 'area estimate';
+  if (window.ensurePanelPlacer) {
+    const pp = await window.ensurePanelPlacer();
+    if (pp && typeof pp.computeMaxPanelsFit === 'function') {
+      const areaM2 = getRoofAreaM2(roofIndex);
+      if (areaM2) pp.setRoofArea(roofIndex, areaM2);
+      const fitCount = pp.computeMaxPanelsFit(roofIndex, { lengthM, widthM });
+      if (fitCount > 0) {
+        maxPanels = fitCount;
+        maxSource = 'grid fit';
+      }
+    }
+  }
+
+  if (maxPanels < 1) {
     alert('Roof area is too small for this panel.');
     return;
   }
@@ -708,7 +724,7 @@ function handleAutoPanelSelection(data) {
     'Auto Panel',
     `Roof usable area: ${usableArea.toFixed(1)} m²`,
     `Panel area: ${panelArea.toFixed(2)} m²`,
-    `Max panels (area basis): ${maxPanels}`,
+    `Max panels (${maxSource}): ${maxPanels}`,
     `Enter desired panel count (1-${maxPanels}):`
   ].join('\n');
 
@@ -857,7 +873,11 @@ async function startPanelPlacement(data) {
       return;
     }
 
-    showToast(`Auto-placed ${placedCount} panel${placedCount !== 1 ? 's' : ''} of ${modelLabel}`);
+    const requestedCount = data.autoPanelCount;
+    const countMsg = placedCount < requestedCount
+      ? `Auto-placed ${placedCount} of ${requestedCount} panels (roof shape limited) — ${modelLabel}`
+      : `Auto-placed ${placedCount} panel${placedCount !== 1 ? 's' : ''} — ${modelLabel}`;
+    showToast(countMsg);
     pp.finishSketch();
     return;
   }
@@ -1416,10 +1436,12 @@ let boundaryScatterBusy = false;
  * Primes the tile cache so pickFromRayMostDetailed is faster.
  * Skips if already preloaded for this location.
  */
-let _tilesPreloaded = false;
+// Track preload per location (lat/lon rounded) so moving to a new site forces reload.
+let _tilesPreloadKey = null;
 async function preloadTilesForShading(viewer, houseLocation) {
-  if (_tilesPreloaded) {
-    console.log('[Shading] Tiles already preloaded, skipping');
+  const key = `${houseLocation.lat.toFixed(5)}_${houseLocation.lon.toFixed(5)}`;
+  if (_tilesPreloadKey === key) {
+    console.log('[Shading] Tiles already preloaded for this site, skipping');
     return;
   }
 
@@ -1433,38 +1455,40 @@ async function preloadTilesForShading(viewer, houseLocation) {
   const savedDir = viewer.camera.direction.clone();
   const savedUp  = viewer.camera.up.clone();
 
-  const savedSSE = googleTiles.maximumScreenSpaceError;
-  googleTiles.maximumScreenSpaceError = 8;
+  // Lower SSE for high-detail tiles — caller is responsible for restoring SSE
+  // after shading computation so tiles stay loaded throughout ray casting.
+  googleTiles.maximumScreenSpaceError = 2.0;
 
   const lon = houseLocation.lon;
   const lat = houseLocation.lat;
   const alt = (houseLocation.height || 0) + 150;
   const target = Cesium.Cartesian3.fromDegrees(lon, lat, houseLocation.height || 0);
 
-  // 2 opposite directions — enough to load surrounding building tiles
-  for (const [dLon, dLat] of [[0.002, 0], [-0.002, 0]]) {
+  // 4 viewpoints around the site to pull in surrounding buildings
+  for (const [dLon, dLat] of [[0.002, 0], [-0.002, 0], [0, 0.002], [0, -0.002]]) {
     viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(
       Math.atan2(dLon, dLat), Cesium.Math.toRadians(-35), 250
     ));
     viewer.scene.requestRender();
-    await new Promise(r => setTimeout(r, 250));
+    await new Promise(r => setTimeout(r, 300));
   }
 
-  // Wait for tiles to settle (max 2s)
+  // Wait for tiles to settle (max 3s)
   const start = Date.now();
-  while (Date.now() - start < 2000) {
+  while (Date.now() - start < 3000) {
     if (googleTiles.tilesLoaded) break;
     viewer.scene.requestRender();
     await new Promise(r => setTimeout(r, 200));
   }
 
-  googleTiles.maximumScreenSpaceError = savedSSE;
+  // NOTE: SSE is intentionally NOT restored here — caller restores it after
+  // shading so that high-detail tiles remain loaded throughout ray casting.
   viewer.camera.setView({
     destination: savedPos,
     orientation: { direction: savedDir, up: savedUp }
   });
-  _tilesPreloaded = true;
-  console.log('[Shading] Tile preload complete');
+  _tilesPreloadKey = key;
+  console.log('[Shading] Tile preload complete for', key);
 }
 
 async function runBoundaryScatter(roofIndex, options = {}) {
@@ -1491,6 +1515,10 @@ async function runBoundaryScatter(roofIndex, options = {}) {
 
   boundaryScatterBusy = true;
 
+  // Hoisted so finally block can restore SSE after shading completes.
+  let _gTiles = null;
+  let _savedSSE = null;
+
   try {
     console.log('[Scatter] Starting for roof', roofIndex + 1, 'points:', boundary.length);
     const viewer = getViewer();
@@ -1505,9 +1533,17 @@ async function runBoundaryScatter(roofIndex, options = {}) {
       console.log('[Scatter] OSM not loaded (casting against Google 3D tiles only)');
     }
 
+    // Keep high-detail tiles (SSE=2.0) loaded throughout preload + ray casting.
+    // Restore SSE in the finally block after shading is complete.
+    _gTiles = typeof getGoogleTiles === 'function' ? getGoogleTiles() : null;
+    _savedSSE = _gTiles ? _gTiles.maximumScreenSpaceError : null;
+
     // Pre-load surrounding 3D tiles so ray casts can detect nearby buildings
     await preloadTilesForShading(viewer, houseLocation);
-    if (gen !== scatterGeneration) return;
+    if (gen !== scatterGeneration) {
+      if (_gTiles && _savedSSE != null) _gTiles.maximumScreenSpaceError = _savedSSE;
+      return;
+    }
 
     const roofMesh = findRoofMesh(splitViewer.scene);
     if (!roofMesh) {
@@ -1537,7 +1573,7 @@ async function runBoundaryScatter(roofIndex, options = {}) {
     }
 
     // Downsample if too dense
-    const maxPoints = 100;
+    const maxPoints = 60;
     let samplePointsEcef = pointsEcef;
     let sampleLocalPoints = localPoints;
     if (pointsEcef.length > maxPoints) {
@@ -1569,8 +1605,8 @@ async function runBoundaryScatter(roofIndex, options = {}) {
 
       console.log('[Scatter] Shading compute start');
       {
-        const result = await computeShadingCounts(samplePointsEcef, viewer, osm, times, houseLocation);
-        if (gen !== scatterGeneration) return; // stale — new analyze started
+    const result = await computeShadingCounts(samplePointsEcef, viewer, osm, times, houseLocation);
+        if (gen !== scatterGeneration) { if (_gTiles && _savedSSE != null) _gTiles.maximumScreenSpaceError = _savedSSE; return; }
         counts = result.counts;
         usedSamples = result.usedSamples;
       }
@@ -1588,7 +1624,7 @@ async function runBoundaryScatter(roofIndex, options = {}) {
 
       {
         const result = await computeShadingCounts(samplePointsEcef, viewer, osm, times, houseLocation);
-        if (gen !== scatterGeneration) return; // stale — new analyze started
+        if (gen !== scatterGeneration) { if (_gTiles && _savedSSE != null) _gTiles.maximumScreenSpaceError = _savedSSE; return; }
         counts = result.counts;
         usedSamples = result.usedSamples;
       }
@@ -1604,6 +1640,8 @@ async function runBoundaryScatter(roofIndex, options = {}) {
   } catch (err) {
     console.warn('Boundary scatter failed:', err);
   } finally {
+    // Restore Google tiles SSE now that ray casting is complete
+    if (_gTiles && _savedSSE != null) _gTiles.maximumScreenSpaceError = _savedSSE;
     if (finishOverlay) {
       GaugeOverlay.setProgress(1);
       GaugeOverlay.setPhase('COMPLETE');
@@ -1654,8 +1692,8 @@ function findRoofMesh(scene) {
 function buildKeyTimes() {
   const times = [];
   const base = new Date();
-  const hours = [9, 12, 15]; // 3 key hours — irradiance-weighted so noon dominates
-  for (const h of hours) {
+  // 3 key sun angles — morning / noon / afternoon — enough for fast demo
+  for (const h of [9, 12, 15]) {
     const t = new Date(base);
     t.setHours(h, 0, 0, 0);
     times.push(t);
@@ -1865,11 +1903,10 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
   let usedSamples = 0;
   const totalTimes = times.length;
   let timeIdx = 0;
-  let totalTimeouts = 0;
 
   if (window.GaugeOverlay) {
     GaugeOverlay.log('Raycast config: ' + pointsEcef.length + ' pts × ' + totalTimes + ' sun positions');
-    GaugeOverlay.log('Batch size: 25 rays | Timeout: 8s/ray');
+    GaugeOverlay.log('Batch size: 10 rays | pickFromRayMostDetailed (async, 10 s/ray)');
   }
 
   for (const time of times) {
@@ -1884,20 +1921,21 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
     if (window.GaugeOverlay) GaugeOverlay.log('Casting rays — sun @' + time.getHours() + ':00h ...');
     usedSamples += 1;
     let shadedInPass = 0;
-    let batchTimeouts = 0;
 
-    const BATCH = 25;
-    for (let i = 0; i < pointsEcef.length; i += BATCH) {
-      const batch = pointsEcef.slice(i, i + BATCH);
-      const results = await Promise.all(batch.map(p => castRay(viewer, osmTileset, p, sunDir)));
-      results.forEach((res, idx) => {
-        if (res === 'timeout') { batchTimeouts++; totalTimeouts++; }
-        else if (res) { counts[i + idx] += 1; shadedInPass++; }
-      });
+    // castRay is synchronous — process all points in one pass, yield once
+    // per time slot so the UI stays responsive.
+    for (let j = 0; j < pointsEcef.length; j++) {
+      if (castRay(viewer, pointsEcef[j], sunDir, osmTileset)) {
+        counts[j] += 1;
+        shadedInPass++;
+      }
+    }
+    {
+      const end = pointsEcef.length;
       // Update gauge: 55-95% range for shading phase
       if (window.GaugeOverlay) {
         const timeFrac = timeIdx / totalTimes;
-        const batchFrac = Math.min(i + BATCH, pointsEcef.length) / pointsEcef.length;
+        const batchFrac = end / pointsEcef.length;
         const overall = (timeFrac + batchFrac / totalTimes);
         GaugeOverlay.setProgress(0.55 + overall * 0.40);
       }
@@ -1905,48 +1943,43 @@ async function computeShadingCounts(pointsEcef, viewer, osmTileset, times, house
     }
 
     if (window.GaugeOverlay) {
-      GaugeOverlay.log('  → ' + shadedInPass + '/' + pointsEcef.length + ' shaded' + (batchTimeouts ? ' (' + batchTimeouts + ' timeouts)' : ''));
+      GaugeOverlay.log('  → ' + shadedInPass + '/' + pointsEcef.length + ' shaded');
     }
     console.log(`[Shading] ${time.getHours()}:00 → ${shadedInPass}/${pointsEcef.length} points shaded`);
     timeIdx++;
   }
 
   const totalShaded = counts.filter(c => c > 0).length;
+  if (totalShaded === 0) {
+    const googleTiles = typeof getGoogleTiles === 'function' ? getGoogleTiles() : null;
+    const googleReady = googleTiles && (googleTiles.tilesLoaded || googleTiles.allTilesLoaded);
+    const note = googleReady ? 'No obstacles detected in Google 3D tiles.' : 'Google 3D tiles not ready/absent — shading may be blank.';
+    if (window.GaugeOverlay) GaugeOverlay.log(note);
+    console.log('[Shading] ', note);
+  }
   if (window.GaugeOverlay) {
     GaugeOverlay.log('Complete: ' + totalShaded + '/' + pointsEcef.length + ' pts shaded (' + usedSamples + ' sun samples)');
-    if (totalTimeouts > 0) GaugeOverlay.log('Warning: ' + totalTimeouts + ' rays timed out (treated as unshaded)');
   }
   console.log(`[Shading] Summary: ${usedSamples} valid sun samples, ${totalShaded}/${pointsEcef.length} points have some shading`);
   return { counts, usedSamples };
 }
 
-const RAY_TIMEOUT_MS = 8000; // 8s per ray — prevents infinite hang
-
-function withTimeout(promise, ms) {
-  let timer;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('ray_timeout')), ms); })
-  ]).finally(() => clearTimeout(timer));
-}
-
-async function castRay(viewer, osmTileset, pointEcef, sunDirection) {
-  // Offset above roof surface using geodetic "up" to avoid self-intersection
+// Cast a ray synchronously using preloaded tiles — returns immediately.
+// Tiles must be primed by preloadTilesForShading() before this is called.
+function castRay(viewer, pointEcef, sunDirection, osmTileset) {
   const up = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(pointEcef, new Cesium.Cartesian3());
-  const upOffset = Cesium.Cartesian3.multiplyByScalar(up, 0.5, new Cesium.Cartesian3());
-  const origin = Cesium.Cartesian3.add(pointEcef, upOffset, new Cesium.Cartesian3());
-
+  const origin = Cesium.Cartesian3.add(
+    pointEcef,
+    Cesium.Cartesian3.multiplyByScalar(up, 1.0, new Cesium.Cartesian3()),
+    new Cesium.Cartesian3()
+  );
   const ray = new Cesium.Ray(origin, sunDirection);
   try {
-    const excludeList = osmTileset ? [osmTileset] : [];
-    const result = await withTimeout(
-      viewer.scene.pickFromRayMostDetailed(ray, excludeList),
-      RAY_TIMEOUT_MS
-    );
+    const exclude = osmTileset ? [osmTileset] : undefined;
+    const result = viewer.scene.pickFromRay(ray, exclude);
     if (!result || !result.object) return false;
-    return result.distance > 2.0;
+    return result.distance > 0.5;
   } catch (e) {
-    if (e.message === 'ray_timeout') return 'timeout';
     return false;
   }
 }

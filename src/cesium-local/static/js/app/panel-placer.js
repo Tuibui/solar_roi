@@ -201,21 +201,36 @@ class PanelPlacer {
     }
 
     const areaM2 = this.roofAreasM2.get(roofIndex);
-    if (!Number.isFinite(areaM2) || areaM2 <= 0) return null;
+    if (!Number.isFinite(areaM2) || areaM2 <= 0) {
+      console.warn('[PanelPlacer] No valid roof area for index', roofIndex, '— falling back to default scale');
+      return null;
+    }
 
     const mesh = this.getRoofMeshByIndex(roofIndex);
     if (!mesh) return null;
     const faceData = this.getBestFaceForMesh(mesh);
     if (!faceData || !faceData.coplanarVerts || faceData.coplanarVerts.length < 3) return null;
 
-    const sceneArea = this._computeCoplanarArea(faceData.coplanarVerts);
+    // Re-collect coplanar verts with tighter tolerances for calibration only.
+    // angleTol=0.12 (used by getBestFaceForMesh) can include eave side faces on steep
+    // roofs (tilt > ~62°), inflating sceneArea and making panels too large.
+    const tightVerts = this._findCoplanarFace(mesh, faceData.faceIndex, faceData.normal, 0.02, 0.005);
+    const calibVerts = tightVerts.length >= 3 ? tightVerts : faceData.coplanarVerts;
+
+    const sceneArea = this._computeCoplanarArea(calibVerts);
     if (!Number.isFinite(sceneArea) || sceneArea <= 0) return null;
 
     const scale = Math.sqrt(sceneArea / areaM2);
     if (!Number.isFinite(scale) || scale <= 0) return null;
 
     this.sceneUnitsPerMeter.set(roofIndex, scale);
-    console.log('[PanelPlacer] Calibrated scale roof', roofIndex, '->', scale.toFixed(6), 'scene units / meter');
+    console.log(
+      '[PanelPlacer] Calibrated scale roof', roofIndex,
+      '| sceneArea:', sceneArea.toFixed(6), 'scene-units²',
+      '| areaM2:', areaM2.toFixed(3), 'm²',
+      '| scale:', scale.toFixed(6), 'scene-units/m',
+      '| verts used:', calibVerts.length / 3
+    );
     return scale;
   }
 
@@ -305,7 +320,12 @@ class PanelPlacer {
     if (!coplanarVerts || coplanarVerts.length < 3) return null;
     const n = (normal && normal.clone) ? normal.clone().normalize() : new THREE.Vector3(0, 1, 0);
 
-    const edgeMap = new Map();
+    // Count how many triangles share each edge.
+    // Boundary edges appear exactly once; internal (diagonal) edges appear twice or more.
+    // We only want boundary edges so we align to the actual roof perimeter, not
+    // to triangulation diagonals (which are often longer and used to cause a tilt bug).
+    const edgeCount = new Map();
+    const edgeData  = new Map();
     const edgePairs = [[0, 1], [1, 2], [2, 0]];
 
     for (let i = 0; i + 2 < coplanarVerts.length; i += 3) {
@@ -313,55 +333,53 @@ class PanelPlacer {
       for (const [aIdx, bIdx] of edgePairs) {
         const a = tri[aIdx];
         const b = tri[bIdx];
-        const edge = new THREE.Vector3().subVectors(b, a);
-        const len = edge.length();
-        if (!Number.isFinite(len) || len < 1e-5) continue;
-
-        // Tangential edge direction on roof plane
-        edge.addScaledVector(normal, -edge.dot(normal));
-        const tangentialLen = edge.length();
-        if (!Number.isFinite(tangentialLen) || tangentialLen < 1e-5) continue;
-        edge.divideScalar(tangentialLen);
-
         const ka = this._edgeKey(a);
         const kb = this._edgeKey(b);
         const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
-        const curr = edgeMap.get(key);
-        if (!curr || len > curr.len) edgeMap.set(key, { len, dir: edge.clone() });
+        edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
+        if (!edgeData.has(key)) edgeData.set(key, { a, b });
       }
     }
 
+    // Collect only boundary edges, projected onto the roof plane
+    const boundaryEdges = [];
+    for (const [key, count] of edgeCount) {
+      if (count !== 1) continue; // skip internal / shared edges
+      const { a, b } = edgeData.get(key);
+      const raw = new THREE.Vector3().subVectors(b, a);
+      const len = raw.length();
+      if (!Number.isFinite(len) || len < 1e-5) continue;
+
+      // Remove any component along the normal (project to roof plane)
+      raw.addScaledVector(n, -raw.dot(n));
+      const tangLen = raw.length();
+      if (!Number.isFinite(tangLen) || tangLen < 1e-5) continue;
+      raw.divideScalar(tangLen);
+      boundaryEdges.push({ len, dir: raw });
+    }
+
+    // Pick the longest boundary edge as the primary direction.
+    // Fall back to PCA if no boundary edges found (degenerate mesh).
     let edgeDir = null;
-    let edgeScore = -Infinity;
-    if (edgeMap.size) {
-      let best = null;
-      for (const entry of edgeMap.values()) {
-        if (!best || entry.len > best.len) best = entry;
-      }
-      if (best && best.dir) {
-        edgeDir = best.dir.clone().normalize();
-        edgeScore = this._scoreDirectionOnFace(edgeDir, coplanarVerts, n);
-      }
+    if (boundaryEdges.length) {
+      boundaryEdges.sort((a, b) => b.len - a.len);
+      edgeDir = boundaryEdges[0].dir.clone().normalize();
     }
 
-    const pca = this._getPrincipalAxisDirection(coplanarVerts, n);
-    const candidates = [];
-    if (edgeDir) candidates.push({ dir: edgeDir, score: edgeScore });
-    if (pca && pca.dir) {
-      const pcaScore = this._scoreDirectionOnFace(pca.dir, coplanarVerts, n) + (pca.anisotropy || 0) * 0.001;
-      candidates.push({ dir: pca.dir, score: pcaScore });
+    if (!edgeDir) {
+      const pca = this._getPrincipalAxisDirection(coplanarVerts, n);
+      if (pca && pca.dir) edgeDir = pca.dir.clone().normalize();
     }
 
-    if (!candidates.length) return null;
-    candidates.sort((a, b) => (b.score - a.score));
-    let dir = candidates[0].dir.clone().normalize();
+    if (!edgeDir) return null;
 
+    // Canonical orientation: prefer the positive-X half-space
     const ref = new THREE.Vector3(1, 0, 0).addScaledVector(n, -n.x);
     if (ref.lengthSq() > 1e-8) {
       ref.normalize();
-      if (dir.dot(ref) < 0) dir.negate();
+      if (edgeDir.dot(ref) < 0) edgeDir.negate();
     }
-    return dir;
+    return edgeDir;
   }
 
   _getPanelBaseQuaternion(faceData) {
@@ -391,7 +409,69 @@ class PanelPlacer {
       const calibrated = this._calibrateSceneUnitsForRoof(roofIndex);
       if (calibrated) return calibrated;
     }
+    // Use the stored model scale factor (set in loadModelToViewer as 5/maxDim)
+    const stored = this.viewer && this.viewer.modelScaleUnitsPerMeter;
+    if (Number.isFinite(stored) && stored > 0) return stored;
     return DEFAULT_SCENE_UNITS_PER_METER;
+  }
+
+  // Compute how many panels actually fit on a roof using the same grid algorithm
+  // as autoPlacePanels but without entering sketch mode or placing anything.
+  // Returns 0 if the roof or spec is invalid.
+  computeMaxPanelsFit(roofIndex, spec) {
+    if (!spec || !(Number(spec.lengthM) > 0) || !(Number(spec.widthM) > 0)) return 0;
+
+    this._cacheRoofMeshes();
+    const mesh = this.getRoofMeshByIndex(roofIndex);
+    if (!mesh) return 0;
+
+    const faceData = this.getBestFaceForMesh(mesh);
+    if (!faceData || !faceData.coplanarVerts || !faceData.normal) return 0;
+    this._ensureFaceEdgeDir(faceData);
+
+    // Temporarily set sketch index so calibration picks up the right area
+    const prevSketchIndex = this._sketchRoofIndex;
+    this._sketchRoofIndex = roofIndex;
+    const unitsPerMeter = this._getSceneUnitsPerMeter();
+    this._sketchRoofIndex = prevSketchIndex;
+
+    const gap = 0.05 * unitsPerMeter;
+    const panelLen = Number(spec.lengthM) * unitsPerMeter;
+    const panelWid = Number(spec.widthM) * unitsPerMeter;
+    if (panelLen <= 0 || panelWid <= 0) return 0;
+
+    const basis = this._projectFace2D(faceData);
+    if (!basis || !basis.pts2d || basis.pts2d.length < 3) return 0;
+
+    const hull = this._computeConvexHull(basis.pts2d);
+    const minU = Math.min(...basis.pts2d.map(p => p.u));
+    const maxU = Math.max(...basis.pts2d.map(p => p.u));
+    const minV = Math.min(...basis.pts2d.map(p => p.v));
+    const maxV = Math.max(...basis.pts2d.map(p => p.v));
+
+    const stepU = panelLen + gap;
+    const stepV = panelWid + gap;
+    const startU = minU + panelLen * 0.5 + gap * 0.5;
+    const startV = minV + panelWid * 0.5 + gap * 0.5;
+    const halfL = panelLen * 0.5;
+    const halfW = panelWid * 0.5;
+
+    let count = 0;
+    for (let u = startU; u <= maxU - halfL; u += stepU) {
+      for (let v = startV; v <= maxV - halfW; v += stepV) {
+        const corners = [
+          { u: u - halfL, v: v - halfW },
+          { u: u + halfL, v: v - halfW },
+          { u: u + halfL, v: v + halfW },
+          { u: u - halfL, v: v + halfW }
+        ];
+        const allInside = hull.length
+          ? corners.every(c => this._pointInPolygon(c, hull))
+          : true;
+        if (allInside) count++;
+      }
+    }
+    return count;
   }
 
   _ensureFaceEdgeDir(faceData) {

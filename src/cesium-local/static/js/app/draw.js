@@ -26,7 +26,14 @@ function setupEventHandlers() {
     if (!picked) return;
 
     let p = viewer.scene.pickPosition(e.position);
-    if (!p) return;
+    // pickPosition can fail or return NaN for Google Photorealistic 3D tiles;
+    // fall back to a ray-geometry intersection which is more reliable.
+    if (!p || isNaN(p.x)) {
+      const ray = viewer.camera.getPickRay(e.position);
+      const rayHit = ray ? viewer.scene.pickFromRay(ray) : null;
+      p = rayHit?.position || null;
+    }
+    if (!p || isNaN(p.x)) return;
 
     if (positions.length >= 3 &&
         Cesium.Cartesian3.distance(p, positions[0]) < 1.5) {
@@ -208,7 +215,24 @@ function finishBoundary() {
   
   console.group(`Roof ${boundaries.length} (${roofColor.name}) drawn`);
   const points = positions.map(p => [p.x, p.y, p.z]);
-  console.info(`Points (${points.length}):`, points);
+  console.info(`ECEF (${points.length}):`, points);
+
+  // ENU relative to first vertex
+  const origin = positions[0];
+  const carto = Cesium.Cartographic.fromCartesian(origin);
+  const latRad = carto.latitude;
+  const lonRad = carto.longitude;
+  const cosLat = Math.cos(latRad), sinLat = Math.sin(latRad);
+  const cosLon = Math.cos(lonRad), sinLon = Math.sin(lonRad);
+  const enu = positions.map(p => {
+    const dx = p.x - origin.x, dy = p.y - origin.y, dz = p.z - origin.z;
+    return [
+      +(-sinLon * dx + cosLon * dy).toFixed(3),
+      +(-sinLat * cosLon * dx - sinLat * sinLon * dy + cosLat * dz).toFixed(3),
+      +(cosLat * cosLon * dx + cosLat * sinLon * dy + sinLat * dz).toFixed(3)
+    ];
+  });
+  console.info(`ENU [E,N,U] (${enu.length}, origin=vertex0):`, enu);
   console.groupEnd();
 
   if (polylineEntity) {

@@ -556,8 +556,11 @@
         model.position.sub(center);
         // 3D model: auto-scale for visual
         const maxDim = Math.max(size.x, size.y, size.z);
-        model.scale.setScalar(5 / (maxDim || 1));
-        
+        const modelScale = 5 / (maxDim || 1);
+        model.scale.setScalar(modelScale);
+        // Store so PanelPlacer can use it as scale fallback (scene_units_per_meter)
+        viewer.modelScaleUnitsPerMeter = modelScale;
+
         // Backend outputs Y-up ENU coordinates — no rotation needed
         
         model.updateMatrixWorld(true);

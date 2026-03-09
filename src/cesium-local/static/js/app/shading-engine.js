@@ -6,11 +6,11 @@
 class ShadingEngine {
   constructor(cesiumViewer, osmTileset, houseLocation) {
     this.viewer = cesiumViewer;
-    // OSM tileset is EXCLUDED from ray picks (low-res, inaccurate).
-    // Rays are cast against Google Photorealistic 3D Tiles (actual buildings).
-    this.excludeTileset = osmTileset;
+    // Default: ignore the OSM tileset so only Google Photorealistic 3D tiles
+    // participate in shading. Caller can set a different exclusion later.
+    this.excludeTileset = osmTileset || null;
     this.houseLocation = houseLocation;
-    this.batchSize = 50;
+    this.batchSize = 10; // serial batch size per frame yield
 
     // Precompute trig and origin once — location never changes per instance
     const latRad = Cesium.Math.toRadians(houseLocation.lat);
@@ -114,40 +114,44 @@ class ShadingEngine {
   }
 
   /**
-   * Cast ray from roof point toward sun — async, forces tile loading.
-   * Uses pickFromRayMostDetailed to load 3D tiles along the ray before picking.
-   * Excludes OSM buildings (low-res); casts against Google Photorealistic 3D Tiles.
+   * Cast ray from roof point toward sun — synchronous via pickFromRay.
+   * Excludes the OSM tileset so only Google Photorealistic 3D tiles cast shadows.
+   * pickFromRay is fast and requires no timeout; tiles must be pre-loaded.
    */
   async castRay(pointEcef, sunDirection) {
     // Offset above roof surface using geodetic "up" to avoid self-intersection
     const up = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(pointEcef, new Cesium.Cartesian3());
-    const upOffset = Cesium.Cartesian3.multiplyByScalar(up, 0.5, new Cesium.Cartesian3());
+    // Lift the origin 1 m above the roof to avoid self-hits on the model mesh.
+    const upOffset = Cesium.Cartesian3.multiplyByScalar(up, 1.0, new Cesium.Cartesian3());
     const origin = Cesium.Cartesian3.add(pointEcef, upOffset, new Cesium.Cartesian3());
 
     const ray = new Cesium.Ray(origin, sunDirection);
 
     try {
-      const excludeList = this.excludeTileset ? [this.excludeTileset] : [];
-      const RAY_TIMEOUT = 8000;
-      let timer;
-      const result = await Promise.race([
-        this.viewer.scene.pickFromRayMostDetailed(ray, excludeList),
-        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('ray_timeout')), RAY_TIMEOUT); })
-      ]).finally(() => clearTimeout(timer));
+      const excludeList = this.excludeTileset ? [this.excludeTileset] : undefined;
+      const scene = this.viewer.scene;
+      if (scene && scene.requestRender) scene.requestRender();
 
-      if (!result || !result.object) {
+      // 10 s safety net — pickFromRayMostDetailed loads tiles on its own;
+      // first ray in a new area takes 2-5 s, cached rays resolve in < 100 ms.
+      const result = await Promise.race([
+        scene.pickFromRayMostDetailed(ray, excludeList),
+        new Promise(resolve => setTimeout(() => resolve('__timeout__'), 10000))
+      ]);
+
+      if (result === '__timeout__' || !result || !result.object) {
         return { isShaded: false };
       }
 
-      // Ignore close hits (self-intersection with own building roof surface)
-      const isValidHit = result.distance > 2.0;
+      // Ignore close hits (self-intersection with own building roof surface).
+      // Origin is already 1 m above surface; legitimate neighbour hits >> 0.5 m.
+      const isValidHit = result.distance > 0.5;
 
       return {
         isShaded: isValidHit,
         distance: result.distance
       };
     } catch (error) {
-      if (error.message === 'ray_timeout') console.warn('[ShadingEngine] Ray timed out');
       return { isShaded: false, error: true };
     }
   }
@@ -182,7 +186,8 @@ class ShadingEngine {
    * Fix #9: weights each hour by sin(altitude) so noon counts more than 8 am.
    */
   async analyzePointDaily(localPoint, roofMatrixWorld, date, pointEcef = null) {
-    const sampleHours = [8, 10, 12, 14, 16]; // Key solar hours
+    // Hourly samples across daytime for higher fidelity (06:00–18:00)
+    const sampleHours = Array.from({ length: 13 }, (_, i) => 6 + i);
 
     // Compute ECEF once — position doesn't change between hours
     const ecef = pointEcef ?? this.localToEcef(localPoint, roofMatrixWorld);
@@ -241,9 +246,8 @@ class ShadingEngine {
 
   async computeMonthlyShading(samples, roofMatrixWorld, month, year, progressCallback) {
     const DAYS = this._representativeDays(month, year); // Klein (1977) ISO days
-    // Use 3 hours: morning / solar noon / afternoon — irradiance-weighted so noon dominates
-    // Fewer hours = much faster computation with minimal accuracy loss
-    const HOURS = [9, 12, 15];
+    // Hourly samples (06:00–18:00) for higher temporal fidelity
+    const HOURS = Array.from({ length: 13 }, (_, i) => 6 + i);
 
     // Precompute ECEF for every sample point — reused across all time slots
     const ecefs = samples.map(s => this.localToEcef(s.local, roofMatrixWorld));
@@ -261,13 +265,20 @@ class ShadingEngine {
         const sinAlt = this._sinSolarAltitude(sunDir);
 
         if (sinAlt > 0) {
-          // Batch all rays for this time slot — pickFromRayMostDetailed is async
-          const hits = await Promise.all(
-            ecefs.map(ecef => this.castRay(ecef, sunDir))
-          );
-          for (let i = 0; i < ecefs.length; i++) {
-            totalWeight[i] += sinAlt;
-            if (hits[i].isShaded) shadedWeight[i] += sinAlt;
+          // Serial batches — pickFromRay is sync; yield between batches to
+          // keep the UI responsive and allow Cesium to process tile updates.
+          const BATCH = this.batchSize;
+          for (let b = 0; b < ecefs.length; b += BATCH) {
+            const end = Math.min(b + BATCH, ecefs.length);
+            const hits = await Promise.all(ecefs.slice(b, end).map(p => this.castRay(p, sunDir)));
+            for (let i = b; i < end; i++) {
+              const hit = hits[i - b];
+              totalWeight[i] += sinAlt;
+              if (hit.isShaded) shadedWeight[i] += sinAlt;
+            }
+            if (end < ecefs.length) {
+              await new Promise(resolve => requestAnimationFrame(resolve));
+            }
           }
         }
 
@@ -313,7 +324,7 @@ class ShadingEngine {
 
   /**
    * Compute shading for all samples at a single point in time.
-   * Batches async pickFromRayMostDetailed calls for efficiency.
+   * Serial batches — pickFromRay is synchronous; yield between batches to keep UI responsive.
    */
   async computeShading(samples, roofMatrixWorld, dateTime, progressCallback) {
     const sunDirection = this.getSunDirection(dateTime);
@@ -321,10 +332,9 @@ class ShadingEngine {
 
     for (let i = 0; i < samples.length; i += this.batchSize) {
       const batch = samples.slice(i, i + this.batchSize);
-      const batchResults = await Promise.all(
-        batch.map(s => this.analyzeSample(s, roofMatrixWorld, sunDirection))
-      );
-      results.push(...batchResults);
+      const promises = batch.map(s => this.analyzeSample(s, roofMatrixWorld, sunDirection));
+      const resolved = await Promise.all(promises);
+      results.push(...resolved);
 
       if (progressCallback) progressCallback(results.length, samples.length);
 

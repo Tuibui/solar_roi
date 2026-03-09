@@ -165,7 +165,7 @@ downloadable **glTF Binary (GLB)** solid model via a 4-stage pipeline:
 | Stage | Operation | Detail |
 |-------|-----------|--------|
 | 1. Coordinate transform | ECEF → ENU → Three.js | Rotation matrix preserves geographic orientation (south-facing stays south) |
-| 2. Triangulation | Fan triangulation | Vertices deduplicated (1 × 10⁻⁶ m), snapped across roofs (0.01 m tolerance), CCW winding enforced |
+| 2. Triangulation | Ear-clipping triangulation | Vertices deduplicated (1 × 10⁻⁶ m), snapped across roofs (0.01 m tolerance), CCW winding enforced; handles concave roofs (L/T shapes) |
 | 3. Solidification | Extrude 0.25 m | Top face + offset bottom face (reversed winding) + rectangular side quads; normals auto-fixed |
 | 4. GLB export | Trimesh → glTF 2.0 | Each roof → named node (`roof_0`, `roof_1`, …), color-coded; `doubleSided: true` patched into all materials |
 
